@@ -1,0 +1,13 @@
+"""Repository port for scan results."""
+
+from typing import Protocol
+from uuid import UUID
+
+from src.core.domain.entities.scan_result import ScanResult
+
+
+class IScanResultRepository(Protocol):
+    async def save(self, result: ScanResult) -> ScanResult: ...
+    async def get_by_id(self, scan_id: UUID) -> ScanResult | None: ...
+    async def get_by_investigation(self, investigation_id: UUID) -> list[ScanResult]: ...
+    async def get_pending(self, investigation_id: UUID) -> list[ScanResult]: ...

@@ -12,7 +12,9 @@ from src.api.middleware.correlation import CorrelationIdMiddleware
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.v1.auth.router import router as auth_router
 from src.api.v1.graph.router import router as graph_router
+from src.api.v1.investigations.graph_router import router as investigations_graph_router
 from src.api.v1.investigations.router import router as investigations_router
+from src.api.v1.investigations.websocket import router as ws_router
 from src.api.v1.payments.router import router as payments_router
 from src.api.v1.settings.router import router as settings_router
 from src.config import get_settings
@@ -103,6 +105,8 @@ def create_app() -> FastAPI:
     # Routers
     application.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
     application.include_router(investigations_router, prefix="/api/v1/investigations", tags=["investigations"])
+    application.include_router(ws_router, prefix="/api/v1/investigations", tags=["websocket"])
+    application.include_router(investigations_graph_router, prefix="/api/v1/investigations", tags=["graph"])
     application.include_router(graph_router, prefix="/api/v1/graph", tags=["graph"])
     application.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
     application.include_router(payments_router, prefix="/api/v1/payments", tags=["payments"])

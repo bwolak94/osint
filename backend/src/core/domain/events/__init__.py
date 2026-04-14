@@ -7,6 +7,14 @@ from src.core.domain.events.investigation import (
 )
 from src.core.domain.events.payment import PaymentFailed, PaymentReceived
 from src.core.domain.events.scan import ScanCompleted, ScanFailed
+from src.core.domain.events.auth import (
+    UserRegistered,
+    UserLoggedIn,
+    UserLoggedOut,
+    PasswordChanged,
+    AccountLocked,
+    RefreshTokenReused,
+)
 
 __all__ = [
     "DomainEvent",
@@ -19,4 +27,10 @@ __all__ = [
     "GraphEdgeCreated",
     "PaymentReceived",
     "PaymentFailed",
+    "UserRegistered",
+    "UserLoggedIn",
+    "UserLoggedOut",
+    "PasswordChanged",
+    "AccountLocked",
+    "RefreshTokenReused",
 ]

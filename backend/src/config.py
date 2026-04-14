@@ -47,8 +47,13 @@ class Settings(BaseSettings):
     # JWT / Auth
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 30
+    jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_minutes: int = 10080  # 7 days
+    jwt_refresh_token_expire_days: int = 7
+
+    # Login protection
+    login_max_attempts: int = 5
+    login_lockout_minutes: int = 15
 
     # Crypto / Payments
     crypto_payment_provider_url: str = ""
