@@ -1,0 +1,235 @@
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - frontend-net
+    depends_on:
+      frontend:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "5173"
+    networks:
+      - frontend-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5173/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8000"
+    env_file:
+      - .env
+    networks:
+      - frontend-net
+      - backend-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  worker:
+    image: mcr.microsoft.com/playwright/python:v1.50.0-noble
+    restart: unless-stopped
+    ipc: host
+    shm_size: 2gb
+    user: pwuser
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    env_file:
+      - .env
+    command: celery -A src.workers.celery_app worker --loglevel=info
+    networks:
+      - backend-net
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A src.workers.celery_app inspect ping --timeout 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  flower:
+    image: mher/flower:2.0
+    restart: unless-stopped
+    ports:
+      - "5555:5555"
+    env_file:
+      - .env
+    environment:
+      - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
+    networks:
+      - backend-net
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5555/healthcheck || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    expose:
+      - "6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    expose:
+      - "5432"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-osint}
+      POSTGRES_USER: ${POSTGRES_USER:-osint}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-osint} -d ${POSTGRES_DB:-osint}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  neo4j:
+    image: neo4j:5-community
+    restart: unless-stopped
+    expose:
+      - "7474"
+      - "7687"
+    env_file:
+      - .env
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-changeme}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+    volumes:
+      - neo4j-data:/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER:-neo4j} -p ${NEO4J_PASSWORD:-changeme} 'RETURN 1' || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    expose:
+      - "9001"
+    env_file:
+      - .env
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  minio-init:
+    image: minio/mc:latest
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 $${MINIO_ACCESS_KEY} $${MINIO_SECRET_KEY}; do
+        echo 'Waiting for MinIO...';
+        sleep 2;
+      done;
+      mc mb --ignore-existing local/$${MINIO_BUCKET};
+      echo 'Bucket created successfully';
+      "
+    env_file:
+      - .env
+    environment:
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_BUCKET: ${MINIO_BUCKET:-osint-data}
+    networks:
+      - backend-net
+    depends_on:
+      minio:
+        condition: service_healthy
+
+volumes:
+  redis-data:
+  postgres-data:
+  neo4j-data:
+  minio-data:
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
