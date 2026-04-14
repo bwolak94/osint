@@ -1,26 +1,40 @@
-"""Phone value object with basic validation."""
+"""Phone number value object in E.164 format."""
 
-import re
 from dataclasses import dataclass
-
-# Accepts formats like +1234567890, 123-456-7890, (123) 456-7890, etc.
-PHONE_REGEX = re.compile(r"^\+?[\d\s\-\(\)]{7,20}$")
 
 
 @dataclass(frozen=True)
-class Phone:
-    """Immutable phone number value object."""
+class PhoneNumber:
+    """Immutable, self-validating phone number value object (E.164)."""
 
-    number: str
+    value: str
+    country_code: str
 
     def __post_init__(self) -> None:
-        if not PHONE_REGEX.match(self.number):
-            raise ValueError(f"Invalid phone number: {self.number}")
+        normalized = self.value.strip()
+        object.__setattr__(self, "value", normalized)
+        object.__setattr__(self, "country_code", self.country_code.strip().upper())
+
+        if not normalized.startswith("+"):
+            raise ValueError(
+                f"Phone number must start with '+' (E.164 format): {normalized!r}"
+            )
+
+        digits = normalized[1:]
+        if not digits.isdigit():
+            raise ValueError(
+                f"Phone number must contain only digits after '+': {normalized!r}"
+            )
+
+        if not (7 <= len(digits) <= 15):
+            raise ValueError(
+                f"Phone number digit length must be between 7 and 15, "
+                f"got {len(digits)}: {normalized!r}"
+            )
+
+    def region(self) -> str:
+        """Return the ISO country code for this phone number."""
+        return self.country_code
 
     def __str__(self) -> str:
-        return self.number
-
-    @property
-    def digits_only(self) -> str:
-        """Return only the digit characters from the phone number."""
-        return re.sub(r"\D", "", self.number)
+        return self.value

@@ -1,24 +1,34 @@
-"""Abstract payment gateway port."""
-
-from abc import ABC, abstractmethod
-from typing import Any
+from dataclasses import dataclass
+from decimal import Decimal
+from enum import Enum
+from typing import Protocol
 from uuid import UUID
 
+from src.core.domain.entities.types import SubscriptionTier
 
-class IPaymentGateway(ABC):
-    """Port for payment processing."""
 
-    @abstractmethod
-    async def create_payment(self, user_id: UUID, amount_usd: float, metadata: dict[str, Any] | None = None) -> str:
-        """Initiate a payment and return a payment reference / URL."""
-        ...
+class PaymentStatus(str, Enum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    FAILED = "failed"
+    EXPIRED = "expired"
 
-    @abstractmethod
-    async def verify_payment(self, payment_id: str, payload: dict[str, Any]) -> bool:
-        """Verify a payment webhook or callback."""
-        ...
 
-    @abstractmethod
-    async def get_status(self, payment_id: str) -> dict[str, Any]:
-        """Check the current status of a payment."""
-        ...
+@dataclass(frozen=True)
+class PaymentIntent:
+    payment_id: str
+    payment_url: str
+    amount_usd: Decimal
+    crypto_amount: Decimal | None
+    crypto_currency: str | None
+    expires_at: str  # ISO format
+
+
+class IPaymentGateway(Protocol):
+    async def create_payment(
+        self, amount_usd: Decimal, user_id: UUID, tier: SubscriptionTier
+    ) -> PaymentIntent: ...
+
+    async def verify_payment(self, payment_id: str) -> PaymentStatus: ...
+
+    async def get_supported_currencies(self) -> list[str]: ...

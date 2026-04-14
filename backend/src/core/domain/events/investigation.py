@@ -1,27 +1,20 @@
-"""Investigation-related domain events."""
-
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from uuid import UUID
 
-from src.core.domain.entities.investigation import InvestigationStatus
 from src.core.domain.events.base import DomainEvent
 
 
 @dataclass(frozen=True)
 class InvestigationCreated(DomainEvent):
-    """Emitted when a new investigation is created."""
-
-    investigation_id: UUID = field(default_factory=lambda: UUID(int=0))
-    owner_id: UUID = field(default_factory=lambda: UUID(int=0))
-    title: str = ""
-    event_type: str = "InvestigationCreated"
+    """Raised when a new investigation is created."""
+    investigation_id: UUID = None  # type: ignore[assignment]
+    owner_id: UUID = None  # type: ignore[assignment]
+    seed_inputs: tuple = ()
 
 
 @dataclass(frozen=True)
 class InvestigationStatusChanged(DomainEvent):
-    """Emitted when an investigation changes status."""
-
-    investigation_id: UUID = field(default_factory=lambda: UUID(int=0))
-    old_status: InvestigationStatus = InvestigationStatus.DRAFT
-    new_status: InvestigationStatus = InvestigationStatus.DRAFT
-    event_type: str = "InvestigationStatusChanged"
+    """Raised when an investigation transitions to a new status."""
+    investigation_id: UUID = None  # type: ignore[assignment]
+    old_status: str = ""
+    new_status: str = ""
