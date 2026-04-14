@@ -1,0 +1,63 @@
+[tool.poetry]
+name = "osint-backend"
+version = "0.1.0"
+description = "OSINT investigation platform backend"
+authors = []
+readme = "README.md"
+packages = [{ include = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115"
+uvicorn = { extras = ["standard"], version = "^0.34" }
+sqlalchemy = { extras = ["asyncio"], version = "^2.0" }
+asyncpg = "^0.30"
+alembic = "^1.14"
+pydantic = { extras = ["email"], version = "^2.10" }
+pydantic-settings = "^2.7"
+redis = { extras = ["hiredis"], version = "^5.2" }
+celery = { extras = ["redis"], version = "^5.4" }
+neo4j = "^5.27"
+minio = "^7.2"
+python-jose = { extras = ["cryptography"], version = "^3.3" }
+passlib = { extras = ["bcrypt"], version = "^1.7" }
+httpx = "^0.28"
+structlog = "^25.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"
+pytest-asyncio = "^0.25"
+pytest-cov = "^6.0"
+httpx = "^0.28"
+factory-boy = "^3.3"
+ruff = "^0.9"
+mypy = "^1.14"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "A", "SIM"]
+ignore = ["ANN101", "ANN102"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --tb=short --cov=src --cov-report=term-missing"
+filterwarnings = ["ignore::DeprecationWarning"]

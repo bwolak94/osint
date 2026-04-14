@@ -1,0 +1,34 @@
+# Development overrides
+# This file is automatically loaded by docker compose alongside docker-compose.yml
+
+services:
+  api:
+    volumes:
+      - ./backend/src:/app/src
+    environment:
+      - DEBUG=true
+
+  frontend:
+    volumes:
+      - ./frontend/src:/app/src
+
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  neo4j:
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  flower:
+    profiles: []
