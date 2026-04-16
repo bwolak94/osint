@@ -19,6 +19,7 @@ class VATStatusScanner(BaseOsintScanner):
 
     scanner_name = "vat_status"
     supported_input_types = frozenset({ScanInputType.NIP})
+    cache_ttl = 604800  # 7 days — VAT status rarely changes
 
     async def _do_scan(self, input_value: str, input_type: ScanInputType) -> dict[str, Any]:
         try:

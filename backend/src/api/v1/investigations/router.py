@@ -1,10 +1,12 @@
 """CRUD and lifecycle router for investigations."""
 
+import asyncio
 from typing import Annotated
 from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.db.repositories import SqlAlchemyInvestigationRepository
@@ -103,9 +105,15 @@ async def _get_owned_investigation(
     user: User,
     repo: SqlAlchemyInvestigationRepository,
 ) -> Investigation:
-    """Fetch an investigation and verify the current user owns it."""
+    """Fetch an investigation and verify the current user owns it or has shared access."""
     investigation = await repo.get_by_id(investigation_id)
-    if investigation is None or investigation.owner_id != user.id:
+    if investigation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Investigation not found",
+        )
+    # Allow access if the user is the owner or is in the shared_with list
+    if investigation.owner_id != user.id and str(user.id) not in getattr(investigation, "shared_with", []):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Investigation not found",
@@ -127,12 +135,12 @@ async def _run_scans_background(
 
     from src.adapters.db.database import async_session_factory
     from src.adapters.db.models import ScanResultModel
-    from src.adapters.scanners.registry import create_default_registry
+    from src.adapters.scanners.registry import get_default_registry
     from src.config import get_settings
     from src.core.domain.entities.types import ScanInputType
 
     settings = get_settings()
-    registry = create_default_registry()
+    registry = get_default_registry()
 
     # Connect to Redis for progress publishing
     try:
@@ -152,26 +160,47 @@ async def _run_scans_background(
         if enabled_scanners is not None:
             scanners = [s for s in scanners if s.scanner_name in enabled_scanners]
 
-        for scanner in scanners:
-            # Publish progress
-            if redis:
-                try:
-                    await redis.publish(channel, json.dumps({
-                        "type": "progress",
-                        "completed": completed,
-                        "total": total * max(len(scanners), 1),
-                        "percentage": round(completed / max(total * max(len(scanners), 1), 1) * 100, 1),
-                        "current_scanner": scanner.scanner_name,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                    }))
-                except Exception:
-                    pass
+        # Check if investigation was paused before starting this seed
+        async with async_session_factory() as check_session:
+            from src.adapters.db.models import InvestigationModel
+            inv_model = await check_session.get(InvestigationModel, investigation_id)
+            if inv_model and inv_model.status != "running":
+                log.info("Investigation paused/stopped, aborting scan", investigation_id=str(investigation_id))
+                break
 
-            # Run the scanner
+        # Publish progress before launching concurrent scans
+        scanner_count = max(len(scanners), 1)
+        if redis:
             try:
-                result = await scanner.scan(seed.value, input_type, investigation_id=investigation_id)
+                await redis.publish(channel, json.dumps({
+                    "type": "progress",
+                    "completed": completed,
+                    "total": total * scanner_count,
+                    "percentage": round(completed / max(total * scanner_count, 1) * 100, 1),
+                    "current_scanner": ",".join(s.scanner_name for s in scanners),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }))
+            except Exception:
+                pass
 
-                # Save result to DB
+        # Run all scanners for this seed concurrently
+        async def _run_single_scan(scanner, seed_value, scan_input_type, inv_id):
+            return await scanner.scan(seed_value, scan_input_type, investigation_id=inv_id)
+
+        tasks = [
+            _run_single_scan(s, seed.value, input_type, investigation_id)
+            for s in scanners
+        ]
+        scan_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Process results and save to DB
+        for scanner, result in zip(scanners, scan_results):
+            if isinstance(result, Exception):
+                log.warning("Scanner failed", scanner=scanner.scanner_name, error=str(result))
+                completed += 1
+                continue
+
+            try:
                 async with async_session_factory() as session:
                     model = ScanResultModel(
                         id=result.id,
@@ -199,9 +228,67 @@ async def _run_scans_background(
                     except Exception:
                         pass
             except Exception as exc:
-                log.warning("Scanner failed", scanner=scanner.scanner_name, error=str(exc))
+                log.warning("Failed to save scan result", scanner=scanner.scanner_name, error=str(exc))
 
             completed += 1
+
+    # Auto-pivot: scan newly discovered identifiers (depth 2)
+    if not aborted:
+        new_seeds: set[tuple[str, str]] = set()
+        original_values = {s.value for s in seed_inputs}
+        async with async_session_factory() as session:
+            pivot_scan_repo = SqlAlchemyScanResultRepository(session)
+            all_results = await pivot_scan_repo.get_by_investigation(investigation_id)
+            for r in all_results:
+                for ident in (r.extracted_identifiers or []):
+                    if ":" in ident:
+                        kind, val = ident.split(":", 1)
+                        if kind == "email" and val not in original_values:
+                            new_seeds.add(("email", val))
+                        elif kind == "username" and val not in original_values:
+                            new_seeds.add(("username", val))
+
+        if new_seeds and len(new_seeds) <= 5:
+            log.info("Auto-pivot: scanning discovered identifiers", count=len(new_seeds), investigation_id=str(investigation_id))
+            for seed_type, seed_value in new_seeds:
+                input_type = ScanInputType(seed_type)
+                scanners = registry.get_for_input_type(input_type)
+                if enabled_scanners is not None:
+                    scanners = [s for s in scanners if s.scanner_name in enabled_scanners]
+                for scanner in scanners:
+                    try:
+                        result = await scanner.scan(seed_value, input_type, investigation_id=investigation_id)
+                        async with async_session_factory() as save_session:
+                            model = ScanResultModel(
+                                id=result.id,
+                                investigation_id=investigation_id,
+                                scanner_name=result.scanner_name,
+                                input_value=result.input_value,
+                                status=result.status,
+                                raw_data=result.raw_data,
+                                extracted_identifiers=result.extracted_identifiers,
+                                duration_ms=result.duration_ms,
+                                error_message=result.error_message,
+                            )
+                            save_session.add(model)
+                            await save_session.commit()
+                        completed += 1
+                    except Exception:
+                        pass
+
+    # Run entity resolution
+    try:
+        from src.adapters.entity_resolution.resolver import SimpleEntityResolver
+        resolver = SimpleEntityResolver()
+
+        async with async_session_factory() as resolve_session:
+            scan_repo_resolve = SqlAlchemyScanResultRepository(resolve_session)
+            all_results = await scan_repo_resolve.get_by_investigation(investigation_id)
+            records = [{"extracted_identifiers": r.extracted_identifiers or [], **r.raw_data} for r in all_results if r.raw_data]
+            clusters = resolver.cluster_records(records)
+            log.info("Entity resolution complete", investigation_id=str(investigation_id), clusters=len(clusters))
+    except Exception as exc:
+        log.warning("Entity resolution failed", error=str(exc))
 
     # Mark investigation as completed
     async with async_session_factory() as session:
@@ -211,6 +298,10 @@ async def _run_scans_background(
             model.status = "completed"
             model.completed_at = datetime.now(timezone.utc)
             await session.commit()
+
+    # TODO: Send email notification to user when investigation completes
+    # await notification_service.send_investigation_complete(investigation_id, user_email)
+    log.info("Investigation completed — notification would be sent here", investigation_id=str(investigation_id))
 
     # Publish completion
     if redis:
@@ -277,15 +368,14 @@ async def list_investigations(
     """List investigations with cursor-based pagination."""
     repo = SqlAlchemyInvestigationRepository(db)
 
-    # Fetch limit+1 to determine if there is a next page
-    investigations = await repo.list_by_owner(
+    # Use cursor-based pagination
+    investigations, has_next = await repo.list_by_owner_cursor(
         current_user.id,
-        offset=0,
-        limit=limit + 1,
+        cursor=cursor,
+        limit=limit,
     )
 
-    has_next = len(investigations) > limit
-    page = investigations[:limit]
+    page = investigations
 
     next_cursor: str | None = None
     if has_next and page:
@@ -338,7 +428,7 @@ async def update_investigation(
         updated_at=investigation.updated_at,
         completed_at=investigation.completed_at,
     )
-    updated = await repo.update(updated)
+    updated = await repo.save(updated)
     return _build_response(updated)
 
 
@@ -364,7 +454,7 @@ async def delete_investigation(
             detail=f"Cannot delete investigation in status '{investigation.status.value}'",
         )
 
-    await repo.update(archived)
+    await repo.save(archived)
 
 
 @router.post("/{investigation_id}/start", response_model=InvestigationResponse)
@@ -417,7 +507,7 @@ async def pause_investigation(
             detail=str(exc),
         )
 
-    saved = await repo.update(paused)
+    saved = await repo.save(paused)
     return _build_response(saved)
 
 
@@ -439,7 +529,7 @@ async def resume_investigation(
             detail=str(exc),
         )
 
-    saved = await repo.update(running)
+    saved = await repo.save(running)
     return _build_response(saved)
 
 
@@ -453,9 +543,21 @@ async def get_investigation_status(
     repo = SqlAlchemyInvestigationRepository(db)
     await _get_owned_investigation(investigation_id, current_user, repo)
 
-    # Real progress tracking will be delivered via WebSocket.
-    # This endpoint returns a default for now.
-    return ScanProgressSchema()
+    # Query scan results from DB for real progress data
+    scan_repo = SqlAlchemyScanResultRepository(db)
+    results = await scan_repo.get_by_investigation(investigation_id)
+
+    total = len(results)
+    failed = sum(1 for r in results if r.status.value == "failed")
+    completed = sum(1 for r in results if r.status.value in ("success", "failed"))
+    percentage = round(completed / total * 100, 1) if total > 0 else 0.0
+
+    return ScanProgressSchema(
+        total_tasks=total,
+        completed_tasks=completed,
+        failed_tasks=failed,
+        percentage=percentage,
+    )
 
 
 @router.get("/{investigation_id}/results", response_model=InvestigationResultsResponse)
@@ -554,17 +656,48 @@ async def get_investigation_results(
     )
 
 
-@router.post("/{investigation_id}/export", response_model=MessageResponse)
+@router.post("/{investigation_id}/export")
 async def export_investigation(
     investigation_id: UUID,
-    body: ExportRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> MessageResponse:
-    """Trigger an export of the investigation data (placeholder)."""
+) -> JSONResponse:
+    """Export investigation data as JSON."""
     repo = SqlAlchemyInvestigationRepository(db)
-    await _get_owned_investigation(investigation_id, current_user, repo)
+    investigation = await _get_owned_investigation(investigation_id, current_user, repo)
 
-    return MessageResponse(
-        message=f"Export in '{body.format}' format has been queued for investigation {investigation_id}.",
+    scan_repo = SqlAlchemyScanResultRepository(db)
+    results = await scan_repo.get_by_investigation(investigation_id)
+
+    export_data = {
+        "investigation": {
+            "id": str(investigation.id),
+            "title": investigation.title,
+            "description": investigation.description,
+            "status": investigation.status.value,
+            "created_at": investigation.created_at.isoformat(),
+            "updated_at": investigation.updated_at.isoformat(),
+            "seed_inputs": [{"type": s.input_type.value, "value": s.value} for s in investigation.seed_inputs],
+            "tags": sorted(t for t in investigation.tags if not t.startswith("__")),
+        },
+        "scan_results": [
+            {
+                "scanner": r.scanner_name,
+                "input": r.input_value,
+                "status": r.status.value,
+                "findings_count": len(r.extracted_identifiers),
+                "duration_ms": r.duration_ms,
+                "raw_data": r.raw_data or {},
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in results
+        ],
+        "exported_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+    }
+
+    return JSONResponse(
+        content=export_data,
+        headers={
+            "Content-Disposition": f'attachment; filename="investigation-{investigation_id}.json"',
+        },
     )

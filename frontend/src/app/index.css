@@ -74,6 +74,24 @@
   --shadow-glow: 0 0 20px rgba(15, 184, 181, 0.25);
 }
 
+[data-theme="light"] {
+  --bg-base: #f8f9fa;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f1f3f5;
+  --bg-overlay: #e9ecef;
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.12);
+  --border-strong: rgba(0, 0, 0, 0.20);
+  --text-primary: #1a1d24;
+  --text-secondary: #495057;
+  --text-tertiary: #868e96;
+  --text-inverse: #f1f3f5;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
+  --shadow-glow: 0 0 20px rgba(15, 184, 181, 0.15);
+}
+
 @layer base {
   body {
     font-family: var(--font-sans);

@@ -1,6 +1,6 @@
 import {
   Mail, AtSign, Building2, FileSearch, Receipt, Globe, Shield,
-  CheckCircle2, Clock, Database, Users, CreditCard, MapPin, Hash,
+  CheckCircle2, Clock, Database, Users, CreditCard, MapPin, Hash, Search,
 } from "lucide-react";
 import { Card, CardBody } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
@@ -128,6 +128,48 @@ const scanners: Scanner[] = [
     requiresPro: true,
     speed: "medium",
   },
+  {
+    id: "whois",
+    name: "WHOIS Lookup",
+    description: "Domain ownership, registrar, nameservers, and registration dates",
+    longDescription:
+      "Queries RDAP/WHOIS data for a domain to retrieve registrant information, registrar details, nameservers, domain status, and key dates (registration, expiration, last update). Uses the public RDAP protocol for structured responses.",
+    inputTypes: [{ type: "domain", label: "Domain" }],
+    dataFound: [
+      "Domain registrar",
+      "Nameservers",
+      "Registration date",
+      "Expiration date",
+      "Domain status flags",
+      "Last update timestamp",
+    ],
+    source: "rdap.org (RDAP protocol)",
+    icon: Globe,
+    color: "var(--node-domain)",
+    requiresPro: false,
+    speed: "fast",
+  },
+  {
+    id: "dns_lookup",
+    name: "DNS Records",
+    description: "A, MX, NS, TXT records and IP resolution",
+    longDescription:
+      "Resolves DNS records for a domain using Google DNS-over-HTTPS. Returns A records (IP addresses), MX records (mail servers), NS records (nameservers), and TXT records (SPF, DKIM, verification entries). Extracted IPs and mail domains are added as identifiers for further investigation.",
+    inputTypes: [{ type: "domain", label: "Domain" }],
+    dataFound: [
+      "A records (IPv4 addresses)",
+      "MX records (mail servers with priority)",
+      "NS records (authoritative nameservers)",
+      "TXT records (SPF, DKIM, verification)",
+      "Resolved IP addresses",
+      "Mail server domains",
+    ],
+    source: "dns.google (DNS-over-HTTPS)",
+    icon: Search,
+    color: "var(--node-domain)",
+    requiresPro: false,
+    speed: "fast",
+  },
 ];
 
 const speedConfig = {
@@ -149,11 +191,12 @@ export function ScannersPage() {
       </div>
 
       {/* Scanner type overview */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-4">
         {[
           { type: "Email", icon: Mail, scanners: ["holehe"], color: "var(--node-email)" },
           { type: "Username", icon: AtSign, scanners: ["maigret"], color: "var(--node-username)" },
           { type: "NIP", icon: Building2, scanners: ["vat_status", "playwright_krs", "playwright_ceidg"], color: "var(--node-company)" },
+          { type: "Domain", icon: Globe, scanners: ["whois", "dns_lookup"], color: "var(--node-domain)" },
         ].map((g) => (
           <Card key={g.type}>
             <CardBody className="flex items-center gap-3">

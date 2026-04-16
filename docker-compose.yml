@@ -113,6 +113,7 @@ services:
       - .env
     environment:
       - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
+      - FLOWER_BASIC_AUTH=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
     networks:
       - backend-net
     depends_on:

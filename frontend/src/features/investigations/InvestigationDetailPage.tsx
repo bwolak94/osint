@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon } from "lucide-react";
+import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon, Copy } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
@@ -12,7 +12,9 @@ import { ConfidenceIndicator } from "@/shared/components/osint/ConfidenceIndicat
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ScanProgressPanel } from "./ScanProgressPanel";
 import { useInvestigationWebSocket } from "./useInvestigationWebSocket";
-import { useInvestigation, useInvestigationResults, useStartInvestigation, usePauseInvestigation } from "./hooks";
+import { useInvestigation, useInvestigationResults, useStartInvestigation, usePauseInvestigation, useCreateInvestigation } from "./hooks";
+import { apiClient } from "@/shared/api/client";
+import { toast } from "@/shared/components/Toast";
 
 const statusVariant: Record<string, "neutral" | "info" | "success" | "warning" | "danger"> = {
   draft: "neutral", running: "info", paused: "warning", completed: "success", archived: "danger",
@@ -28,14 +30,62 @@ export function InvestigationDetailPage() {
   const [expandedScanId, setExpandedScanId] = useState<string | null>(null);
 
   const { data: investigation, isLoading } = useInvestigation(id ?? "");
-  const { data: results, refetch: refetchResults } = useInvestigationResults(id ?? "");
+  const isRunning = investigation?.status === "running";
+  const { data: results, refetch: refetchResults } = useInvestigationResults(id ?? "", isRunning);
   const startMutation = useStartInvestigation();
   const pauseMutation = usePauseInvestigation();
+  const createMutation = useCreateInvestigation();
+
+  const handleRerun = async () => {
+    if (!id || !investigation) return;
+    // Create a new investigation with same seeds and start it
+    try {
+      const newInv = await createMutation.mutateAsync({
+        title: `${investigation.title} (re-run)`,
+        description: investigation.description,
+        seed_inputs: investigation.seed_inputs ?? [],
+        tags: investigation.tags ?? [],
+      });
+      await startMutation.mutateAsync(newInv.id);
+      navigate(`/investigations/${newInv.id}`);
+    } catch {
+      // Errors handled by mutation toast callbacks
+    }
+  };
+
+  const handleDuplicate = async () => {
+    if (!investigation) return;
+    try {
+      const newInv = await createMutation.mutateAsync({
+        title: `${investigation.title} (copy)`,
+        description: investigation.description,
+        seed_inputs: investigation.seed_inputs ?? [],
+        tags: investigation.tags ?? [],
+      });
+      navigate(`/investigations/${newInv.id}`);
+    } catch {
+      // Errors handled by mutation toast callbacks
+    }
+  };
+
+  const handleExport = async () => {
+    if (!id) return;
+    try {
+      const res = await apiClient.post(`/investigations/${id}/export`, null, { responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([JSON.stringify(res.data, null, 2)]));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `investigation-${id}.json`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Investigation exported");
+    } catch {
+      toast.error("Export failed");
+    }
+  };
 
   // Track previous status to detect transitions
   const prevStatusRef = useRef<string | undefined>(undefined);
-
-  const isRunning = investigation?.status === "running";
 
   // Only enable WebSocket while investigation is running
   const { progress, connected } = useInvestigationWebSocket(id, isRunning);
@@ -51,14 +101,6 @@ export function InvestigationDetailPage() {
     prevStatusRef.current = currentStatus;
   }, [investigation?.status, refetchResults, queryClient, id]);
 
-  // Also refetch results periodically while running
-  useEffect(() => {
-    if (!isRunning) return;
-    const interval = setInterval(() => {
-      refetchResults();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [isRunning, refetchResults]);
 
   const tabs: { value: Tab; label: string; icon: typeof Activity }[] = [
     { value: "overview", label: "Overview", icon: Activity },
@@ -121,10 +163,20 @@ export function InvestigationDetailPage() {
           ) : investigation.status === "draft" || investigation.status === "paused" ? (
             <Button size="sm" leftIcon={<Play className="h-4 w-4" />} loading={startMutation.isPending} onClick={() => id && startMutation.mutate(id)}>Start</Button>
           ) : null}
+          {investigation.status === "completed" && (
+            <>
+              <Button size="sm" leftIcon={<Play className="h-4 w-4" />} onClick={handleRerun}>
+                Re-run
+              </Button>
+              <Button variant="secondary" size="sm" leftIcon={<Copy className="h-4 w-4" />} onClick={handleDuplicate}>
+                Duplicate
+              </Button>
+            </>
+          )}
           <Button variant="secondary" size="sm" leftIcon={<Network className="h-4 w-4" />} onClick={() => navigate(`/investigations/${id}/graph`)}>
             Graph
           </Button>
-          <Button variant="ghost" size="sm" leftIcon={<Download className="h-4 w-4" />}>Export</Button>
+          <Button variant="ghost" size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={handleExport}>Export</Button>
         </div>
       </div>
 

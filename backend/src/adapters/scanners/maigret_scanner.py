@@ -22,6 +22,7 @@ class MaigretScanner(BaseOsintScanner):
 
     scanner_name = "maigret"
     supported_input_types = frozenset({ScanInputType.USERNAME})
+    cache_ttl = 21600  # 6 hours — accounts change frequently
 
     async def _do_scan(self, input_value: str, input_type: ScanInputType) -> dict[str, Any]:
         try:

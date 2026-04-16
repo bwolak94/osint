@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import ReactFlow, { Background, MiniMap, ReactFlowProvider, type NodeTypes, type EdgeTypes, type Node } from "reactflow";
+import ReactFlow, { Background, MiniMap, ReactFlowProvider, useReactFlow, type NodeTypes, type EdgeTypes, type Node } from "reactflow";
 import "reactflow/dist/style.css";
 import { ArrowLeft } from "lucide-react";
 
@@ -11,6 +11,8 @@ import { NodeDetailPanel } from "./components/NodeDetailPanel";
 import { GraphStatusBar } from "./components/GraphStatusBar";
 import { useGraphNodes, useNodeSelection, useNodeSearch, useNodeFilters, usePathFinding } from "./hooks";
 import { useGraphLayout } from "./useGraphLayout";
+import { Card, CardBody } from "@/shared/components/Card";
+import { EmptyState } from "@/shared/components/EmptyState";
 import type { OsintNodeData, LayoutType } from "./types";
 
 const nodeTypes: NodeTypes = {
@@ -88,6 +90,18 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
       });
   }, [selectedNodeId, edges, nodes]);
 
+  // Export graph data as JSON
+  const handleExport = useCallback(() => {
+    const graphData = { nodes: filteredNodes, edges: filteredEdges };
+    const blob = new Blob([JSON.stringify(graphData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "graph-export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredNodes, filteredEdges]);
+
   // Handle node click
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node<OsintNodeData>) => {
@@ -99,6 +113,41 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
     },
     [pathFinding, selectNode],
   );
+
+  // Keyboard shortcuts
+  const { zoomIn, zoomOut, fitView } = useReactFlow();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.key) {
+        case "Escape":
+          selectNode(null);
+          pathFinding.cancelPathFinding();
+          break;
+        case "+":
+        case "=":
+          zoomIn();
+          break;
+        case "-":
+          zoomOut();
+          break;
+        case "f":
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault();
+            // Focus search input
+            document.querySelector<HTMLInputElement>('[placeholder*="Search"]')?.focus();
+          } else {
+            fitView({ padding: 0.2 });
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectNode, pathFinding, zoomIn, zoomOut, fitView]);
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
@@ -130,52 +179,65 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
         onCancelPathFinding={pathFinding.cancelPathFinding}
         pathSourceId={pathFinding.sourceId}
         pathTargetId={pathFinding.targetId}
+        onExport={handleExport}
       />
 
       {/* Graph canvas */}
-      <div className="relative mt-2 flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-subtle)" }}>
-        <ReactFlow
-          nodes={filteredNodes}
-          edges={filteredEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          onNodeClick={onNodeClick}
-          onPaneClick={() => { selectNode(null); pathFinding.cancelPathFinding(); }}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.1}
-          maxZoom={3}
-          defaultEdgeOptions={{ type: "relationship" }}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background
-            gap={24}
-            color="var(--border-subtle)"
-            style={{ background: "var(--bg-base)" }}
-          />
-          <MiniMap
-            nodeColor={(node) => {
-              const colors: Record<string, string> = {
-                person: "#818cf8", company: "#22d3d0", email: "#34d399",
-                phone: "#fbbf24", username: "#a78bfa", ip: "#f87171", domain: "#60a5fa",
-              };
-              return colors[node.data?.type] ?? "#4e5566";
-            }}
-            maskColor="rgba(10, 11, 13, 0.8)"
-            style={{ background: "var(--bg-elevated)" }}
-          />
-        </ReactFlow>
+      {filteredNodes.length === 0 && !isLoading ? (
+        <Card className="flex-1">
+          <CardBody className="flex h-full items-center justify-center">
+            <EmptyState
+              variant="no-data"
+              title="No graph data yet"
+              description="Run a scan on this investigation to see the knowledge graph populate with discovered entities and relationships."
+            />
+          </CardBody>
+        </Card>
+      ) : (
+        <div className="relative mt-2 flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-subtle)" }}>
+          <ReactFlow
+            nodes={filteredNodes}
+            edges={filteredEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            onNodeClick={onNodeClick}
+            onPaneClick={() => { selectNode(null); pathFinding.cancelPathFinding(); }}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            minZoom={0.1}
+            maxZoom={3}
+            defaultEdgeOptions={{ type: "relationship" }}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background
+              gap={24}
+              color="var(--border-subtle)"
+              style={{ background: "var(--bg-base)" }}
+            />
+            <MiniMap
+              nodeColor={(node) => {
+                const colors: Record<string, string> = {
+                  person: "#818cf8", company: "#22d3d0", email: "#34d399",
+                  phone: "#fbbf24", username: "#a78bfa", ip: "#f87171", domain: "#60a5fa",
+                };
+                return colors[node.data?.type] ?? "#4e5566";
+              }}
+              maskColor="rgba(10, 11, 13, 0.8)"
+              style={{ background: "var(--bg-elevated)" }}
+            />
+          </ReactFlow>
 
-        {/* Node detail panel */}
-        <NodeDetailPanel
-          node={selectedNodeData}
-          connectedNodes={connectedNodes}
-          onClose={() => selectNode(null)}
-          onExpandNode={(id) => { selectNode(id); }}
-        />
-      </div>
+          {/* Node detail panel */}
+          <NodeDetailPanel
+            node={selectedNodeData}
+            connectedNodes={connectedNodes}
+            onClose={() => selectNode(null)}
+            onExpandNode={(id) => { selectNode(id); }}
+          />
+        </div>
+      )}
 
       {/* Status bar */}
       <GraphStatusBar nodeCount={filteredNodes.length} edgeCount={filteredEdges.length} />

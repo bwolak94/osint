@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, Plus, Trash2, Tag, ArrowRight, ArrowLeft, Zap, CheckSquare } from "lucide-react";
+import { X, Plus, Trash2, Tag, ArrowRight, ArrowLeft, Zap, CheckSquare, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
@@ -21,6 +21,7 @@ const seedTypes = [
   { value: "phone", label: "Phone" },
   { value: "url", label: "URL" },
   { value: "company_name", label: "Company" },
+  { value: "domain", label: "Domain" },
 ] as const;
 
 // Scanner definitions with supported input types
@@ -55,6 +56,18 @@ const AVAILABLE_SCANNERS = [
     description: "Search CEIDG for sole proprietorship data",
     inputTypes: ["nip"],
   },
+  {
+    name: "whois",
+    label: "WHOIS Lookup",
+    description: "Domain ownership, registrar, nameservers, and registration dates",
+    inputTypes: ["domain"],
+  },
+  {
+    name: "dns_lookup",
+    label: "DNS Records",
+    description: "A, MX, NS, TXT records and IP resolution",
+    inputTypes: ["domain"],
+  },
 ] as const;
 
 const schema = z.object({
@@ -81,10 +94,20 @@ function isValidNIP(nip: string): boolean {
   return sum % 11 === digits[9];
 }
 
+const templates = [
+  { name: "Email OSINT", desc: "Full email investigation", seeds: [{ type: "email", value: "" }], scanners: ["holehe"] },
+  { name: "Company Deep Dive", desc: "NIP + VAT + KRS + CEIDG", seeds: [{ type: "nip", value: "" }], scanners: ["vat_status", "playwright_krs", "playwright_ceidg"] },
+  { name: "Username Search", desc: "Find profiles across 3000+ sites", seeds: [{ type: "username", value: "" }], scanners: ["maigret"] },
+  { name: "Custom", desc: "Configure manually", seeds: [], scanners: [] },
+];
+
 export function CreateInvestigationModal({ onClose }: Props) {
   const [step, setStep] = useState(1);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState("");
   const [formError, setFormError] = useState("");
+  const [showBulkImport, setShowBulkImport] = useState(false);
+  const [bulkText, setBulkText] = useState("");
   const navigate = useNavigate();
   const createMutation = useCreateInvestigation();
 
@@ -93,10 +116,40 @@ export function CreateInvestigationModal({ onClose }: Props) {
     defaultValues: { seeds: [{ type: "email", value: "" }], tags: [], startImmediately: false, enabledScanners: [] },
   });
 
-  const { fields, append, remove } = useFieldArray({ control, name: "seeds" });
+  const { fields, append, remove, replace } = useFieldArray({ control, name: "seeds" });
   const tags = watch("tags") ?? [];
   const seeds = watch("seeds");
   const enabledScanners = watch("enabledScanners") ?? [];
+
+  const handleBulkImport = () => {
+    const lines = bulkText.split("\n").map(l => l.trim()).filter(Boolean);
+    const newSeeds = lines.map(line => {
+      // Auto-detect type
+      let type = "email";
+      if (line.includes("@")) type = "email";
+      else if (/^\d{10}$/.test(line.replace(/[-\s]/g, ""))) type = "nip";
+      else if (line.startsWith("http")) type = "url";
+      else if (line.includes(".")) type = "domain";
+      else type = "username";
+      return { type, value: line };
+    });
+    // Append to existing seeds
+    for (const s of newSeeds) {
+      if (fields.length < 10) append(s);
+    }
+    setShowBulkImport(false);
+    setBulkText("");
+  };
+
+  const selectTemplate = (tpl: typeof templates[number]) => {
+    setSelectedTemplate(tpl.name);
+    if (tpl.seeds.length > 0) {
+      replace(tpl.seeds);
+    }
+    if (tpl.scanners.length > 0) {
+      setValue("enabledScanners", tpl.scanners);
+    }
+  };
 
   // Determine which scanners are applicable based on seed input types
   const applicableScanners = useMemo(() => {
@@ -180,6 +233,32 @@ export function CreateInvestigationModal({ onClose }: Props) {
             <AnimatePresence mode="wait">
               {step === 1 && (
                 <motion.div key="s1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
+                  {/* Template selector */}
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Start from a template</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {templates.map((tpl) => (
+                        <button
+                          key={tpl.name}
+                          type="button"
+                          onClick={() => selectTemplate(tpl)}
+                          className={`rounded-lg border p-3 text-left transition-all ${
+                            selectedTemplate === tpl.name
+                              ? "border-brand-500 bg-brand-900/30"
+                              : "border-border hover:bg-bg-overlay"
+                          }`}
+                          style={{ borderColor: selectedTemplate === tpl.name ? "var(--brand-500)" : "var(--border-default)" }}
+                        >
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" style={{ color: selectedTemplate === tpl.name ? "var(--brand-400)" : "var(--text-tertiary)" }} />
+                            <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{tpl.name}</span>
+                          </div>
+                          <p className="mt-1 text-xs" style={{ color: "var(--text-tertiary)" }}>{tpl.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   <Input label="Title" placeholder="Investigation #1 — XYZ Company" error={errors.title?.message} {...register("title")} autoFocus />
                   <div>
                     <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Description (optional)</label>
@@ -270,9 +349,30 @@ export function CreateInvestigationModal({ onClose }: Props) {
                     <p className="text-xs" style={{ color: "var(--danger-500)" }}>{errors.seeds.message}</p>
                   )}
                   {fields.length < 10 && (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => append({ type: "email", value: "" })} leftIcon={<Plus className="h-3 w-3" />}>
-                      Add seed input
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button type="button" variant="ghost" size="sm" onClick={() => append({ type: "email", value: "" })} leftIcon={<Plus className="h-3 w-3" />}>
+                        Add seed input
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setShowBulkImport(true)}>
+                        Bulk Import
+                      </Button>
+                    </div>
+                  )}
+                  {showBulkImport && (
+                    <div className="space-y-2 rounded-md border p-3" style={{ background: "var(--bg-elevated)", borderColor: "var(--border-default)" }}>
+                      <textarea
+                        rows={5}
+                        className="w-full rounded-md border px-3 py-2 text-sm font-mono"
+                        style={{ background: "var(--bg-base)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+                        placeholder="Paste one value per line (emails, NIPs, usernames, domains)..."
+                        value={bulkText}
+                        onChange={(e) => setBulkText(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" onClick={handleBulkImport}>Import</Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setShowBulkImport(false)}>Cancel</Button>
+                      </div>
+                    </div>
                   )}
                 </motion.div>
               )}

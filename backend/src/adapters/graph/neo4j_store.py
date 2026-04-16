@@ -182,16 +182,14 @@ class Neo4jGraphRepository:
         self, source_id: UUID, target_id: UUID, max_depth: int = 5
     ) -> list[list[GraphNode]]:
         """Find shortest paths between two nodes using Neo4j shortestPath."""
-        query = """
-        MATCH (source:OsintNode {id: $source_id}),
-              (target:OsintNode {id: $target_id})
-        MATCH path = shortestPath((source)-[:OSINT_RELATION*..10]-(target))
-        RETURN [node IN nodes(path) | {
-            id: node.id,
-            node_type: node.node_type,
-            label: node.label,
-            confidence: node.confidence
-        }] AS path_nodes
+        clamped = min(max(max_depth, 1), 10)  # Clamp to safe range
+        query = f"""
+        MATCH (source:OsintNode {{id: $source_id}}),
+              (target:OsintNode {{id: $target_id}})
+        MATCH path = shortestPath((source)-[:OSINT_RELATION*..{clamped}]-(target))
+        RETURN [node IN nodes(path) | {{
+            id: node.id, node_type: node.node_type, label: node.label, confidence: node.confidence
+        }}] AS path_nodes
         LIMIT 5
         """
         paths: list[list[GraphNode]] = []

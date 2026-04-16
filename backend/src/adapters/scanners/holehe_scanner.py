@@ -1,5 +1,6 @@
 """Holehe scanner — checks email registration across 120+ services via password recovery endpoints."""
 
+import asyncio
 from typing import Any
 
 import structlog
@@ -19,10 +20,10 @@ class HoleheScanner(BaseOsintScanner):
 
     scanner_name = "holehe"
     supported_input_types = frozenset({ScanInputType.EMAIL})
+    cache_ttl = 21600  # 6 hours — accounts change frequently
 
     async def _do_scan(self, input_value: str, input_type: ScanInputType) -> dict[str, Any]:
         try:
-            import trio
             import httpx
             from holehe.core import import_submodules, get_functions
             import holehe.modules
@@ -32,15 +33,20 @@ class HoleheScanner(BaseOsintScanner):
 
             out: list[dict[str, Any]] = []
 
-            async def _run() -> None:
-                async with httpx.AsyncClient(timeout=15) as client:
-                    for fn in fns:
-                        try:
-                            await fn(input_value, client, out)
-                        except Exception:
-                            pass
-
-            trio.run(_run)
+            async with httpx.AsyncClient(timeout=15) as client:
+                # Run all checks concurrently in batches to avoid overwhelming
+                batch_size = 20
+                for i in range(0, len(fns), batch_size):
+                    batch = fns[i : i + batch_size]
+                    tasks = []
+                    for fn in batch:
+                        async def _check(f=fn) -> None:
+                            try:
+                                await f(input_value, client, out)
+                            except Exception:
+                                pass
+                        tasks.append(_check())
+                    await asyncio.gather(*tasks)
 
             registered = [r for r in out if r.get("exists") is True]
             services = [r.get("name", "") for r in registered]

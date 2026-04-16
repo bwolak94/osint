@@ -24,6 +24,7 @@ class Investigation:
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None = None
+    shared_with: list[str] | None = None
 
     # -- behaviour ----------------------------------------------------------
 

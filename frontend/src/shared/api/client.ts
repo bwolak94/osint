@@ -96,13 +96,11 @@ apiClient.interceptors.response.use(
   },
 );
 
-// Token accessors (using zustand store directly)
+// Token accessors — read/write from in-memory zustand store (not localStorage)
 function getAccessToken(): string | null {
   try {
-    const raw = localStorage.getItem("auth-storage");
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.state?.accessToken ?? null;
+    const { useAuthStore } = require("@/features/auth/store");
+    return useAuthStore.getState().accessToken;
   } catch {
     return null;
   }
@@ -110,19 +108,16 @@ function getAccessToken(): string | null {
 
 function setAccessToken(token: string): void {
   try {
-    const raw = localStorage.getItem("auth-storage");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      parsed.state.accessToken = token;
-      localStorage.setItem("auth-storage", JSON.stringify(parsed));
-    }
-  } catch {
-    // noop
-  }
+    const { useAuthStore } = require("@/features/auth/store");
+    useAuthStore.getState().setAccessToken(token);
+  } catch {}
 }
 
 function clearAuth(): void {
-  localStorage.removeItem("auth-storage");
+  try {
+    const { useAuthStore } = require("@/features/auth/store");
+    useAuthStore.getState().logout();
+  } catch {}
 }
 
 export { apiClient };

@@ -1,11 +1,13 @@
 """Scanner registry — maps input types to available scanners."""
 
 from src.adapters.scanners.base import BaseOsintScanner
+from src.adapters.scanners.dns_scanner import DNSScanner
 from src.adapters.scanners.holehe_scanner import HoleheScanner
 from src.adapters.scanners.maigret_scanner import MaigretScanner
 from src.adapters.scanners.playwright_ceidg import PlaywrightCEIDGScanner
 from src.adapters.scanners.playwright_krs import PlaywrightKRSScanner
 from src.adapters.scanners.playwright_vat import VATStatusScanner
+from src.adapters.scanners.whois_scanner import WhoisScanner
 from src.core.domain.entities.types import ScanInputType
 
 
@@ -44,4 +46,17 @@ def create_default_registry() -> ScannerRegistry:
     registry.register(PlaywrightKRSScanner())
     registry.register(PlaywrightCEIDGScanner())
     registry.register(VATStatusScanner())
+    registry.register(WhoisScanner())
+    registry.register(DNSScanner())
     return registry
+
+
+_default_registry: ScannerRegistry | None = None  # Reset on module reload
+
+
+def get_default_registry() -> ScannerRegistry:
+    """Return a cached singleton scanner registry."""
+    global _default_registry
+    if _default_registry is None:
+        _default_registry = create_default_registry()
+    return _default_registry

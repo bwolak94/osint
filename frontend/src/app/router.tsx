@@ -13,6 +13,7 @@ const GraphPage = lazy(() => import("@/features/graph/GraphPage").then((m) => ({
 const SettingsPage = lazy(() => import("@/features/settings/SettingsPage").then((m) => ({ default: m.SettingsPage })));
 const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage").then((m) => ({ default: m.PaymentsPage })));
 const ScannersPage = lazy(() => import("@/features/scanners/ScannersPage").then((m) => ({ default: m.ScannersPage })));
+const AdminPage = lazy(() => import("@/features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -45,6 +46,7 @@ export const router = createBrowserRouter([
       { path: "investigations/:id", element: <Lazy><InvestigationDetailPage /></Lazy> },
       { path: "investigations/:id/graph", element: <Lazy><GraphPage /></Lazy> },
       { path: "scanners", element: <Lazy><ScannersPage /></Lazy> },
+      { path: "admin", element: <Lazy><AdminPage /></Lazy> },
       { path: "settings", element: <Lazy><SettingsPage /></Lazy> },
       { path: "billing", element: <Lazy><PaymentsPage /></Lazy> },
     ],

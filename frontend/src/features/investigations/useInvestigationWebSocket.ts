@@ -34,12 +34,14 @@ export function useInvestigationWebSocket(investigationId: string | undefined, e
     if (!investigationId || !enabled || !token) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const url = `${protocol}//${window.location.host}/api/v1/investigations/${investigationId}/live?token=${token}`;
+    const url = `${protocol}//${window.location.host}/api/v1/investigations/${investigationId}/live`;
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
+      // Send auth token as first message instead of query param
+      ws.send(JSON.stringify({ type: "auth", token }));
       setConnected(true);
       reconnectAttempts.current = 0;
     };

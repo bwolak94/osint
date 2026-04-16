@@ -3,6 +3,7 @@ from uuid import UUID
 
 from fastapi import Cookie, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.auth.password_hasher import BcryptPasswordHasher
 from src.adapters.auth.token_service import JWTTokenService
@@ -53,6 +54,7 @@ async def get_current_user(
     request: Request,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)] = None,
     settings: Settings = Depends(get_settings),
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """Decode JWT, check blacklist, return User entity."""
     if credentials is None:
@@ -75,13 +77,8 @@ async def get_current_user(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has been revoked")
 
     # Get user from DB
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-    from src.adapters.db.database import async_session_factory
-
-    async with async_session_factory() as session:
-        repo = SqlAlchemyUserRepository(session)
-        user = await repo.get_by_id(UUID(payload.sub))
+    repo = SqlAlchemyUserRepository(db)
+    user = await repo.get_by_id(UUID(payload.sub))
 
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or deactivated")

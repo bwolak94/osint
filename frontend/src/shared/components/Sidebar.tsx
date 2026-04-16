@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 import { motion } from "framer-motion";
@@ -25,6 +26,7 @@ const mainNav = [
 ];
 
 const bottomNav = [
+  { to: "/admin", label: "Admin", icon: ShieldCheck },
   { to: "/settings", label: "Settings", icon: Settings },
   { to: "/billing", label: "Billing", icon: CreditCard },
 ];

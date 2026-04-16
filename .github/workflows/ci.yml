@@ -99,7 +99,7 @@ jobs:
         run: npm ci || npm install
       - name: Run tests
         working-directory: frontend
-        run: npm run test || true
+        run: npm run test
 
   e2e-tests:
     name: E2E Tests

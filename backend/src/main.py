@@ -13,11 +13,13 @@ from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.middleware.security import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from src.api.v1.auth.router import router as auth_router
 from src.api.v1.health import router as health_router
+from src.api.v1.metrics import router as metrics_router
 from src.api.v1.graph.router import router as graph_router
 from src.api.v1.investigations.graph_router import router as investigations_graph_router
 from src.api.v1.investigations.router import router as investigations_router
 from src.api.v1.investigations.websocket import router as ws_router
 from src.api.v1.payments.router import router as payments_router
+from src.api.v1.admin.router import router as admin_router
 from src.api.v1.settings.router import router as settings_router
 from src.config import get_settings
 
@@ -64,6 +66,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await log.awarn("Redis not available, rate limiting disabled", error=str(exc))
         app.state.redis = None
 
+    # Ensure audit log table is registered with SQLAlchemy metadata
+    from src.adapters.db.audit_models import AuditLogModel  # noqa: F401
+
     yield
 
     # Shutdown
@@ -101,8 +106,9 @@ def create_app() -> FastAPI:
     application.add_middleware(SecurityHeadersMiddleware)
     application.add_middleware(RequestLoggingMiddleware)
 
-    # Health check router
+    # Health check and metrics routers
     application.include_router(health_router)
+    application.include_router(metrics_router)
 
     # Routers
     application.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
@@ -112,6 +118,7 @@ def create_app() -> FastAPI:
     application.include_router(graph_router, prefix="/api/v1/graph", tags=["graph"])
     application.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
     application.include_router(payments_router, prefix="/api/v1/payments", tags=["payments"])
+    application.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
 
     return application
 

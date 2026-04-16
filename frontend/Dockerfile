@@ -3,6 +3,8 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# NOTE: Run `npm install` locally first to generate package-lock.json for deterministic builds.
+# With a lockfile present, change this to `npm ci` for faster, reproducible installs.
 COPY package.json ./
 RUN npm install
 

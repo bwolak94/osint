@@ -25,13 +25,14 @@ interface GraphToolbarProps {
   onCancelPathFinding: () => void;
   pathSourceId: string | null;
   pathTargetId: string | null;
+  onExport?: () => void;
 }
 
 export function GraphToolbar({
   searchQuery, onSearchChange, layout, onLayoutChange,
   visibleTypes, onToggleType, minConfidence, onConfidenceChange,
   pathFindingActive, onStartPathFinding, onCancelPathFinding,
-  pathSourceId, pathTargetId,
+  pathSourceId, pathTargetId, onExport,
 }: GraphToolbarProps) {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
   const [showFilters, setShowFilters] = useState(false);
@@ -120,7 +121,7 @@ export function GraphToolbar({
           </Button>
         )}
 
-        <Button variant="ghost" size="sm" leftIcon={<Download className="h-3.5 w-3.5" />}>
+        <Button variant="ghost" size="sm" leftIcon={<Download className="h-3.5 w-3.5" />} onClick={onExport}>
           Export
         </Button>
       </div>

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api/client";
+import { toast } from "@/shared/components/Toast";
 
 export interface Investigation {
   id: string;
@@ -79,7 +80,7 @@ export function useInvestigation(id: string) {
   });
 }
 
-export function useInvestigationResults(id: string) {
+export function useInvestigationResults(id: string, isRunning: boolean = false) {
   return useQuery({
     queryKey: ["investigation-results", id],
     queryFn: async () => {
@@ -87,13 +88,7 @@ export function useInvestigationResults(id: string) {
       return res.data;
     },
     enabled: !!id,
-    // Refetch periodically while we might still be getting new results
-    refetchInterval: (query) => {
-      // Keep polling if total_scans is 0 (scans may still be running)
-      const data = query.state.data as InvestigationResults | undefined;
-      if (!data || data.total_scans === 0) return 5000;
-      return false;
-    },
+    refetchInterval: isRunning ? 5000 : false,
   });
 }
 
@@ -114,6 +109,10 @@ export function useCreateInvestigation() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["investigations"] });
+      toast.success("Investigation created");
+    },
+    onError: (e: Error) => {
+      toast.error(e.message ?? "Failed to create investigation");
     },
   });
 }
@@ -128,6 +127,10 @@ export function useStartInvestigation() {
       qc.invalidateQueries({ queryKey: ["investigation", id] });
       qc.invalidateQueries({ queryKey: ["investigation-results", id] });
       qc.invalidateQueries({ queryKey: ["investigations"] });
+      toast.success("Scan started");
+    },
+    onError: () => {
+      toast.error("Failed to start scan");
     },
   });
 }

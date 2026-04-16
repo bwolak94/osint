@@ -20,6 +20,25 @@ export function ProfileSettings() {
   const [theme, setTheme] = useState("dark");
   const [saved, setSaved] = useState(false);
 
+  // Apply saved theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+      setTheme("light");
+    }
+  }, []);
+
+  const applyTheme = (t: string) => {
+    setTheme(t);
+    if (t === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+    }
+    localStorage.setItem("theme", t);
+  };
+
   // Populate form from API settings when loaded
   useEffect(() => {
     if (settings) {
@@ -120,7 +139,7 @@ export function ProfileSettings() {
             {(["dark", "light", "system"] as const).map((t) => (
               <button
                 key={t}
-                onClick={() => setTheme(t)}
+                onClick={() => applyTheme(t)}
                 className={`flex-1 rounded-lg border p-3 text-center text-sm font-medium capitalize transition-all ${
                   theme === t
                     ? "border-brand-500 bg-brand-900/30 text-brand-400"
