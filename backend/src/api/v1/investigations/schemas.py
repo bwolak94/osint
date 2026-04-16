@@ -18,6 +18,10 @@ class CreateInvestigationRequest(BaseModel):
     description: str = Field("", max_length=2000)
     seed_inputs: list[SeedInputSchema] = Field(..., min_length=1, max_length=20)
     tags: list[str] = Field(default_factory=list, max_length=20)
+    enabled_scanners: list[str] | None = Field(
+        default=None,
+        description="Optional list of scanner names to run. If None, all applicable scanners are used.",
+    )
 
 
 class UpdateInvestigationRequest(BaseModel):
@@ -68,6 +72,19 @@ class ScanResultResponse(BaseModel):
     duration_ms: int
     created_at: datetime
     error_message: str | None = None
+    raw_data: dict[str, Any] = {}
+    extracted_identifiers: list[str] = []
+
+
+class IdentityResponse(BaseModel):
+    """Structured identity extracted from scan results."""
+
+    id: str
+    name: str
+    type: str  # "person" or "company"
+    confidence: float
+    data: dict[str, Any]  # All extracted fields
+    sources: list[str]
 
 
 class InvestigationResultsResponse(BaseModel):
@@ -76,6 +93,7 @@ class InvestigationResultsResponse(BaseModel):
     total_scans: int
     successful_scans: int
     failed_scans: int
+    identities: list[IdentityResponse] = []
 
 
 class GraphNodeSchema(BaseModel):

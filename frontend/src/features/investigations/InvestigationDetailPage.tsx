@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2 } from "lucide-react";
+import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
 import { Card, CardBody, CardHeader } from "@/shared/components/Card";
@@ -22,11 +23,42 @@ type Tab = "overview" | "scans" | "identities";
 export function InvestigationDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("overview");
+  const [expandedScanId, setExpandedScanId] = useState<string | null>(null);
 
   const { data: investigation, isLoading } = useInvestigation(id ?? "");
-  const { data: results } = useInvestigationResults(id ?? "");
-  const { progress, connected } = useInvestigationWebSocket(id, investigation?.status === "running");
+  const { data: results, refetch: refetchResults } = useInvestigationResults(id ?? "");
+  const startMutation = useStartInvestigation();
+  const pauseMutation = usePauseInvestigation();
+
+  // Track previous status to detect transitions
+  const prevStatusRef = useRef<string | undefined>(undefined);
+
+  const isRunning = investigation?.status === "running";
+
+  // Only enable WebSocket while investigation is running
+  const { progress, connected } = useInvestigationWebSocket(id, isRunning);
+
+  // Refetch results when status transitions from "running" to "completed"
+  useEffect(() => {
+    const currentStatus = investigation?.status;
+    if (prevStatusRef.current === "running" && currentStatus === "completed") {
+      // Investigation just completed, refetch results
+      refetchResults();
+      queryClient.invalidateQueries({ queryKey: ["investigation-results", id] });
+    }
+    prevStatusRef.current = currentStatus;
+  }, [investigation?.status, refetchResults, queryClient, id]);
+
+  // Also refetch results periodically while running
+  useEffect(() => {
+    if (!isRunning) return;
+    const interval = setInterval(() => {
+      refetchResults();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [isRunning, refetchResults]);
 
   const tabs: { value: Tab; label: string; icon: typeof Activity }[] = [
     { value: "overview", label: "Overview", icon: Activity },
@@ -54,15 +86,15 @@ export function InvestigationDetailPage() {
     );
   }
 
-  const scanResults = results?.scan_results ?? results?.items ?? [];
-  const identities = results?.identities ?? [];
+  const scanResults = results?.scan_results ?? [];
+  const totalFindings = scanResults.reduce((sum: number, r) => sum + (r.findings_count ?? 0), 0);
+  const totalDuration = scanResults.reduce((sum: number, r) => sum + (r.duration_ms ?? 0), 0);
 
-  // Compute overview stats from results when available
   const statsData = {
-    nodes: results?.stats?.nodes ?? scanResults.length,
-    edges: results?.stats?.edges ?? 0,
-    identities: identities.length,
-    duration: results?.stats?.duration ?? "—",
+    scans: results?.total_scans ?? scanResults.length,
+    findings: totalFindings,
+    successful: results?.successful_scans ?? 0,
+    duration: totalDuration > 0 ? `${(totalDuration / 1000).toFixed(1)}s` : "\u2014",
   };
 
   return (
@@ -85,9 +117,9 @@ export function InvestigationDetailPage() {
         </div>
         <div className="flex shrink-0 gap-2">
           {investigation.status === "running" ? (
-            <Button variant="secondary" size="sm" leftIcon={<Pause className="h-4 w-4" />}>Pause</Button>
+            <Button variant="secondary" size="sm" leftIcon={<Pause className="h-4 w-4" />} loading={pauseMutation.isPending} onClick={() => id && pauseMutation.mutate(id)}>Pause</Button>
           ) : investigation.status === "draft" || investigation.status === "paused" ? (
-            <Button size="sm" leftIcon={<Play className="h-4 w-4" />}>Start</Button>
+            <Button size="sm" leftIcon={<Play className="h-4 w-4" />} loading={startMutation.isPending} onClick={() => id && startMutation.mutate(id)}>Start</Button>
           ) : null}
           <Button variant="secondary" size="sm" leftIcon={<Network className="h-4 w-4" />} onClick={() => navigate(`/investigations/${id}/graph`)}>
             Graph
@@ -96,8 +128,8 @@ export function InvestigationDetailPage() {
         </div>
       </div>
 
-      {/* Live progress (only when running) */}
-      {investigation.status === "running" && (
+      {/* Live progress — only shown while investigation is actively running */}
+      {isRunning && (
         <ScanProgressPanel
           completed={progress.completed || investigation.scan_progress?.completed || 0}
           total={progress.total || investigation.scan_progress?.total || 0}
@@ -142,9 +174,9 @@ export function InvestigationDetailPage() {
           {/* Stats cards */}
           <div className="grid grid-cols-4 gap-3">
             {[
-              { label: "Nodes", value: statsData.nodes, icon: Network },
-              { label: "Edges", value: statsData.edges, icon: Activity },
-              { label: "Identities", value: statsData.identities, icon: Users },
+              { label: "Scans", value: statsData.scans, icon: Scan },
+              { label: "Findings", value: statsData.findings, icon: Activity },
+              { label: "Successful", value: statsData.successful, icon: Users },
               { label: "Duration", value: statsData.duration, icon: Clock },
             ].map((s) => (
               <Card key={s.label}>
@@ -187,6 +219,7 @@ export function InvestigationDetailPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b text-left text-xs font-medium" style={{ borderColor: "var(--border-subtle)", color: "var(--text-tertiary)" }}>
+                    <th className="w-8 px-3 py-3"></th>
                     <th className="px-5 py-3">Scanner</th>
                     <th className="px-5 py-3">Input</th>
                     <th className="px-5 py-3">Status</th>
@@ -195,17 +228,77 @@ export function InvestigationDetailPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {scanResults.map((r: any) => (
-                    <tr key={r.id} className="border-b transition-colors hover:bg-bg-overlay" style={{ borderColor: "var(--border-subtle)" }}>
-                      <td className="px-5 py-3"><ScannerBadge scanner={r.scanner} /></td>
-                      <td className="px-5 py-3"><DataBadge value={r.input} /></td>
-                      <td className="px-5 py-3"><ScanStatusBadge status={r.status} /></td>
-                      <td className="px-5 py-3 font-mono text-sm" style={{ color: "var(--text-primary)" }}>{r.findings ?? 0}</td>
-                      <td className="px-5 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>
-                        {r.duration_ms > 0 ? `${(r.duration_ms / 1000).toFixed(1)}s` : "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {scanResults.map((r) => {
+                    const isExpanded = expandedScanId === r.id;
+                    const hasRawData = r.raw_data && Object.keys(r.raw_data).length > 0;
+                    // Keys to display as labeled fields (exclude meta keys)
+                    const displayKeys = Object.keys(r.raw_data || {}).filter(
+                      (k) => !["raw_results", "_stub", "_extracted_identifiers", "extracted_identifiers", "found"].includes(k)
+                    );
+                    return (
+                      <Fragment key={r.id}>
+                        <tr
+                          className="border-b transition-colors hover:bg-bg-overlay cursor-pointer"
+                          style={{ borderColor: "var(--border-subtle)" }}
+                          onClick={() => setExpandedScanId(isExpanded ? null : r.id)}
+                        >
+                          <td className="px-3 py-3">
+                            {hasRawData && (
+                              isExpanded
+                                ? <ChevronDown className="h-4 w-4" style={{ color: "var(--text-tertiary)" }} />
+                                : <ChevronRight className="h-4 w-4" style={{ color: "var(--text-tertiary)" }} />
+                            )}
+                          </td>
+                          <td className="px-5 py-3"><ScannerBadge scanner={r.scanner_name} /></td>
+                          <td className="px-5 py-3"><DataBadge value={r.input_value} /></td>
+                          <td className="px-5 py-3"><ScanStatusBadge status={r.status} /></td>
+                          <td className="px-5 py-3 font-mono text-sm" style={{ color: "var(--text-primary)" }}>{r.findings_count}</td>
+                          <td className="px-5 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>
+                            {r.duration_ms > 0 ? `${(r.duration_ms / 1000).toFixed(1)}s` : "\u2014"}
+                          </td>
+                        </tr>
+                        {isExpanded && hasRawData && (
+                          <tr key={`${r.id}-detail`} style={{ borderColor: "var(--border-subtle)" }} className="border-b">
+                            <td colSpan={6} className="px-5 py-4" style={{ backgroundColor: "var(--bg-overlay)" }}>
+                              <div className="space-y-3">
+                                <h4 className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                                  Raw Findings
+                                </h4>
+                                <div className="grid grid-cols-2 gap-x-6 gap-y-2">
+                                  {displayKeys.map((key) => {
+                                    const val = r.raw_data[key];
+                                    // Bank accounts rendered as a list of copyable badges
+                                    if (key === "bank_accounts" && Array.isArray(val)) {
+                                      return (
+                                        <div key={key} className="col-span-2">
+                                          <p className="text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>
+                                            {key.replace(/_/g, " ")}
+                                          </p>
+                                          <div className="flex flex-wrap gap-1">
+                                            {val.map((acc: string) => (
+                                              <DataBadge key={acc} value={acc} />
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
+                                    }
+                                    return (
+                                      <div key={key} className="flex flex-col">
+                                        <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
+                                          {key.replace(/_/g, " ")}
+                                        </span>
+                                        <DataBadge value={String(val)} />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -215,29 +308,68 @@ export function InvestigationDetailPage() {
 
       {tab === "identities" && (
         <div className="space-y-3">
-          {identities.length === 0 ? (
-            <EmptyState title="No identities resolved yet" description="Identities will appear as scans complete and entity resolution runs." />
+          {results?.identities && results.identities.length > 0 ? (
+            results.identities.map((ident) => {
+              const dataKeys = Object.keys(ident.data || {}).filter(
+                (k) => !["bank_accounts", "found"].includes(k)
+              );
+              const bankAccounts: string[] = ident.data?.bank_accounts ?? [];
+              return (
+                <Card key={ident.id}>
+                  <CardBody>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        {ident.type === "company" ? (
+                          <Building2 className="h-5 w-5" style={{ color: "var(--brand-400)" }} />
+                        ) : (
+                          <UserIcon className="h-5 w-5" style={{ color: "var(--brand-400)" }} />
+                        )}
+                        <div>
+                          <h4 className="text-sm font-bold" style={{ color: "var(--text-primary)" }}>{ident.name}</h4>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge variant={ident.type === "company" ? "info" : "neutral"} size="sm">
+                              {ident.type}
+                            </Badge>
+                            <ConfidenceIndicator value={ident.confidence} />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        {(ident.sources ?? []).map((s: string) => <ScannerBadge key={s} scanner={s} />)}
+                      </div>
+                    </div>
+
+                    {/* Data fields as labeled key-value pairs */}
+                    <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2">
+                      {dataKeys.map((key) => (
+                        <div key={key} className="flex flex-col">
+                          <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
+                            {key.replace(/_/g, " ")}
+                          </span>
+                          <DataBadge value={String(ident.data[key])} />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Bank accounts as DataBadge list */}
+                    {bankAccounts.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>
+                          bank accounts
+                        </p>
+                        <div className="flex flex-wrap gap-1">
+                          {bankAccounts.map((acc: string) => (
+                            <DataBadge key={acc} value={acc} />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardBody>
+                </Card>
+              );
+            })
           ) : (
-            identities.map((ident: any) => (
-              <Card key={ident.id}>
-                <CardBody>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{ident.name}</h4>
-                      <div className="mt-1"><ConfidenceIndicator value={ident.confidence} /></div>
-                    </div>
-                    <div className="flex gap-1">
-                      {(ident.sources ?? []).map((s: string) => <ScannerBadge key={s} scanner={s} />)}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {(ident.emails ?? []).map((e: string) => <DataBadge key={e} value={e} type="email" />)}
-                    {(ident.phones ?? []).map((p: string) => <DataBadge key={p} value={p} type="phone" />)}
-                    {(ident.usernames ?? []).map((u: string) => <DataBadge key={u} value={u} />)}
-                  </div>
-                </CardBody>
-              </Card>
-            ))
+            <EmptyState title="No identities resolved yet" description="Identities will appear as scans complete and entity resolution runs." />
           )}
         </div>
       )}

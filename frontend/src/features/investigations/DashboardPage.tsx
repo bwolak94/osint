@@ -1,10 +1,11 @@
+import { useState } from "react";
 import { Search, Network, Shield, Activity, Plus, ArrowUpRight, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
 import { EmptyState } from "@/shared/components/EmptyState";
-import { useInvestigations } from "./hooks";
+import { useInvestigations, useCreateInvestigation, useStartInvestigation } from "./hooks";
 
 interface StatCardProps {
   label: string;
@@ -54,6 +55,68 @@ function timeAgo(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`;
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
+}
+
+function QuickScan() {
+  const navigate = useNavigate();
+  const [scanType, setScanType] = useState("email");
+  const [scanValue, setScanValue] = useState("");
+  const createMutation = useCreateInvestigation();
+  const startMutation = useStartInvestigation();
+
+  const handleScan = async () => {
+    if (!scanValue.trim()) return;
+    try {
+      const inv = await createMutation.mutateAsync({
+        title: `Quick scan — ${scanValue}`,
+        description: `Quick ${scanType} scan`,
+        seed_inputs: [{ type: scanType, value: scanValue.trim() }],
+        tags: ["quick-scan"],
+      });
+      await startMutation.mutateAsync(inv.id);
+      navigate(`/investigations/${inv.id}`);
+    } catch {
+      // Error handled by react-query
+    }
+  };
+
+  const isLoading = createMutation.isPending || startMutation.isPending;
+
+  return (
+    <div>
+      <Card>
+        <CardHeader>
+          <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Quick Scan</h2>
+        </CardHeader>
+        <CardBody className="space-y-3">
+          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            Quickly check an email, username, or NIP without creating a full investigation.
+          </p>
+          <select
+            value={scanType}
+            onChange={(e) => setScanType(e.target.value)}
+            className="w-full rounded-md border px-3 py-2 text-sm"
+            style={{ background: "var(--bg-elevated)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+          >
+            <option value="email">Email</option>
+            <option value="username">Username</option>
+            <option value="nip">NIP</option>
+          </select>
+          <input
+            value={scanValue}
+            onChange={(e) => setScanValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleScan()}
+            className="w-full rounded-md border px-3 py-2 text-sm"
+            placeholder={scanType === "email" ? "user@example.com" : scanType === "nip" ? "5261040828" : "username"}
+            style={{ background: "var(--bg-elevated)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+          />
+          <Button className="w-full" leftIcon={<Search className="h-4 w-4" />} onClick={handleScan} loading={isLoading} disabled={!scanValue.trim()}>
+            Scan
+          </Button>
+        </CardBody>
+      </Card>
+    </div>
+  );
 }
 
 export function DashboardPage() {
@@ -174,44 +237,7 @@ export function DashboardPage() {
         </div>
 
         {/* Quick scan */}
-        <div>
-          <Card>
-            <CardHeader>
-              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                Quick Scan
-              </h2>
-            </CardHeader>
-            <CardBody className="space-y-3">
-              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                Quickly check an email, username, or NIP without creating a full investigation.
-              </p>
-              <select
-                className="w-full rounded-md border px-3 py-2 text-sm"
-                style={{
-                  background: "var(--bg-elevated)",
-                  borderColor: "var(--border-default)",
-                  color: "var(--text-primary)",
-                }}
-              >
-                <option value="email">Email</option>
-                <option value="username">Username</option>
-                <option value="nip">NIP</option>
-              </select>
-              <input
-                className="w-full rounded-md border px-3 py-2 text-sm"
-                placeholder="Enter value to scan..."
-                style={{
-                  background: "var(--bg-elevated)",
-                  borderColor: "var(--border-default)",
-                  color: "var(--text-primary)",
-                }}
-              />
-              <Button className="w-full" leftIcon={<Search className="h-4 w-4" />}>
-                Scan
-              </Button>
-            </CardBody>
-          </Card>
-        </div>
+        <QuickScan />
       </div>
     </div>
   );

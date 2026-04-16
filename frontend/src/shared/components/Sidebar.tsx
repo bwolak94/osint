@@ -5,6 +5,7 @@ import {
   CreditCard,
   LogOut,
   LayoutDashboard,
+  Radar,
   ChevronLeft,
   ChevronRight,
   Shield,
@@ -20,6 +21,7 @@ interface SidebarProps {
 const mainNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/investigations", label: "Investigations", icon: Search },
+  { to: "/scanners", label: "Scanners", icon: Radar },
 ];
 
 const bottomNav = [

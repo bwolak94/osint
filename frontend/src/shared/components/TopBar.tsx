@@ -3,9 +3,9 @@ import { Bell } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 
 const routeNames: Record<string, string> = {
+  "/dashboard": "Dashboard",
   "/investigations": "Investigations",
-  "/graph": "Graph Explorer",
-  "/reports": "Reports",
+  "/scanners": "Scanners",
   "/settings": "Settings",
   "/billing": "Billing",
 };

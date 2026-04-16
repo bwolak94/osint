@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, Plus, Trash2, Tag, ArrowRight, ArrowLeft, Zap } from "lucide-react";
+import { X, Plus, Trash2, Tag, ArrowRight, ArrowLeft, Zap, CheckSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
@@ -23,6 +23,40 @@ const seedTypes = [
   { value: "company_name", label: "Company" },
 ] as const;
 
+// Scanner definitions with supported input types
+const AVAILABLE_SCANNERS = [
+  {
+    name: "holehe",
+    label: "Holehe",
+    description: "Check email registration across 120+ services (Instagram, Twitter, Spotify, etc.)",
+    inputTypes: ["email"],
+  },
+  {
+    name: "maigret",
+    label: "Maigret",
+    description: "Find username presence across 3000+ websites",
+    inputTypes: ["username"],
+  },
+  {
+    name: "vat_status",
+    label: "VAT Status",
+    description: "Check VAT registration status and bank accounts (Polish Biala Lista API)",
+    inputTypes: ["nip"],
+  },
+  {
+    name: "playwright_krs",
+    label: "KRS Scraper",
+    description: "Scrape KRS company registry for board members and registration data",
+    inputTypes: ["nip"],
+  },
+  {
+    name: "playwright_ceidg",
+    label: "CEIDG Scraper",
+    description: "Search CEIDG for sole proprietorship data",
+    inputTypes: ["nip"],
+  },
+] as const;
+
 const schema = z.object({
   title: z.string().min(3, "Min 3 characters").max(200),
   description: z.string().max(2000).optional(),
@@ -32,6 +66,7 @@ const schema = z.object({
     value: z.string().min(1, "Required"),
   })).min(1, "Add at least one seed input").max(10),
   startImmediately: z.boolean().default(false),
+  enabledScanners: z.array(z.string()).default([]),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -55,11 +90,38 @@ export function CreateInvestigationModal({ onClose }: Props) {
 
   const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { seeds: [{ type: "email", value: "" }], tags: [], startImmediately: false },
+    defaultValues: { seeds: [{ type: "email", value: "" }], tags: [], startImmediately: false, enabledScanners: [] },
   });
 
   const { fields, append, remove } = useFieldArray({ control, name: "seeds" });
   const tags = watch("tags") ?? [];
+  const seeds = watch("seeds");
+  const enabledScanners = watch("enabledScanners") ?? [];
+
+  // Determine which scanners are applicable based on seed input types
+  const applicableScanners = useMemo(() => {
+    const seedInputTypes = new Set(seeds.map((s) => s.type));
+    return AVAILABLE_SCANNERS.filter((scanner) =>
+      scanner.inputTypes.some((t) => seedInputTypes.has(t))
+    );
+  }, [seeds]);
+
+  // When moving to step 3, auto-select all applicable scanners if none are selected
+  const goToStep3 = () => {
+    if (enabledScanners.length === 0) {
+      setValue("enabledScanners", applicableScanners.map((s) => s.name));
+    }
+    setStep(3);
+  };
+
+  const toggleScanner = (name: string) => {
+    const current = enabledScanners;
+    if (current.includes(name)) {
+      setValue("enabledScanners", current.filter((s) => s !== name));
+    } else {
+      setValue("enabledScanners", [...current, name]);
+    }
+  };
 
   const addTag = () => {
     const t = tagInput.trim();
@@ -81,6 +143,7 @@ export function CreateInvestigationModal({ onClose }: Props) {
         description: data.description,
         seed_inputs: data.seeds.map((s) => ({ type: s.type, value: s.value })),
         tags: data.tags,
+        enabled_scanners: data.enabledScanners.length > 0 ? data.enabledScanners : undefined,
       });
       onClose();
       navigate(`/investigations/${result.id}`);
@@ -88,6 +151,8 @@ export function CreateInvestigationModal({ onClose }: Props) {
       setFormError(err?.message ?? "Failed to create investigation");
     }
   };
+
+  const totalSteps = 3;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -103,7 +168,7 @@ export function CreateInvestigationModal({ onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: "var(--border-subtle)" }}>
           <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>
-            New Investigation — Step {step}/2
+            New Investigation — Step {step}/{totalSteps}
           </h2>
           <button onClick={onClose} className="rounded-md p-1 transition-colors hover:bg-bg-overlay">
             <X className="h-4 w-4" style={{ color: "var(--text-secondary)" }} />
@@ -113,7 +178,7 @@ export function CreateInvestigationModal({ onClose }: Props) {
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
             <AnimatePresence mode="wait">
-              {step === 1 ? (
+              {step === 1 && (
                 <motion.div key="s1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
                   <Input label="Title" placeholder="Investigation #1 — XYZ Company" error={errors.title?.message} {...register("title")} autoFocus />
                   <div>
@@ -155,7 +220,9 @@ export function CreateInvestigationModal({ onClose }: Props) {
                     )}
                   </div>
                 </motion.div>
-              ) : (
+              )}
+
+              {step === 2 && (
                 <motion.div key="s2" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-3">
                   <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
                     Seed Inputs ({fields.length}/10)
@@ -207,6 +274,63 @@ export function CreateInvestigationModal({ onClose }: Props) {
                       Add seed input
                     </Button>
                   )}
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <motion.div key="s3" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-3">
+                  <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+                    Select Scanners
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                    Only scanners compatible with your seed input types are shown. Deselect any you want to skip.
+                  </p>
+
+                  {applicableScanners.length === 0 ? (
+                    <div className="rounded-md p-4 text-center text-sm" style={{ background: "var(--bg-elevated)", color: "var(--text-tertiary)" }}>
+                      No scanners available for the selected seed input types.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {applicableScanners.map((scanner) => {
+                        const isChecked = enabledScanners.includes(scanner.name);
+                        return (
+                          <label
+                            key={scanner.name}
+                            className="flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors hover:bg-bg-overlay"
+                            style={{
+                              borderColor: isChecked ? "var(--brand-500)" : "var(--border-default)",
+                              background: isChecked ? "var(--bg-elevated)" : "transparent",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 accent-[var(--brand-500)]"
+                              checked={isChecked}
+                              onChange={() => toggleScanner(scanner.name)}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                                  {scanner.label}
+                                </span>
+                                <Badge variant="neutral" size="sm">{scanner.name}</Badge>
+                              </div>
+                              <p className="mt-0.5 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                                {scanner.description}
+                              </p>
+                              <div className="mt-1 flex gap-1">
+                                {scanner.inputTypes.map((t) => (
+                                  <Badge key={t} variant="info" size="sm">{t}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <label className="mt-4 flex cursor-pointer items-center gap-2 rounded-md p-3" style={{ background: "var(--bg-elevated)" }}>
                     <input type="checkbox" className="accent-[var(--brand-500)]" {...register("startImmediately")} />
                     <div>
@@ -231,16 +355,25 @@ export function CreateInvestigationModal({ onClose }: Props) {
 
           {/* Footer */}
           <div className="flex items-center justify-between border-t px-6 py-4" style={{ borderColor: "var(--border-subtle)" }}>
-            {step === 1 ? (
+            {step === 1 && (
               <>
                 <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
                 <Button type="button" onClick={() => setStep(2)} rightIcon={<ArrowRight className="h-4 w-4" />}>
                   Next: Seed Inputs
                 </Button>
               </>
-            ) : (
+            )}
+            {step === 2 && (
               <>
                 <Button type="button" variant="ghost" onClick={() => setStep(1)} leftIcon={<ArrowLeft className="h-4 w-4" />}>Back</Button>
+                <Button type="button" onClick={goToStep3} rightIcon={<ArrowRight className="h-4 w-4" />}>
+                  Next: Scanners
+                </Button>
+              </>
+            )}
+            {step === 3 && (
+              <>
+                <Button type="button" variant="ghost" onClick={() => setStep(2)} leftIcon={<ArrowLeft className="h-4 w-4" />}>Back</Button>
                 <Button type="submit" loading={createMutation.isPending}>Create Investigation</Button>
               </>
             )}

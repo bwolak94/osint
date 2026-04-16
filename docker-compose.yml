@@ -88,6 +88,22 @@ services:
     profiles:
       - worker
 
+  worker-light:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["python", "-m", "celery", "-A", "src.workers.celery_app", "worker", "--loglevel=info", "--queues=light,graph", "--concurrency=4"]
+    networks:
+      - backend-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
   flower:
     image: mher/flower:2.0
     restart: unless-stopped

@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.db.repositories import SqlAlchemyInvestigationRepository
@@ -13,6 +13,7 @@ from src.api.v1.auth.dependencies import get_current_user
 from src.api.v1.investigations.schemas import (
     CreateInvestigationRequest,
     ExportRequest,
+    IdentityResponse,
     InvestigationListResponse,
     InvestigationResponse,
     InvestigationResultsResponse,
@@ -29,10 +30,6 @@ from src.core.domain.events.base import DomainEvent
 from src.core.use_cases.create_investigation import (
     CreateInvestigation,
     CreateInvestigationInput,
-)
-from src.core.use_cases.investigations.run_investigation import (
-    RunInvestigationCommand,
-    RunInvestigationUseCase,
 )
 from src.dependencies import get_db
 
@@ -71,6 +68,8 @@ def _seed_domain_to_schema(seed: SeedInput) -> SeedInputSchema:
 
 def _build_response(investigation: Investigation) -> InvestigationResponse:
     """Map a domain Investigation entity to the API response schema."""
+    # Filter out internal __scanner: tags from the public response
+    public_tags = sorted(t for t in investigation.tags if not t.startswith("__scanner:"))
     return InvestigationResponse(
         id=investigation.id,
         title=investigation.title,
@@ -78,12 +77,25 @@ def _build_response(investigation: Investigation) -> InvestigationResponse:
         status=investigation.status.value,
         owner_id=investigation.owner_id,
         seed_inputs=[_seed_domain_to_schema(s) for s in investigation.seed_inputs],
-        tags=sorted(investigation.tags),
+        tags=public_tags,
         scan_progress=ScanProgressSchema(),
         created_at=investigation.created_at,
         updated_at=investigation.updated_at,
         completed_at=investigation.completed_at,
     )
+
+
+def _extract_enabled_scanners(investigation: Investigation) -> list[str] | None:
+    """Extract enabled scanner names from internal __scanner: tags.
+
+    Returns None if no scanner tags are found (meaning all scanners should run).
+    """
+    scanners = [
+        t.removeprefix("__scanner:")
+        for t in investigation.tags
+        if t.startswith("__scanner:")
+    ]
+    return scanners if scanners else None
 
 
 async def _get_owned_investigation(
@@ -99,6 +111,120 @@ async def _get_owned_investigation(
             detail="Investigation not found",
         )
     return investigation
+
+
+async def _run_scans_background(
+    investigation_id: UUID,
+    seed_inputs: list,
+    enabled_scanners: list[str] | None = None,
+) -> None:
+    """Run scanners for each seed input directly (no Celery required)."""
+    import json
+    from datetime import datetime, timezone
+    from uuid import uuid4
+
+    import redis.asyncio as aioredis
+
+    from src.adapters.db.database import async_session_factory
+    from src.adapters.db.models import ScanResultModel
+    from src.adapters.scanners.registry import create_default_registry
+    from src.config import get_settings
+    from src.core.domain.entities.types import ScanInputType
+
+    settings = get_settings()
+    registry = create_default_registry()
+
+    # Connect to Redis for progress publishing
+    try:
+        redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+    except Exception:
+        redis = None
+
+    channel = f"investigation:{investigation_id}:progress"
+    total = len(seed_inputs)
+    completed = 0
+
+    for seed in seed_inputs:
+        input_type = ScanInputType(seed.input_type.value if hasattr(seed.input_type, "value") else seed.input_type)
+        scanners = registry.get_for_input_type(input_type)
+
+        # Filter to only enabled scanners if a selection was provided
+        if enabled_scanners is not None:
+            scanners = [s for s in scanners if s.scanner_name in enabled_scanners]
+
+        for scanner in scanners:
+            # Publish progress
+            if redis:
+                try:
+                    await redis.publish(channel, json.dumps({
+                        "type": "progress",
+                        "completed": completed,
+                        "total": total * max(len(scanners), 1),
+                        "percentage": round(completed / max(total * max(len(scanners), 1), 1) * 100, 1),
+                        "current_scanner": scanner.scanner_name,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }))
+                except Exception:
+                    pass
+
+            # Run the scanner
+            try:
+                result = await scanner.scan(seed.value, input_type, investigation_id=investigation_id)
+
+                # Save result to DB
+                async with async_session_factory() as session:
+                    model = ScanResultModel(
+                        id=result.id,
+                        investigation_id=investigation_id,
+                        scanner_name=result.scanner_name,
+                        input_value=result.input_value,
+                        status=result.status,
+                        raw_data=result.raw_data,
+                        extracted_identifiers=result.extracted_identifiers,
+                        duration_ms=result.duration_ms,
+                        error_message=result.error_message,
+                    )
+                    session.add(model)
+                    await session.commit()
+
+                # Publish scan complete
+                if redis:
+                    try:
+                        await redis.publish(channel, json.dumps({
+                            "type": "scan_complete",
+                            "scanner": scanner.scanner_name,
+                            "findings_count": len(result.extracted_identifiers),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                        }))
+                    except Exception:
+                        pass
+            except Exception as exc:
+                log.warning("Scanner failed", scanner=scanner.scanner_name, error=str(exc))
+
+            completed += 1
+
+    # Mark investigation as completed
+    async with async_session_factory() as session:
+        from src.adapters.db.models import InvestigationModel
+        model = await session.get(InvestigationModel, investigation_id)
+        if model and model.status == "running":
+            model.status = "completed"
+            model.completed_at = datetime.now(timezone.utc)
+            await session.commit()
+
+    # Publish completion
+    if redis:
+        try:
+            await redis.publish(channel, json.dumps({
+                "type": "investigation_complete",
+                "summary": {"total_scans": completed},
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }))
+        except Exception:
+            pass
+        await redis.close()
+
+    log.info("Background scan completed", investigation_id=str(investigation_id), scans=completed)
 
 
 # ---------------------------------------------------------------------------
@@ -120,13 +246,21 @@ async def create_investigation(
     use_case = CreateInvestigation(repo=repo, publish=_noop_publish)
 
     seeds = [_seed_schema_to_domain(s) for s in body.seed_inputs]
+
+    # Store enabled_scanners in tags with a special prefix so the start
+    # endpoint can retrieve them later without a DB schema change.
+    tags = set(body.tags)
+    if body.enabled_scanners is not None:
+        for scanner_name in body.enabled_scanners:
+            tags.add(f"__scanner:{scanner_name}")
+
     investigation = await use_case.execute(
         CreateInvestigationInput(
             title=body.title,
             description=body.description,
             owner_id=current_user.id,
             seed_inputs=seeds,
-            tags=frozenset(body.tags),
+            tags=frozenset(tags),
         )
     )
 
@@ -238,6 +372,7 @@ async def start_investigation(
     investigation_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    background_tasks: BackgroundTasks,
 ) -> InvestigationResponse:
     """Start the scanning pipeline for an investigation."""
     repo = SqlAlchemyInvestigationRepository(db)
@@ -251,21 +386,15 @@ async def start_investigation(
             detail=str(exc),
         )
 
-    saved = await repo.update(running)
+    saved = await repo.save(running)
 
-    # Dispatch the Celery scanning pipeline
-    publisher = _NoopEventPublisher()
-    use_case = RunInvestigationUseCase(
-        investigation_repo=repo,
-        event_publisher=publisher,
+    # Extract enabled scanners from internal tags (set during create)
+    enabled_scanners = _extract_enabled_scanners(investigation)
+
+    # Run scans in background (inline, no Celery needed)
+    background_tasks.add_task(
+        _run_scans_background, investigation_id, saved.seed_inputs, enabled_scanners
     )
-    try:
-        await use_case.execute(RunInvestigationCommand(investigation_id=investigation_id))
-    except Exception:
-        await log.awarning(
-            "Failed to dispatch investigation pipeline",
-            investigation_id=str(investigation_id),
-        )
 
     return _build_response(saved)
 
@@ -352,9 +481,65 @@ async def get_investigation_results(
             duration_ms=r.duration_ms,
             created_at=r.created_at,
             error_message=r.error_message,
+            raw_data=r.raw_data or {},
+            extracted_identifiers=r.extracted_identifiers or [],
         )
         for r in results
     ]
+
+    # Build identities from raw scan data
+    identities: list[IdentityResponse] = []
+    _internal_keys = {"raw_results", "_stub", "_extracted_identifiers", "extracted_identifiers"}
+    for r in results:
+        if not r.raw_data or r.raw_data.get("_stub"):
+            continue
+        cleaned_data = {k: v for k, v in r.raw_data.items() if k not in _internal_keys}
+
+        # VAT / KRS / CEIDG results (have "found" flag)
+        if r.raw_data.get("found") and r.raw_data.get("name"):
+            identities.append(IdentityResponse(
+                id=str(r.id),
+                name=r.raw_data["name"],
+                type="company" if r.raw_data.get("nip") else "person",
+                confidence=0.9 if r.is_successful() else 0.5,
+                data=cleaned_data,
+                sources=[r.scanner_name],
+            ))
+
+        # Holehe results (email registration check)
+        elif r.raw_data.get("registered_count", 0) > 0:
+            services = r.raw_data.get("registered_on", [])
+            identities.append(IdentityResponse(
+                id=str(r.id),
+                name=r.input_value,
+                type="email_identity",
+                confidence=0.8,
+                data={
+                    "email": r.input_value,
+                    "registered_on": services,
+                    "registered_count": len(services),
+                    "partial_phone": r.raw_data.get("partial_phone"),
+                    "backup_email": r.raw_data.get("backup_email"),
+                },
+                sources=[r.scanner_name],
+            ))
+
+        # Maigret results (username profile check)
+        elif r.raw_data.get("claimed_count", 0) > 0:
+            profiles = r.raw_data.get("claimed_profiles", [])
+            identities.append(IdentityResponse(
+                id=str(r.id),
+                name=r.input_value,
+                type="username_identity",
+                confidence=0.7,
+                data={
+                    "username": r.input_value,
+                    "claimed_profiles": profiles[:30],
+                    "claimed_count": r.raw_data.get("claimed_count", 0),
+                    "total_checked": r.raw_data.get("total_checked", 0),
+                },
+                sources=[r.scanner_name],
+            ))
 
     successful = sum(1 for r in results if r.is_successful())
     failed = sum(1 for r in results if r.status.value == "failed")
@@ -365,6 +550,7 @@ async def get_investigation_results(
         total_scans=len(results),
         successful_scans=successful,
         failed_scans=failed,
+        identities=identities,
     )
 
 
