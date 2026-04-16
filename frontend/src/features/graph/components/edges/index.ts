@@ -1,0 +1,1 @@
+export { RelationshipEdge } from "./RelationshipEdge";

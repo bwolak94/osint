@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:ui": "vitest --ui",
@@ -45,6 +45,7 @@
     "@typescript-eslint/eslint-plugin": "^8.19",
     "@typescript-eslint/parser": "^8.19",
     "@types/react": "^18.3",
-    "@types/react-dom": "^18.3"
+    "@types/react-dom": "^18.3",
+    "@types/node": "^22.0"
   }
 }

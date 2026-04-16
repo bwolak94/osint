@@ -1,7 +1,11 @@
 # Development overrides
-# This file is automatically loaded by docker compose alongside docker-compose.yml
+# Remapped ports to avoid conflicts with host services
 
 services:
+  nginx:
+    ports:
+      - "8080:80"
+
   api:
     volumes:
       - ./backend/src:/app/src
@@ -14,21 +18,21 @@ services:
 
   postgres:
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   redis:
     ports:
-      - "6379:6379"
+      - "6381:6379"
 
   neo4j:
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - "7475:7474"
+      - "7688:7687"
 
   minio:
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9002:9000"
+      - "9003:9001"
 
   flower:
     profiles: []

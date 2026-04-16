@@ -10,7 +10,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.adapters.db.database import engine
 from src.api.middleware.correlation import CorrelationIdMiddleware
 from src.api.middleware.rate_limit import RateLimitMiddleware
+from src.api.middleware.security import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from src.api.v1.auth.router import router as auth_router
+from src.api.v1.health import router as health_router
 from src.api.v1.graph.router import router as graph_router
 from src.api.v1.investigations.graph_router import router as investigations_graph_router
 from src.api.v1.investigations.router import router as investigations_router
@@ -96,11 +98,11 @@ def create_app() -> FastAPI:
     )
     application.add_middleware(CorrelationIdMiddleware)
     application.add_middleware(RateLimitMiddleware)
+    application.add_middleware(SecurityHeadersMiddleware)
+    application.add_middleware(RequestLoggingMiddleware)
 
-    # Health check
-    @application.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok"}
+    # Health check router
+    application.include_router(health_router)
 
     # Routers
     application.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])

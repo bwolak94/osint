@@ -1,47 +1,101 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api/client";
-import type { Investigation, CreateInvestigationRequest } from "./types";
-import type { PaginatedResponse } from "@/shared/types/api";
 
-export function useInvestigations() {
+export interface Investigation {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  owner_id: string;
+  seed_inputs: { type: string; value: string }[];
+  tags: string[];
+  scan_progress?: { completed: number; total: number; percentage: number };
+  created_at: string;
+  updated_at: string;
+}
+
+interface InvestigationListResponse {
+  items: Investigation[];
+  total: number;
+  has_next: boolean;
+  next_cursor: string | null;
+}
+
+export function useInvestigations(cursor?: string) {
   return useQuery({
-    queryKey: ["investigations"],
+    queryKey: ["investigations", cursor],
     queryFn: async () => {
-      const response =
-        await apiClient.get<PaginatedResponse<Investigation>>(
-          "/api/v1/investigations",
-        );
-      return response.data;
+      const params = new URLSearchParams();
+      if (cursor) params.set("cursor", cursor);
+      const res = await apiClient.get<InvestigationListResponse>(`/investigations/?${params}`);
+      return res.data;
     },
   });
 }
 
 export function useInvestigation(id: string) {
   return useQuery({
-    queryKey: ["investigations", id],
+    queryKey: ["investigation", id],
     queryFn: async () => {
-      const response = await apiClient.get<Investigation>(
-        `/api/v1/investigations/${id}`,
-      );
-      return response.data;
+      const res = await apiClient.get<Investigation>(`/investigations/${id}`);
+      return res.data;
     },
     enabled: !!id,
   });
 }
 
-export function useCreateInvestigation() {
-  const queryClient = useQueryClient();
+export function useInvestigationResults(id: string) {
+  return useQuery({
+    queryKey: ["investigation-results", id],
+    queryFn: async () => {
+      const res = await apiClient.get(`/investigations/${id}/results`);
+      return res.data;
+    },
+    enabled: !!id,
+  });
+}
 
+interface CreateInvestigationInput {
+  title: string;
+  description?: string;
+  seed_inputs: { type: string; value: string }[];
+  tags: string[];
+}
+
+export function useCreateInvestigation() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: CreateInvestigationRequest) => {
-      const response = await apiClient.post<Investigation>(
-        "/api/v1/investigations",
-        data,
-      );
-      return response.data;
+    mutationFn: async (data: CreateInvestigationInput) => {
+      const res = await apiClient.post<Investigation>("/investigations/", data);
+      return res.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["investigations"] });
+      qc.invalidateQueries({ queryKey: ["investigations"] });
+    },
+  });
+}
+
+export function useStartInvestigation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.post(`/investigations/${id}/start`);
+    },
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ["investigation", id] });
+      qc.invalidateQueries({ queryKey: ["investigations"] });
+    },
+  });
+}
+
+export function usePauseInvestigation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.post(`/investigations/${id}/pause`);
+    },
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ["investigation", id] });
     },
   });
 }

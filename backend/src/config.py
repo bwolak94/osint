@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     crypto_payment_api_key: str = ""
     crypto_webhook_secret: str = ""
 
+    # Payment / NowPayments
+    nowpayments_api_key: str = ""
+    nowpayments_ipn_secret: str = ""
+    nowpayments_sandbox: bool = True
+    base_url: str = "http://localhost:8000"
+    frontend_url: str = "http://localhost:5173"
+
     # OSINT settings
     osint_scan_timeout_seconds: int = 120
     osint_max_concurrent_scans: int = 5
@@ -70,7 +77,7 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8080", "http://localhost:5173", "http://localhost"]
 
 
 @lru_cache

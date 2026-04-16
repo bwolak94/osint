@@ -1,0 +1,45 @@
+groups:
+  - name: osint_critical
+    rules:
+      - alert: APIDown
+        expr: up{job="api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OSINT API is down"
+          description: "The API service has been unreachable for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx error rate (>5%)"
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency > 2 seconds"
+
+  - name: osint_business
+    rules:
+      - alert: HighFailedLoginRate
+        expr: rate(osint_failed_logins_total[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate of failed logins (possible brute force)"
+
+      - alert: CeleryQueueBacklog
+        expr: celery_queue_length > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Celery task queue backlog > 100"

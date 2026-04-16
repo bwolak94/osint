@@ -119,29 +119,16 @@ async def create_investigation(
     repo = SqlAlchemyInvestigationRepository(db)
     use_case = CreateInvestigation(repo=repo, publish=_noop_publish)
 
+    seeds = [_seed_schema_to_domain(s) for s in body.seed_inputs]
     investigation = await use_case.execute(
         CreateInvestigationInput(
             title=body.title,
             description=body.description,
             owner_id=current_user.id,
+            seed_inputs=seeds,
+            tags=frozenset(body.tags),
         )
     )
-
-    # Attach seed inputs and tags to the freshly created entity
-    seeds = [_seed_schema_to_domain(s) for s in body.seed_inputs]
-    investigation = Investigation(
-        id=investigation.id,
-        owner_id=investigation.owner_id,
-        title=investigation.title,
-        description=investigation.description,
-        status=investigation.status,
-        seed_inputs=seeds,
-        tags=frozenset(body.tags),
-        created_at=investigation.created_at,
-        updated_at=investigation.updated_at,
-        completed_at=investigation.completed_at,
-    )
-    investigation = await repo.update(investigation)
 
     return _build_response(investigation)
 

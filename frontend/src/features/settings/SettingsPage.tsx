@@ -1,78 +1,72 @@
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useSettings, useUpdateSettings } from "./hooks";
-import type { UpdateSettingsRequest } from "./types";
-import { Button } from "@/shared/components/Button";
-import { Input } from "@/shared/components/Input";
-import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
+import { useState } from "react";
+import { User, Shield, Bell, Key, Lock, AlertTriangle } from "lucide-react";
+import { Badge } from "@/shared/components/Badge";
+import { useAuth } from "@/shared/hooks/useAuth";
+import { ProfileSettings } from "./ProfileSettings";
+import { SecuritySettings } from "./SecuritySettings";
+import { NotificationSettings } from "./NotificationSettings";
+import { ApiKeySettings } from "./ApiKeySettings";
+import { GdprSettings } from "./GdprSettings";
+
+type SettingsSection = "profile" | "security" | "notifications" | "api" | "gdpr";
+
+const sections: { id: SettingsSection; label: string; icon: typeof User; badge?: string; danger?: boolean }[] = [
+  { id: "profile", label: "Profile", icon: User },
+  { id: "security", label: "Security", icon: Shield },
+  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "api", label: "API Access", icon: Key, badge: "PRO" },
+  { id: "gdpr", label: "Privacy & GDPR", icon: Lock },
+];
 
 export function SettingsPage() {
-  const { data: settings, isLoading } = useSettings();
-  const updateMutation = useUpdateSettings();
-
-  const { register, handleSubmit, reset } = useForm<UpdateSettingsRequest>();
-
-  // Populate form when settings load
-  useEffect(() => {
-    if (settings) {
-      reset({
-        username: settings.username,
-        notifications_enabled: settings.notifications_enabled,
-        theme: settings.theme,
-      });
-    }
-  }, [settings, reset]);
-
-  const onSubmit = (data: UpdateSettingsRequest) => {
-    updateMutation.mutate(data);
-  };
-
-  if (isLoading) return <LoadingSpinner />;
+  const [active, setActive] = useState<SettingsSection>("profile");
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-white">Settings</h1>
-
-      <form
-        onSubmit={handleSubmit(onSubmit)}
-        className="max-w-lg space-y-6 rounded-lg border border-gray-800 bg-gray-900 p-6"
-      >
-        <Input label="Email" value={settings?.email ?? ""} disabled />
-        <Input label="Username" {...register("username")} />
-
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="notifications"
-            className="h-4 w-4 rounded border-gray-600 bg-gray-800"
-            {...register("notifications_enabled")}
-          />
-          <label htmlFor="notifications" className="text-sm text-gray-300">
-            Enable notifications
-          </label>
-        </div>
-
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-300">
-            Theme
-          </label>
-          <select
-            className="w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-gray-100"
-            {...register("theme")}
+    <div className="flex gap-6">
+      {/* Sidebar */}
+      <nav className="hidden w-52 shrink-0 space-y-1 md:block">
+        {sections.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setActive(s.id)}
+            className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+              active === s.id
+                ? "bg-brand-900 text-brand-400"
+                : s.danger
+                ? "text-danger-500 hover:bg-bg-overlay"
+                : "text-text-secondary hover:bg-bg-overlay hover:text-text-primary"
+            }`}
           >
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-          </select>
-        </div>
+            <s.icon className="h-4 w-4 shrink-0" />
+            <span className="flex-1 text-left">{s.label}</span>
+            {s.badge && <Badge variant="brand" size="sm">{s.badge}</Badge>}
+          </button>
+        ))}
+      </nav>
 
-        {updateMutation.isSuccess && (
-          <p className="text-sm text-green-400">Settings saved successfully.</p>
-        )}
+      {/* Mobile tabs */}
+      <div className="flex gap-1 overflow-x-auto border-b pb-2 md:hidden" style={{ borderColor: "var(--border-subtle)" }}>
+        {sections.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setActive(s.id)}
+            className={`whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              active === s.id ? "bg-brand-900 text-brand-400" : "text-text-secondary"
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
-        <Button type="submit" disabled={updateMutation.isPending}>
-          {updateMutation.isPending ? "Saving..." : "Save Settings"}
-        </Button>
-      </form>
+      {/* Content */}
+      <div className="min-w-0 flex-1">
+        {active === "profile" && <ProfileSettings />}
+        {active === "security" && <SecuritySettings />}
+        {active === "notifications" && <NotificationSettings />}
+        {active === "api" && <ApiKeySettings />}
+        {active === "gdpr" && <GdprSettings />}
+      </div>
     </div>
   );
 }
