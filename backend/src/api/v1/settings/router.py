@@ -163,9 +163,34 @@ async def update_system_settings(
 @router.get("/me/sessions", response_model=list[SessionResponse])
 async def list_sessions(
     current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[SessionResponse]:
-    # Placeholder
-    return []
+    """List active sessions (non-revoked refresh tokens) for the current user."""
+    from src.adapters.db.models import RefreshTokenModel
+    from sqlalchemy import select as sa_select
+
+    stmt = (
+        sa_select(RefreshTokenModel)
+        .where(
+            RefreshTokenModel.user_id == current_user.id,
+            RefreshTokenModel.is_revoked == False,  # noqa: E712
+        )
+        .order_by(RefreshTokenModel.created_at.desc())
+        .limit(20)
+    )
+    result = await db.execute(stmt)
+    tokens = result.scalars().all()
+
+    return [
+        SessionResponse(
+            id=str(t.id),
+            ip_address=t.ip_address,
+            user_agent=t.user_agent,
+            created_at=t.created_at.isoformat() if t.created_at else "",
+            is_current=False,  # Would need to compare with current token
+        )
+        for t in tokens
+    ]
 
 
 @router.delete("/me/sessions", response_model=MessageResponse)

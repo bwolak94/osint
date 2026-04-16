@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SeedInputSchema(BaseModel):
-    type: Literal["email", "username", "nip", "phone", "url", "domain"]
+    type: Literal["email", "username", "nip", "phone", "url", "domain", "ip_address"]
     value: str = Field(..., min_length=1, max_length=500)
     label: str | None = None
 
@@ -53,6 +53,7 @@ class CreateInvestigationRequest(BaseModel):
         default=None,
         description="Optional list of scanner names to run. If None, all applicable scanners are used.",
     )
+    schedule_cron: str | None = None  # e.g., "0 0 * * 1" for weekly Monday
 
 
 class UpdateInvestigationRequest(BaseModel):
@@ -101,6 +102,8 @@ class InvestigationResponse(BaseModel):
     seed_inputs: list[SeedInputSchema]
     tags: list[str]
     scan_progress: ScanProgressSchema = Field(default_factory=ScanProgressSchema)
+    schedule_cron: str | None = None
+    next_run_at: str | None = None
     created_at: datetime
     updated_at: datetime
     completed_at: datetime | None = None

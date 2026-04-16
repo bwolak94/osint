@@ -9,6 +9,7 @@ import { RelationshipEdge } from "./components/edges/RelationshipEdge";
 import { GraphToolbar } from "./components/GraphToolbar";
 import { NodeDetailPanel } from "./components/NodeDetailPanel";
 import { GraphStatusBar } from "./components/GraphStatusBar";
+import { NodeContextMenu } from "./components/NodeContextMenu";
 import { useGraphNodes, useNodeSelection, useNodeSearch, useNodeFilters, usePathFinding } from "./hooks";
 import { useGraphLayout } from "./useGraphLayout";
 import { Card, CardBody } from "@/shared/components/Card";
@@ -41,6 +42,9 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   const { query: searchQuery, setQuery: setSearchQuery } = useNodeSearch(setNodes);
   const { visibleTypes, toggleType, minConfidence, setMinConfidence } = useNodeFilters();
   const pathFinding = usePathFinding(investigationId);
+
+  // Context menu state for right-click on nodes
+  const [contextMenu, setContextMenu] = useState<{x: number; y: number; nodeId: string; nodeLabel: string} | null>(null);
 
   // Apply layout
   const handleLayoutChange = useCallback(
@@ -101,6 +105,15 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
     a.click();
     URL.revokeObjectURL(url);
   }, [filteredNodes, filteredEdges]);
+
+  // Handle right-click context menu on nodes
+  const onNodeContextMenu = useCallback(
+    (e: React.MouseEvent, node: Node<OsintNodeData>) => {
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY, nodeId: node.id, nodeLabel: node.data.label });
+    },
+    [],
+  );
 
   // Handle node click
   const onNodeClick = useCallback(
@@ -203,7 +216,8 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodeClick={onNodeClick}
-            onPaneClick={() => { selectNode(null); pathFinding.cancelPathFinding(); }}
+            onNodeContextMenu={onNodeContextMenu}
+            onPaneClick={() => { selectNode(null); pathFinding.cancelPathFinding(); setContextMenu(null); }}
             fitView
             fitViewOptions={{ padding: 0.2 }}
             minZoom={0.1}
@@ -228,6 +242,20 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
               style={{ background: "var(--bg-elevated)" }}
             />
           </ReactFlow>
+
+          {/* Node right-click context menu */}
+          {contextMenu && (
+            <NodeContextMenu
+              x={contextMenu.x}
+              y={contextMenu.y}
+              nodeId={contextMenu.nodeId}
+              nodeLabel={contextMenu.nodeLabel}
+              onClose={() => setContextMenu(null)}
+              onExpand={(id) => selectNode(id)}
+              onStartPathFrom={(id) => pathFinding.startPathFinding()}
+              onCopyValue={(value) => navigator.clipboard.writeText(value)}
+            />
+          )}
 
           {/* Node detail panel */}
           <NodeDetailPanel

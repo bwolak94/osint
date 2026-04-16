@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     base_url: str = "http://localhost:8000"
     frontend_url: str = "http://localhost:5173"
 
+    # External OSINT API keys
+    shodan_api_key: str = ""
+    hibp_api_key: str = ""
+    virustotal_api_key: str = ""
+
     # OSINT settings
     osint_scan_timeout_seconds: int = 120
     osint_max_concurrent_scans: int = 5
@@ -80,6 +85,10 @@ class Settings(BaseSettings):
 
     # CORS
     cors_origins: list[str] = ["http://localhost:8080", "http://localhost:5173", "http://localhost:3000"]
+
+    # Notification webhooks
+    slack_webhook_url: str = ""
+    discord_webhook_url: str = ""
 
     @model_validator(mode="after")
     def _check_secrets(self) -> "Settings":

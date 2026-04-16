@@ -6,7 +6,9 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
+from fastapi import Query as QueryParam
 from fastapi.responses import JSONResponse
+from starlette.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.db.repositories import SqlAlchemyInvestigationRepository
@@ -70,8 +72,14 @@ def _seed_domain_to_schema(seed: SeedInput) -> SeedInputSchema:
 
 def _build_response(investigation: Investigation) -> InvestigationResponse:
     """Map a domain Investigation entity to the API response schema."""
-    # Filter out internal __scanner: tags from the public response
-    public_tags = sorted(t for t in investigation.tags if not t.startswith("__scanner:"))
+    # Filter out internal tags from the public response
+    public_tags = sorted(t for t in investigation.tags if not t.startswith("__"))
+    # Extract schedule cron from internal tags
+    schedule_cron = None
+    for t in investigation.tags:
+        if t.startswith("__schedule:"):
+            schedule_cron = t.removeprefix("__schedule:")
+            break
     return InvestigationResponse(
         id=investigation.id,
         title=investigation.title,
@@ -81,6 +89,8 @@ def _build_response(investigation: Investigation) -> InvestigationResponse:
         seed_inputs=[_seed_domain_to_schema(s) for s in investigation.seed_inputs],
         tags=public_tags,
         scan_progress=ScanProgressSchema(),
+        schedule_cron=schedule_cron,
+        next_run_at=None,
         created_at=investigation.created_at,
         updated_at=investigation.updated_at,
         completed_at=investigation.completed_at,
@@ -661,14 +671,33 @@ async def export_investigation(
     investigation_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-) -> JSONResponse:
-    """Export investigation data as JSON."""
+    format: str = QueryParam(default="json", regex="^(json|csv)$"),
+):
+    """Export investigation data as JSON or CSV."""
     repo = SqlAlchemyInvestigationRepository(db)
     investigation = await _get_owned_investigation(investigation_id, current_user, repo)
 
     scan_repo = SqlAlchemyScanResultRepository(db)
     results = await scan_repo.get_by_investigation(investigation_id)
 
+    # CSV export format
+    if format == "csv":
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["Scanner", "Input", "Status", "Findings", "Duration (ms)", "Created At"])
+        for r in results:
+            writer.writerow([r.scanner_name, r.input_value, r.status.value, len(r.extracted_identifiers), r.duration_ms, r.created_at.isoformat()])
+
+        return StreamingResponse(
+            io.BytesIO(output.getvalue().encode()),
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="investigation-{investigation_id}.csv"'},
+        )
+
+    # Default JSON export format
     export_data = {
         "investigation": {
             "id": str(investigation.id),
@@ -701,3 +730,101 @@ async def export_investigation(
             "Content-Disposition": f'attachment; filename="investigation-{investigation_id}.json"',
         },
     )
+
+
+@router.get("/{investigation_id}/export/stix")
+async def export_stix(
+    investigation_id: UUID,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Export investigation data in STIX 2.1 format (simplified)."""
+    inv_repo = SqlAlchemyInvestigationRepository(db)
+    investigation = await inv_repo.get_by_id(investigation_id)
+    if not investigation or investigation.owner_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+
+    scan_repo = SqlAlchemyScanResultRepository(db)
+    results = await scan_repo.get_by_investigation(investigation_id)
+
+    # Build simplified STIX bundle
+    objects = []
+    for r in results:
+        if not r.raw_data or r.raw_data.get("_stub"):
+            continue
+
+        # Map scan results to STIX observed-data
+        obj = {
+            "type": "observed-data",
+            "id": f"observed-data--{r.id}",
+            "created": r.created_at.isoformat() + "Z" if r.created_at else "",
+            "first_observed": r.created_at.isoformat() + "Z" if r.created_at else "",
+            "last_observed": r.created_at.isoformat() + "Z" if r.created_at else "",
+            "number_observed": 1,
+            "objects": {
+                "0": {
+                    "type": "x-osint-scan-result",
+                    "scanner": r.scanner_name,
+                    "input": r.input_value,
+                    "data": r.raw_data,
+                }
+            },
+        }
+        objects.append(obj)
+
+    bundle = {
+        "type": "bundle",
+        "id": f"bundle--{investigation_id}",
+        "objects": objects,
+    }
+    return bundle
+
+
+@router.post("/{investigation_id}/schedule")
+async def schedule_investigation(
+    investigation_id: UUID,
+    body: dict,  # {"cron": "0 0 * * 1"}
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Schedule recurring scans for an investigation."""
+    # Store cron in tags as __schedule:cron_expression
+    repo = SqlAlchemyInvestigationRepository(db)
+    inv = await _get_owned_investigation(investigation_id, current_user, repo)
+    cron = body.get("cron", "")
+    tags = set(inv.tags)
+    # Remove old schedule
+    tags = {t for t in tags if not t.startswith("__schedule:")}
+    if cron:
+        tags.add(f"__schedule:{cron}")
+    from dataclasses import replace
+    updated = replace(inv, tags=frozenset(tags))
+    await repo.save(updated)
+    return {"status": "scheduled", "cron": cron}
+
+
+@router.post("/admin/cleanup", tags=["admin"])
+async def cleanup_old_investigations(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    retention_days: int = Query(default=90, ge=1, le=365),
+) -> dict:
+    """Delete investigations older than retention_days. Admin only."""
+    if current_user.role.value != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+
+    from datetime import datetime, timedelta, timezone
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+
+    from sqlalchemy import delete
+    from src.adapters.db.models import InvestigationModel
+
+    stmt = delete(InvestigationModel).where(
+        InvestigationModel.created_at < cutoff,
+        InvestigationModel.status.in_(["completed", "archived"]),
+    )
+    result = await db.execute(stmt)
+    await db.flush()
+
+    return {"deleted": result.rowcount, "cutoff_date": cutoff.isoformat()}

@@ -1,6 +1,7 @@
 import {
   Mail, AtSign, Building2, FileSearch, Receipt, Globe, Shield,
   CheckCircle2, Clock, Database, Users, CreditCard, MapPin, Hash, Search,
+  Wifi, Phone, Lock, AlertTriangle, Chrome, Linkedin, Twitter, Facebook, Instagram,
 } from "lucide-react";
 import { Card, CardBody } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
@@ -170,6 +171,226 @@ const scanners: Scanner[] = [
     requiresPro: false,
     speed: "fast",
   },
+  {
+    id: "shodan",
+    name: "Shodan",
+    description: "Open ports, services, vulnerabilities, and host intelligence",
+    longDescription:
+      "Queries the Shodan search engine for Internet-connected devices. Returns open ports, running services with banners, known vulnerabilities (CVEs), hostnames, OS detection, ISP, and country. Supports both IP addresses and domains (resolved to IP). Falls back to the free InternetDB endpoint when no API key is configured.",
+    inputTypes: [{ type: "ip_address", label: "IP Address" }, { type: "domain", label: "Domain" }],
+    dataFound: [
+      "Open ports and protocols",
+      "Running services and banners",
+      "Known vulnerabilities (CVEs)",
+      "Hostnames and reverse DNS",
+      "Operating system detection",
+      "ISP and country information",
+    ],
+    source: "api.shodan.io / internetdb.shodan.io",
+    icon: Wifi,
+    color: "var(--danger-500)",
+    requiresPro: false,
+    speed: "fast",
+  },
+  {
+    id: "geoip",
+    name: "IP Geolocation",
+    description: "Geographic location, ISP, and ASN data for IP addresses",
+    longDescription:
+      "Resolves an IP address to its geographic location using the free ip-api.com service. Returns country, city, latitude/longitude coordinates, ISP name, organization, ASN, and timezone. Useful for mapping infrastructure and identifying hosting providers.",
+    inputTypes: [{ type: "ip_address", label: "IP Address" }],
+    dataFound: [
+      "Country and city",
+      "Latitude and longitude coordinates",
+      "ISP name",
+      "Organization",
+      "Autonomous System Number (ASN)",
+      "Timezone",
+    ],
+    source: "ip-api.com",
+    icon: MapPin,
+    color: "var(--success-500)",
+    requiresPro: false,
+    speed: "fast",
+  },
+  {
+    id: "cert_transparency",
+    name: "Certificate Transparency",
+    description: "Subdomain discovery via SSL/TLS certificate logs",
+    longDescription:
+      "Queries crt.sh Certificate Transparency logs to discover subdomains associated with a domain. Extracts unique subdomains from certificate common names and subject alternative names. Effective for mapping an organization's attack surface and finding hidden services.",
+    inputTypes: [{ type: "domain", label: "Domain" }],
+    dataFound: [
+      "Subdomains from certificate common names",
+      "Subdomains from subject alternative names",
+      "Total certificate count",
+      "Unique subdomain count",
+    ],
+    source: "crt.sh (Certificate Transparency)",
+    icon: Lock,
+    color: "var(--brand-500)",
+    requiresPro: false,
+    speed: "medium",
+  },
+  {
+    id: "hibp",
+    name: "Have I Been Pwned",
+    description: "Data breach exposure check for email addresses",
+    longDescription:
+      "Checks if an email address has been involved in known data breaches using the Have I Been Pwned v3 API. Returns breach names, dates, exposed data types (passwords, emails, phone numbers, etc.), and verification status. Requires a paid HIBP API key.",
+    inputTypes: [{ type: "email", label: "Email" }],
+    dataFound: [
+      "Breach names and titles",
+      "Breach dates",
+      "Exposed data types (passwords, emails, etc.)",
+      "Number of accounts affected per breach",
+      "Breach verification status",
+      "Breach sensitivity flag",
+    ],
+    source: "haveibeenpwned.com (HIBP v3 API)",
+    icon: AlertTriangle,
+    color: "var(--warning-500)",
+    requiresPro: true,
+    speed: "fast",
+  },
+  {
+    id: "phone_lookup",
+    name: "Phone Lookup",
+    description: "Phone number validation, carrier, and line type detection",
+    longDescription:
+      "Parses and validates phone numbers using the phonenumbers library (pure Python, no API key needed). Extracts country, carrier name, line type (mobile, landline, VoIP), timezone, and formats the number in E.164 and international formats. Works offline with no external API calls.",
+    inputTypes: [{ type: "phone", label: "Phone" }],
+    dataFound: [
+      "Validation status (valid/invalid)",
+      "Country and region",
+      "Carrier name",
+      "Line type (mobile, landline, VoIP)",
+      "Timezone",
+      "E.164 and international format",
+    ],
+    source: "phonenumbers library (offline)",
+    icon: Phone,
+    color: "var(--node-phone, var(--brand-400))",
+    requiresPro: false,
+    speed: "fast",
+  },
+  {
+    id: "virustotal",
+    name: "VirusTotal",
+    description: "Threat intelligence for domains, IPs, and URLs via VirusTotal",
+    longDescription:
+      "Queries the VirusTotal API v3 for threat intelligence data. Returns malicious/suspicious detection counts from 70+ antivirus engines, reputation score, and content categories. Useful for identifying malicious infrastructure, phishing domains, and compromised hosts. Free tier allows 4 requests per minute.",
+    inputTypes: [{ type: "domain", label: "Domain" }, { type: "ip_address", label: "IP Address" }, { type: "url", label: "URL" }],
+    dataFound: [
+      "Malicious detection count",
+      "Suspicious detection count",
+      "Harmless/undetected counts",
+      "Reputation score",
+      "Content categories",
+      "Total engines scanned",
+    ],
+    source: "virustotal.com (API v3)",
+    icon: Shield,
+    color: "var(--danger-500)",
+    requiresPro: false,
+    speed: "fast",
+  },
+  {
+    id: "google_account",
+    name: "Google Account",
+    description: "Google services discovery for email addresses (Calendar, Workspace, Gravatar)",
+    longDescription:
+      "Probes public Google endpoints to discover services linked to an email address. Checks for Gravatar profile photo, public Google Calendar, and Google Workspace usage via DMARC DNS records. For Gmail addresses, confirms the Gmail service association. No API key required.",
+    inputTypes: [{ type: "email", label: "Email" }],
+    dataFound: [
+      "Gravatar profile photo",
+      "Google Calendar (public)",
+      "Google Workspace detection (via DMARC)",
+      "Gmail account confirmation",
+      "Registered service count",
+    ],
+    source: "Google public endpoints / Gravatar / DNS",
+    icon: Chrome,
+    color: "var(--node-email)",
+    requiresPro: false,
+    speed: "fast",
+  },
+  {
+    id: "linkedin",
+    name: "LinkedIn",
+    description: "LinkedIn profile discovery via direct URL check and Google dork search",
+    longDescription:
+      "Searches for LinkedIn profiles matching a username or email address. Performs a direct profile URL check for usernames and uses Google search dorks to find LinkedIn profile pages. Returns profile URLs and basic metadata. Results may be limited by LinkedIn's anti-scraping protections.",
+    inputTypes: [{ type: "username", label: "Username" }, { type: "email", label: "Email" }],
+    dataFound: [
+      "LinkedIn profile URL",
+      "Profile existence confirmation",
+      "Multiple profile matches (via Google dork)",
+      "Profile count",
+    ],
+    source: "linkedin.com / Google Search",
+    icon: Linkedin,
+    color: "var(--brand-500)",
+    requiresPro: false,
+    speed: "medium",
+  },
+  {
+    id: "twitter",
+    name: "Twitter/X",
+    description: "Twitter/X profile existence check and metadata extraction",
+    longDescription:
+      "Checks if a username has an active Twitter/X profile by probing the public profile URL. Extracts basic metadata from page meta tags including profile description and display name. Also attempts lookup via Nitter instances as a fallback for better data extraction.",
+    inputTypes: [{ type: "username", label: "Username" }],
+    dataFound: [
+      "Profile existence confirmation",
+      "Profile URL",
+      "Profile description (from meta tags)",
+      "Display name / title",
+    ],
+    source: "x.com / Nitter instances",
+    icon: Twitter,
+    color: "var(--brand-400)",
+    requiresPro: false,
+    speed: "fast",
+  },
+  {
+    id: "facebook",
+    name: "Facebook",
+    description: "Facebook profile existence check via public profile URL",
+    longDescription:
+      "Checks if a username has a Facebook profile by probing the public profile URL. Facebook heavily restricts scraping, so results are limited to profile existence confirmation. Detects redirects to login pages as indicators of non-existent profiles.",
+    inputTypes: [{ type: "username", label: "Username" }],
+    dataFound: [
+      "Profile existence confirmation",
+      "Profile URL",
+    ],
+    source: "facebook.com",
+    icon: Facebook,
+    color: "var(--brand-500)",
+    requiresPro: false,
+    speed: "fast",
+  },
+  {
+    id: "instagram",
+    name: "Instagram",
+    description: "Instagram profile data extraction — bio, followers, posts from public API",
+    longDescription:
+      "Queries the Instagram web API to extract public profile data for a username. Returns full name, biography, follower/following counts, post count, privacy status, and profile picture URL. Falls back to a simple URL existence check if the API is unavailable.",
+    inputTypes: [{ type: "username", label: "Username" }],
+    dataFound: [
+      "Full name",
+      "Biography / bio text",
+      "Follower and following counts",
+      "Post count",
+      "Privacy status (public/private)",
+      "Profile picture URL",
+    ],
+    source: "instagram.com (Web API)",
+    icon: Instagram,
+    color: "var(--warning-500)",
+    requiresPro: false,
+    speed: "fast",
+  },
 ];
 
 const speedConfig = {
@@ -191,12 +412,15 @@ export function ScannersPage() {
       </div>
 
       {/* Scanner type overview */}
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-7">
         {[
-          { type: "Email", icon: Mail, scanners: ["holehe"], color: "var(--node-email)" },
-          { type: "Username", icon: AtSign, scanners: ["maigret"], color: "var(--node-username)" },
+          { type: "Email", icon: Mail, scanners: ["holehe", "hibp", "google_account", "linkedin"], color: "var(--node-email)" },
+          { type: "Username", icon: AtSign, scanners: ["maigret", "linkedin", "twitter", "facebook", "instagram"], color: "var(--node-username)" },
           { type: "NIP", icon: Building2, scanners: ["vat_status", "playwright_krs", "playwright_ceidg"], color: "var(--node-company)" },
-          { type: "Domain", icon: Globe, scanners: ["whois", "dns_lookup"], color: "var(--node-domain)" },
+          { type: "Domain", icon: Globe, scanners: ["whois", "dns_lookup", "shodan", "cert_transparency", "virustotal"], color: "var(--node-domain)" },
+          { type: "IP Address", icon: Wifi, scanners: ["shodan", "geoip", "virustotal"], color: "var(--danger-500)" },
+          { type: "Phone", icon: Phone, scanners: ["phone_lookup"], color: "var(--brand-400)" },
+          { type: "Social Media", icon: Users, scanners: ["linkedin", "twitter", "facebook", "instagram"], color: "var(--brand-500)" },
         ].map((g) => (
           <Card key={g.type}>
             <CardBody className="flex items-center gap-3">

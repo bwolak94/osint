@@ -146,3 +146,49 @@ export function usePauseInvestigation() {
     },
   });
 }
+
+export function useComments(investigationId: string) {
+  return useQuery({
+    queryKey: ["comments", investigationId],
+    queryFn: async () => {
+      const res = await apiClient.get(`/investigations/${investigationId}/comments`);
+      return res.data;
+    },
+    enabled: !!investigationId,
+  });
+}
+
+export interface InvestigationSummary {
+  investigation_id: string;
+  summary: string;
+  key_findings: string[];
+  risk_indicators: string[];
+  recommended_actions: string[];
+  scan_recommendations: { type: string; values: string[]; scanner: string; reason: string }[];
+  risk_score: number;
+}
+
+export function useInvestigationSummary(id: string) {
+  return useQuery({
+    queryKey: ["investigation-summary", id],
+    queryFn: async () => {
+      const res = await apiClient.get<InvestigationSummary>(`/investigations/${id}/summarize`);
+      return res.data;
+    },
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ investigationId, text }: { investigationId: string; text: string }) => {
+      const res = await apiClient.post(`/investigations/${investigationId}/comments`, { text });
+      return res.data;
+    },
+    onSuccess: (_, { investigationId }) => {
+      qc.invalidateQueries({ queryKey: ["comments", investigationId] });
+    },
+  });
+}

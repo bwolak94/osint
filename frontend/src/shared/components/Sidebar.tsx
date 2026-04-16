@@ -6,6 +6,7 @@ import {
   LogOut,
   LayoutDashboard,
   Radar,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   Shield,
@@ -23,6 +24,7 @@ const mainNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/investigations", label: "Investigations", icon: Search },
   { to: "/scanners", label: "Scanners", icon: Radar },
+  { to: "/playbooks", label: "Playbooks", icon: BookOpen },
 ];
 
 const bottomNav = [

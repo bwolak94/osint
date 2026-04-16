@@ -20,7 +20,17 @@ from src.api.v1.investigations.router import router as investigations_router
 from src.api.v1.investigations.websocket import router as ws_router
 from src.api.v1.payments.router import router as payments_router
 from src.api.v1.admin.router import router as admin_router
+from src.api.v1.auth.totp import router as totp_router
+from src.api.v1.investigations.report import router as report_router
 from src.api.v1.settings.router import router as settings_router
+from src.api.v1.settings.webhooks import router as webhooks_router
+from src.api.v1.investigations.comments import router as comments_router
+from src.api.v1.investigations.summarize import router as summarize_router
+from src.api.v1.search import router as search_router
+from src.api.v1.workspaces import router as workspaces_router
+from src.api.v1.public_api import router as public_api_router
+from src.api.v1.playbooks import router as playbooks_router
+from src.api.v1.maltego import router as maltego_router
 from src.config import get_settings
 
 
@@ -119,6 +129,16 @@ def create_app() -> FastAPI:
     application.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
     application.include_router(payments_router, prefix="/api/v1/payments", tags=["payments"])
     application.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
+    application.include_router(totp_router, prefix="/api/v1/auth", tags=["2fa"])
+    application.include_router(report_router, prefix="/api/v1/investigations", tags=["reports"])
+    application.include_router(comments_router, prefix="/api/v1/investigations", tags=["comments"])
+    application.include_router(webhooks_router, prefix="/api/v1/settings", tags=["webhooks"])
+    application.include_router(summarize_router, prefix="/api/v1/investigations", tags=["ai"])
+    application.include_router(search_router, prefix="/api/v1", tags=["search"])
+    application.include_router(workspaces_router, prefix="/api/v1/workspaces", tags=["workspaces"])
+    application.include_router(public_api_router, prefix="/api/v1/public", tags=["public-api"])
+    application.include_router(playbooks_router, prefix="/api/v1/playbooks", tags=["playbooks"])
+    application.include_router(maltego_router, prefix="/api/v1", tags=["maltego"])
 
     return application
 

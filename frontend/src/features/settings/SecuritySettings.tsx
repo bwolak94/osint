@@ -65,14 +65,16 @@ export function SecuritySettings() {
         </CardBody>
       </Card>
 
-      {/* 2FA placeholder */}
+      {/* Two-Factor Authentication */}
       <Card>
         <CardHeader><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Two-Factor Authentication</h3></CardHeader>
-        <CardBody>
-          <div className="flex items-center gap-3 rounded-md p-3" style={{ background: "var(--bg-elevated)" }}>
-            <Badge variant="neutral" size="sm">Coming Soon</Badge>
-            <span className="text-sm" style={{ color: "var(--text-secondary)" }}>2FA support will be available in a future update.</span>
-          </div>
+        <CardBody className="space-y-3">
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            Add an extra layer of security to your account with a time-based one-time password (TOTP) app like Google Authenticator or Authy.
+          </p>
+          <Button variant="secondary" onClick={() => {/* TODO: call /auth/2fa/setup */}}>
+            Enable 2FA
+          </Button>
         </CardBody>
       </Card>
     </div>

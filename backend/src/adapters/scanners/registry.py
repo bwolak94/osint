@@ -1,12 +1,23 @@
 """Scanner registry — maps input types to available scanners."""
 
 from src.adapters.scanners.base import BaseOsintScanner
+from src.adapters.scanners.breach_scanner import BreachScanner
+from src.adapters.scanners.cert_scanner import CertTransparencyScanner
 from src.adapters.scanners.dns_scanner import DNSScanner
+from src.adapters.scanners.facebook_scanner import FacebookScanner
+from src.adapters.scanners.geoip_scanner import GeoIPScanner
+from src.adapters.scanners.google_scanner import GoogleAccountScanner
 from src.adapters.scanners.holehe_scanner import HoleheScanner
+from src.adapters.scanners.instagram_scanner import InstagramScanner
+from src.adapters.scanners.linkedin_scanner import LinkedInScanner
 from src.adapters.scanners.maigret_scanner import MaigretScanner
+from src.adapters.scanners.phone_scanner import PhoneScanner
 from src.adapters.scanners.playwright_ceidg import PlaywrightCEIDGScanner
 from src.adapters.scanners.playwright_krs import PlaywrightKRSScanner
 from src.adapters.scanners.playwright_vat import VATStatusScanner
+from src.adapters.scanners.shodan_scanner import ShodanScanner
+from src.adapters.scanners.twitter_scanner import TwitterScanner
+from src.adapters.scanners.virustotal_scanner import VirusTotalScanner
 from src.adapters.scanners.whois_scanner import WhoisScanner
 from src.core.domain.entities.types import ScanInputType
 
@@ -48,6 +59,17 @@ def create_default_registry() -> ScannerRegistry:
     registry.register(VATStatusScanner())
     registry.register(WhoisScanner())
     registry.register(DNSScanner())
+    registry.register(ShodanScanner())
+    registry.register(GeoIPScanner())
+    registry.register(CertTransparencyScanner())
+    registry.register(BreachScanner())
+    registry.register(PhoneScanner())
+    registry.register(VirusTotalScanner())
+    registry.register(GoogleAccountScanner())
+    registry.register(LinkedInScanner())
+    registry.register(TwitterScanner())
+    registry.register(FacebookScanner())
+    registry.register(InstagramScanner())
     return registry
 
 

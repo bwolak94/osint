@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon, Copy } from "lucide-react";
+import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon, Copy, FileText, MessageSquare, Send, Timer, Brain, CheckCircle, AlertTriangle, Lightbulb, MapPin } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
@@ -12,15 +12,17 @@ import { ConfidenceIndicator } from "@/shared/components/osint/ConfidenceIndicat
 import { EmptyState } from "@/shared/components/EmptyState";
 import { ScanProgressPanel } from "./ScanProgressPanel";
 import { useInvestigationWebSocket } from "./useInvestigationWebSocket";
-import { useInvestigation, useInvestigationResults, useStartInvestigation, usePauseInvestigation, useCreateInvestigation } from "./hooks";
+import { useInvestigation, useInvestigationResults, useStartInvestigation, usePauseInvestigation, useCreateInvestigation, useComments, useAddComment, useInvestigationSummary } from "./hooks";
 import { apiClient } from "@/shared/api/client";
 import { toast } from "@/shared/components/Toast";
+import { TimelineTab } from "./TimelineTab";
+import { MapTab } from "./MapTab";
 
 const statusVariant: Record<string, "neutral" | "info" | "success" | "warning" | "danger"> = {
   draft: "neutral", running: "info", paused: "warning", completed: "success", archived: "danger",
 };
 
-type Tab = "overview" | "scans" | "identities";
+type Tab = "overview" | "scans" | "identities" | "timeline" | "map" | "comments" | "summary";
 
 export function InvestigationDetailPage() {
   const { id } = useParams();
@@ -35,6 +37,10 @@ export function InvestigationDetailPage() {
   const startMutation = useStartInvestigation();
   const pauseMutation = usePauseInvestigation();
   const createMutation = useCreateInvestigation();
+  const { data: comments } = useComments(id ?? "");
+  const { data: summaryData, isLoading: summaryLoading } = useInvestigationSummary(id ?? "");
+  const addCommentMutation = useAddComment();
+  const [commentText, setCommentText] = useState("");
 
   const handleRerun = async () => {
     if (!id || !investigation) return;
@@ -84,6 +90,24 @@ export function InvestigationDetailPage() {
     }
   };
 
+  const handleDownloadReport = async () => {
+    if (!id) return;
+    try {
+      const res = await apiClient.get(`/investigations/${id}/report`, { responseType: "blob" });
+      const contentType = res.headers["content-type"] || "application/pdf";
+      const ext = contentType.includes("pdf") ? "pdf" : "html";
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: contentType }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `report-${id}.${ext}`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success("Report downloaded");
+    } catch {
+      toast.error("Report generation failed");
+    }
+  };
+
   // Track previous status to detect transitions
   const prevStatusRef = useRef<string | undefined>(undefined);
 
@@ -106,6 +130,10 @@ export function InvestigationDetailPage() {
     { value: "overview", label: "Overview", icon: Activity },
     { value: "scans", label: "Scans", icon: Scan },
     { value: "identities", label: "Identities", icon: Users },
+    { value: "timeline", label: "Timeline", icon: Timer },
+    { value: "map", label: "Map", icon: MapPin },
+    { value: "comments", label: "Comments", icon: MessageSquare },
+    { value: "summary", label: "AI Summary", icon: Brain },
   ];
 
   if (isLoading) {
@@ -177,6 +205,7 @@ export function InvestigationDetailPage() {
             Graph
           </Button>
           <Button variant="ghost" size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={handleExport}>Export</Button>
+          <Button variant="ghost" size="sm" leftIcon={<FileText className="h-4 w-4" />} onClick={handleDownloadReport}>Report</Button>
         </div>
       </div>
 
@@ -422,6 +451,193 @@ export function InvestigationDetailPage() {
             })
           ) : (
             <EmptyState title="No identities resolved yet" description="Identities will appear as scans complete and entity resolution runs." />
+          )}
+        </div>
+      )}
+
+      {tab === "timeline" && (
+        <TimelineTab investigation={investigation} scanResults={scanResults} />
+      )}
+
+      {tab === "map" && (
+        <MapTab scanResults={scanResults} />
+      )}
+
+      {tab === "comments" && (
+        <div className="space-y-4">
+          {/* Add comment form */}
+          <Card>
+            <CardBody>
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!id || !commentText.trim()) return;
+                  try {
+                    await addCommentMutation.mutateAsync({ investigationId: id, text: commentText.trim() });
+                    setCommentText("");
+                    toast.success("Comment added");
+                  } catch {
+                    toast.error("Failed to add comment");
+                  }
+                }}
+                className="flex gap-2"
+              >
+                <input
+                  type="text"
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="flex-1 rounded-md border px-3 py-2 text-sm"
+                  style={{ borderColor: "var(--border-subtle)", backgroundColor: "var(--bg-surface)", color: "var(--text-primary)" }}
+                  maxLength={5000}
+                />
+                <Button type="submit" size="sm" leftIcon={<Send className="h-4 w-4" />} loading={addCommentMutation.isPending} disabled={!commentText.trim()}>
+                  Send
+                </Button>
+              </form>
+            </CardBody>
+          </Card>
+
+          {/* Comments list */}
+          {comments && (comments as any[]).length > 0 ? (
+            (comments as any[]).map((c: any) => (
+              <Card key={c.id}>
+                <CardBody>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="h-4 w-4" style={{ color: "var(--brand-400)" }} />
+                      <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{c.user_email}</span>
+                      <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                        {new Date(c.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    {c.target_type !== "investigation" && (
+                      <Badge variant="neutral" size="sm">{c.target_type}{c.target_id ? `: ${c.target_id}` : ""}</Badge>
+                    )}
+                  </div>
+                  <p className="mt-2 text-sm" style={{ color: "var(--text-secondary)" }}>{c.text}</p>
+                </CardBody>
+              </Card>
+            ))
+          ) : (
+            <EmptyState title="No comments yet" description="Be the first to add a comment to this investigation." />
+          )}
+        </div>
+      )}
+
+      {tab === "summary" && (
+        <div className="space-y-4">
+          {summaryLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin" style={{ color: "var(--brand-500)" }} />
+            </div>
+          ) : summaryData ? (
+            <>
+              {/* Risk score banner */}
+              <Card>
+                <CardBody className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Brain className="h-5 w-5" style={{ color: "var(--brand-400)" }} />
+                    <div>
+                      <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>AI Intelligence Summary</h3>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-tertiary)" }}>Rule-based analysis of all scan results</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>Risk Score</span>
+                    <Badge variant={summaryData.risk_score >= 0.7 ? "danger" : summaryData.risk_score >= 0.4 ? "warning" : "success"}>
+                      {(summaryData.risk_score * 100).toFixed(0)}%
+                    </Badge>
+                  </div>
+                </CardBody>
+              </Card>
+
+              {/* Summary text */}
+              <Card>
+                <CardHeader><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Summary</h3></CardHeader>
+                <CardBody>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{summaryData.summary}</p>
+                </CardBody>
+              </Card>
+
+              {/* Key findings */}
+              {summaryData.key_findings.length > 0 && (
+                <Card>
+                  <CardHeader><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Key Findings</h3></CardHeader>
+                  <CardBody>
+                    <ul className="space-y-2">
+                      {summaryData.key_findings.map((finding: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--brand-400)" }} />
+                          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{finding}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* Risk indicators */}
+              {summaryData.risk_indicators.length > 0 && (
+                <Card>
+                  <CardHeader><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Risk Indicators</h3></CardHeader>
+                  <CardBody>
+                    <div className="flex flex-wrap gap-2">
+                      {summaryData.risk_indicators.map((indicator: string, i: number) => (
+                        <Badge key={i} variant="danger">
+                          <AlertTriangle className="h-3 w-3 mr-1 inline" />
+                          {indicator}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* Recommended actions */}
+              {summaryData.recommended_actions.length > 0 && (
+                <Card>
+                  <CardHeader><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Recommended Actions</h3></CardHeader>
+                  <CardBody>
+                    <ul className="space-y-2">
+                      {summaryData.recommended_actions.map((action: string, i: number) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <Lightbulb className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--warning-400, #f59e0b)" }} />
+                          <span className="text-sm" style={{ color: "var(--text-secondary)" }}>{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardBody>
+                </Card>
+              )}
+
+              {/* Scan recommendations */}
+              {summaryData.scan_recommendations.length > 0 && (
+                <Card>
+                  <CardHeader><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Smart Scan Recommendations</h3></CardHeader>
+                  <CardBody>
+                    <div className="space-y-3">
+                      {summaryData.scan_recommendations.map((rec: any, i: number) => (
+                        <div key={i} className="rounded-md border p-3" style={{ borderColor: "var(--border-subtle)", backgroundColor: "var(--bg-overlay)" }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="info" size="sm">{rec.scanner}</Badge>
+                            <Badge variant="neutral" size="sm">{rec.type}</Badge>
+                          </div>
+                          <p className="text-xs mb-1" style={{ color: "var(--text-tertiary)" }}>{rec.reason}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {rec.values.map((v: string) => (
+                              <DataBadge key={v} value={v} />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardBody>
+                </Card>
+              )}
+            </>
+          ) : (
+            <EmptyState title="No summary available" description="Summary will be available once scan results are collected." />
           )}
         </div>
       )}

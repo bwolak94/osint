@@ -79,6 +79,10 @@ class NodeType(str, Enum):
     USERNAME = "username"
     IP = "ip"
     DOMAIN = "domain"
+    SERVICE = "service"
+    LOCATION = "location"
+    VULNERABILITY = "vulnerability"
+    BREACH = "breach"
 
 
 class RelationshipType(str, Enum):

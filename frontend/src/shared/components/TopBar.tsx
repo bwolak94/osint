@@ -1,11 +1,12 @@
 import { useLocation } from "react-router-dom";
-import { Bell } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 
 const routeNames: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/investigations": "Investigations",
   "/scanners": "Scanners",
+  "/playbooks": "Playbooks",
   "/settings": "Settings",
   "/billing": "Billing",
 };
@@ -34,6 +35,18 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center gap-3">
+        <button
+          onClick={() => {
+            window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }));
+          }}
+          className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition-colors hover:bg-bg-overlay"
+          style={{ borderColor: "var(--border-default)", color: "var(--text-tertiary)" }}
+        >
+          <Search className="h-3.5 w-3.5" />
+          Search...
+          <kbd className="rounded border px-1 py-0.5 text-[10px]" style={{ borderColor: "var(--border-default)" }}>&#x2318;K</kbd>
+        </button>
+
         <button className="relative rounded-md p-2 transition-colors hover:bg-bg-overlay">
           <Bell className="h-4 w-4" style={{ color: "var(--text-secondary)" }} />
         </button>
