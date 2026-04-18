@@ -167,6 +167,104 @@ function circularLayout(nodes: Node<OsintNodeData>[]): Node<OsintNodeData>[] {
   });
 }
 
+// Radial layout - BFS rings from the most connected node
+function radialLayout(nodes: Node<OsintNodeData>[], edges: Edge[]): Node<OsintNodeData>[] {
+  if (nodes.length === 0) return nodes;
+
+  // Find center node (most connected)
+  const degree: Record<string, number> = {};
+  edges.forEach((e) => {
+    degree[e.source] = (degree[e.source] || 0) + 1;
+    degree[e.target] = (degree[e.target] || 0) + 1;
+  });
+
+  const centerNode = nodes.reduce((a, b) =>
+    (degree[a.id] || 0) >= (degree[b.id] || 0) ? a : b
+  );
+
+  // BFS rings from center
+  const visited = new Set<string>([centerNode.id]);
+  const levels: Map<string, number> = new Map([[centerNode.id, 0]]);
+  const queue = [centerNode.id];
+  const adj = new Map<string, string[]>();
+  edges.forEach((e) => {
+    adj.set(e.source, [...(adj.get(e.source) || []), e.target]);
+    adj.set(e.target, [...(adj.get(e.target) || []), e.source]);
+  });
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const neighbor of adj.get(current) || []) {
+      if (!visited.has(neighbor)) {
+        visited.add(neighbor);
+        levels.set(neighbor, (levels.get(current) || 0) + 1);
+        queue.push(neighbor);
+      }
+    }
+  }
+
+  // Assign disconnected nodes to outermost ring
+  const maxLevel = Math.max(0, ...Array.from(levels.values()));
+  nodes.forEach((n) => {
+    if (!levels.has(n.id)) {
+      levels.set(n.id, maxLevel + 1);
+    }
+  });
+
+  // Position by ring
+  const byLevel = new Map<number, string[]>();
+  levels.forEach((level, id) => {
+    if (!byLevel.has(level)) byLevel.set(level, []);
+    byLevel.get(level)!.push(id);
+  });
+
+  const ringSpacing = 180;
+  return nodes.map((n) => {
+    const level = levels.get(n.id) ?? 0;
+    if (level === 0) return { ...n, position: { x: 0, y: 0 } };
+    const ring = byLevel.get(level) || [];
+    const idx = ring.indexOf(n.id);
+    const angle = (idx / ring.length) * 2 * Math.PI;
+    const radius = level * ringSpacing;
+    return { ...n, position: { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius } };
+  });
+}
+
+// Block layout - groups nodes by type in columns
+function blockLayout(nodes: Node<OsintNodeData>[]): Node<OsintNodeData>[] {
+  if (nodes.length === 0) return nodes;
+
+  // Group nodes by type
+  const groups = new Map<string, Node<OsintNodeData>[]>();
+  nodes.forEach((n) => {
+    const type = n.data.type;
+    if (!groups.has(type)) groups.set(type, []);
+    groups.get(type)!.push(n);
+  });
+
+  const columnWidth = 250;
+  const rowHeight = 80;
+  const headerHeight = 30;
+  const result: Node<OsintNodeData>[] = [];
+
+  let colIndex = 0;
+  groups.forEach((groupNodes) => {
+    const x = colIndex * columnWidth;
+    groupNodes.forEach((n, rowIndex) => {
+      result.push({
+        ...n,
+        position: {
+          x,
+          y: headerHeight + rowIndex * rowHeight,
+        },
+      });
+    });
+    colIndex++;
+  });
+
+  return result;
+}
+
 export function useGraphLayout() {
   const applyLayout = useCallback(
     (nodes: Node<OsintNodeData>[], edges: Edge[], layout: LayoutType): Node<OsintNodeData>[] => {
@@ -177,6 +275,10 @@ export function useGraphLayout() {
           return hierarchicalLayout(nodes, edges);
         case "circular":
           return circularLayout(nodes);
+        case "radial":
+          return radialLayout(nodes, edges);
+        case "block":
+          return blockLayout(nodes);
         case "manual":
         default:
           return nodes;

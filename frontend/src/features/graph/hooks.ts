@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo, useDeferredValue, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNodesState, useEdgesState, useReactFlow, type Node, type Edge } from "reactflow";
+import { useNodesState, useEdgesState, type Node, type Edge } from "reactflow";
 import { apiClient } from "@/shared/api/client";
 import type {
   GraphApiResponse, GraphApiNode, GraphApiEdge, OsintNodeData, OsintEdgeData,
-  NodeType, LayoutType, PathApiResponse,
+  NodeType, PathApiResponse,
 } from "./types";
 
 // Transform API data to ReactFlow format
@@ -25,6 +25,8 @@ function apiNodeToReactFlow(n: GraphApiNode, index: number): Node<OsintNodeData>
       isSelected: false,
       isDimmed: false,
       isOnPath: false,
+      childCount: 0,
+      weight: 0,
     },
   };
 }
@@ -37,13 +39,37 @@ function apiEdgeToReactFlow(e: GraphApiEdge): Edge<OsintEdgeData> {
     type: "relationship",
     data: {
       label: e.label || e.type,
-      relationType: e.type as any,
+      relationType: e.type as OsintEdgeData["relationType"],
       confidence: e.confidence,
       validFrom: e.valid_from,
       validTo: e.valid_to,
       isOnPath: false,
     },
   };
+}
+
+/** Compute weight (total edges) and childCount (outgoing edges) for each node */
+function computeNodeMetrics(
+  nodes: Node<OsintNodeData>[],
+  edges: Edge[],
+): Node<OsintNodeData>[] {
+  const weight: Record<string, number> = {};
+  const childCount: Record<string, number> = {};
+
+  edges.forEach((e) => {
+    weight[e.source] = (weight[e.source] || 0) + 1;
+    weight[e.target] = (weight[e.target] || 0) + 1;
+    childCount[e.source] = (childCount[e.source] || 0) + 1;
+  });
+
+  return nodes.map((n) => ({
+    ...n,
+    data: {
+      ...n.data,
+      weight: weight[n.id] ?? 0,
+      childCount: childCount[n.id] ?? 0,
+    },
+  }));
 }
 
 export function useGraphData(investigationId: string) {
@@ -72,13 +98,19 @@ export function useGraphNodes(investigationId: string) {
     [data?.edges],
   );
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  // Compute weight and childCount after building nodes
+  const enrichedNodes = useMemo(
+    () => computeNodeMetrics(initialNodes, initialEdges),
+    [initialNodes, initialEdges],
+  );
+
+  const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // Sync when data changes
   useEffect(() => {
-    if (initialNodes.length > 0) setNodes(initialNodes);
-  }, [initialNodes, setNodes]);
+    if (enrichedNodes.length > 0) setNodes(enrichedNodes);
+  }, [enrichedNodes, setNodes]);
 
   useEffect(() => {
     if (initialEdges.length > 0) setEdges(initialEdges);
@@ -118,9 +150,16 @@ export function useNodeSearch(setNodes: (updater: (nodes: Node<OsintNodeData>[])
   return { query, setQuery };
 }
 
+const ALL_NODE_TYPES: NodeType[] = [
+  "person", "company", "email", "phone", "username", "ip", "domain",
+  "service", "location", "vulnerability", "breach", "subdomain",
+  "port", "certificate", "asn", "url", "hash", "address",
+  "bank_account", "regon", "nip", "online_service", "input",
+];
+
 export function useNodeFilters() {
   const [visibleTypes, setVisibleTypes] = useState<Set<NodeType>>(
-    new Set(["person", "company", "email", "phone", "username", "ip", "domain"]),
+    new Set(ALL_NODE_TYPES),
   );
   const [minConfidence, setMinConfidence] = useState(0);
 

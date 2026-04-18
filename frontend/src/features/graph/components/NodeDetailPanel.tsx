@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Expand, Scan, MessageSquare, AlertTriangle, Network } from "lucide-react";
+import { X, Expand, Scan, MessageSquare, Play } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
 import { DataBadge } from "@/shared/components/DataBadge";
@@ -12,9 +12,60 @@ interface NodeDetailPanelProps {
   connectedNodes: { id: string; type: string; label: string; relation: string }[];
   onClose: () => void;
   onExpandNode: (nodeId: string) => void;
+  onRunTransform?: (nodeId: string, transformName: string) => void;
 }
 
-export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode }: NodeDetailPanelProps) {
+/** Available transforms based on node type */
+function getAvailableTransforms(type: string): { name: string; label: string; description: string }[] {
+  const common = [
+    { name: "expand_all", label: "Expand All", description: "Discover all connected entities" },
+  ];
+
+  const typeSpecific: Record<string, { name: string; label: string; description: string }[]> = {
+    person: [
+      { name: "find_emails", label: "Find Email Addresses", description: "Search for associated email addresses" },
+      { name: "find_social", label: "Find Social Profiles", description: "Discover social media accounts" },
+      { name: "find_phones", label: "Find Phone Numbers", description: "Search for phone numbers" },
+      { name: "find_companies", label: "Find Companies", description: "Discover company affiliations" },
+    ],
+    email: [
+      { name: "check_breaches", label: "Check Breaches", description: "Search in known data breaches" },
+      { name: "resolve_domain", label: "Resolve Domain", description: "Extract and resolve email domain" },
+      { name: "find_owner", label: "Find Owner", description: "Identify the email owner" },
+    ],
+    domain: [
+      { name: "find_subdomains", label: "Find Subdomains", description: "Enumerate subdomains" },
+      { name: "dns_lookup", label: "DNS Lookup", description: "Resolve DNS records" },
+      { name: "whois_lookup", label: "WHOIS Lookup", description: "Get registration information" },
+      { name: "find_certificates", label: "Find Certificates", description: "Discover SSL certificates" },
+    ],
+    ip: [
+      { name: "port_scan", label: "Port Scan", description: "Scan for open ports" },
+      { name: "reverse_dns", label: "Reverse DNS", description: "Resolve IP to hostname" },
+      { name: "geolocate", label: "Geolocate", description: "Find geographic location" },
+      { name: "find_asn", label: "Find ASN", description: "Identify the ASN" },
+    ],
+    phone: [
+      { name: "lookup_carrier", label: "Lookup Carrier", description: "Identify phone carrier" },
+      { name: "find_owner", label: "Find Owner", description: "Search for phone owner" },
+    ],
+    username: [
+      { name: "find_profiles", label: "Find Profiles", description: "Search across platforms" },
+      { name: "find_emails", label: "Find Emails", description: "Discover associated emails" },
+    ],
+    company: [
+      { name: "find_employees", label: "Find Employees", description: "Discover known employees" },
+      { name: "find_domains", label: "Find Domains", description: "Discover company domains" },
+      { name: "find_registration", label: "Registration Info", description: "Look up NIP/REGON/KRS" },
+    ],
+  };
+
+  return [...common, ...(typeSpecific[type] ?? [])];
+}
+
+export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode, onRunTransform }: NodeDetailPanelProps) {
+  const transforms = node ? getAvailableTransforms(node.type) : [];
+
   return (
     <AnimatePresence>
       {node && (
@@ -35,7 +86,7 @@ export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode }:
                   {node.label}
                 </h3>
                 <p className="text-xs capitalize" style={{ color: "var(--text-tertiary)" }}>
-                  {node.type}
+                  {node.type.replace(/_/g, " ")}
                 </p>
               </div>
             </div>
@@ -53,6 +104,32 @@ export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode }:
               </p>
               <ConfidenceIndicator value={node.confidence} />
             </div>
+
+            {/* Weight / Child Count stats */}
+            {(node.weight != null && node.weight > 0 || node.childCount != null && node.childCount > 0) && (
+              <div className="flex gap-4">
+                {node.weight != null && node.weight > 0 && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                      Connections
+                    </p>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {node.weight}
+                    </p>
+                  </div>
+                )}
+                {node.childCount != null && node.childCount > 0 && (
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                      Children
+                    </p>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                      {node.childCount}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Properties */}
             {Object.keys(node.properties).length > 0 && (
@@ -82,6 +159,34 @@ export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode }:
                 ))}
               </div>
             </div>
+
+            {/* Available Transforms */}
+            {transforms.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                  Transforms
+                </p>
+                <div className="space-y-1">
+                  {transforms.map((t) => (
+                    <button
+                      key={t.name}
+                      onClick={() => onRunTransform?.(node.id, t.name)}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-bg-overlay"
+                    >
+                      <Play className="h-3 w-3 shrink-0" style={{ color: "var(--brand-500)" }} />
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate font-medium" style={{ color: "var(--text-primary)" }}>
+                          {t.label}
+                        </span>
+                        <span className="block truncate" style={{ color: "var(--text-tertiary)" }}>
+                          {t.description}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Connected nodes */}
             {connectedNodes.length > 0 && (

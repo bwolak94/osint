@@ -1,24 +1,45 @@
 """Scanner registry — maps input types to available scanners."""
 
+from src.adapters.scanners.asn_scanner import ASNScanner
 from src.adapters.scanners.base import BaseOsintScanner
+from src.adapters.scanners.favicon_scanner import FaviconHashScanner
+from src.adapters.scanners.bgp_scanner import BGPHijackScanner
+from src.adapters.scanners.cloud_asset_scanner import CloudAssetScanner
+from src.adapters.scanners.email_header_scanner import EmailHeaderScanner
+from src.adapters.scanners.crypto_scanner import CryptoAddressScanner
+from src.adapters.scanners.dorking_scanner import GoogleDorkScanner
+from src.adapters.scanners.linkedin_company_scanner import LinkedInCompanyScanner
+from src.adapters.scanners.cloud_metadata_scanner import CloudMetadataScanner
+from src.adapters.scanners.dns_bruteforce_scanner import DNSBruteforceScanner
+from src.adapters.scanners.metadata_scanner import MetadataScanner
+from src.adapters.scanners.tracking_scanner import TrackingCodeScanner
 from src.adapters.scanners.breach_scanner import BreachScanner
 from src.adapters.scanners.cert_scanner import CertTransparencyScanner
+from src.adapters.scanners.darkweb_scanner import DarkWebScanner
 from src.adapters.scanners.dns_scanner import DNSScanner
 from src.adapters.scanners.facebook_scanner import FacebookScanner
 from src.adapters.scanners.geoip_scanner import GeoIPScanner
+from src.adapters.scanners.github_scanner import GitHubScanner
 from src.adapters.scanners.google_scanner import GoogleAccountScanner
 from src.adapters.scanners.holehe_scanner import HoleheScanner
 from src.adapters.scanners.instagram_scanner import InstagramScanner
 from src.adapters.scanners.linkedin_scanner import LinkedInScanner
 from src.adapters.scanners.maigret_scanner import MaigretScanner
+from src.adapters.scanners.paste_scanner import PasteSitesScanner
 from src.adapters.scanners.phone_scanner import PhoneScanner
 from src.adapters.scanners.playwright_ceidg import PlaywrightCEIDGScanner
 from src.adapters.scanners.playwright_krs import PlaywrightKRSScanner
 from src.adapters.scanners.playwright_vat import VATStatusScanner
+from src.adapters.scanners.reddit_scanner import RedditScanner
 from src.adapters.scanners.shodan_scanner import ShodanScanner
+from src.adapters.scanners.subdomain_scanner import SubdomainScanner
+from src.adapters.scanners.telegram_scanner import TelegramScanner
+from src.adapters.scanners.tiktok_scanner import TikTokScanner
 from src.adapters.scanners.twitter_scanner import TwitterScanner
 from src.adapters.scanners.virustotal_scanner import VirusTotalScanner
+from src.adapters.scanners.wayback_scanner import WaybackScanner
 from src.adapters.scanners.whois_scanner import WhoisScanner
+from src.adapters.scanners.youtube_scanner import YouTubeScanner
 from src.core.domain.entities.types import ScanInputType
 
 
@@ -70,6 +91,29 @@ def create_default_registry() -> ScannerRegistry:
     registry.register(TwitterScanner())
     registry.register(FacebookScanner())
     registry.register(InstagramScanner())
+    registry.register(SubdomainScanner())
+    registry.register(WaybackScanner())
+    registry.register(GitHubScanner())
+    registry.register(PasteSitesScanner())
+    registry.register(TelegramScanner())
+    registry.register(TikTokScanner())
+    registry.register(YouTubeScanner())
+    registry.register(RedditScanner())
+    registry.register(DarkWebScanner())
+    registry.register(ASNScanner())
+    # New scanners — infrastructure fingerprinting & metadata
+    registry.register(DNSBruteforceScanner())
+    registry.register(TrackingCodeScanner())
+    registry.register(MetadataScanner())
+    # New scanners — Feature batch 2
+    registry.register(FaviconHashScanner())
+    registry.register(BGPHijackScanner())
+    registry.register(CloudAssetScanner())
+    registry.register(EmailHeaderScanner())
+    registry.register(CryptoAddressScanner())
+    registry.register(GoogleDorkScanner())
+    registry.register(LinkedInCompanyScanner())
+    registry.register(CloudMetadataScanner())
     return registry
 
 

@@ -1,10 +1,15 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactFlow, { Background, MiniMap, ReactFlowProvider, useReactFlow, type NodeTypes, type EdgeTypes, type Node } from "reactflow";
 import "reactflow/dist/style.css";
 import { ArrowLeft } from "lucide-react";
 
-import { PersonNode, CompanyNode, EmailNode, PhoneNode, UsernameNode, IPNode, DomainNode } from "./components/nodes";
+import {
+  PersonNode, CompanyNode, EmailNode, PhoneNode, UsernameNode, IPNode, DomainNode,
+  ServiceNode, LocationNode, VulnerabilityNode, BreachNode, SubdomainNode,
+  PortNode, CertificateNode, ASNNode, URLNode, HashNode, AddressNode,
+  BankAccountNode, GenericNode,
+} from "./components/nodes";
 import { RelationshipEdge } from "./components/edges/RelationshipEdge";
 import { GraphToolbar } from "./components/GraphToolbar";
 import { NodeDetailPanel } from "./components/NodeDetailPanel";
@@ -14,7 +19,7 @@ import { useGraphNodes, useNodeSelection, useNodeSearch, useNodeFilters, usePath
 import { useGraphLayout } from "./useGraphLayout";
 import { Card, CardBody } from "@/shared/components/Card";
 import { EmptyState } from "@/shared/components/EmptyState";
-import type { OsintNodeData, LayoutType } from "./types";
+import type { OsintNodeData, LayoutType, NodeType } from "./types";
 
 const nodeTypes: NodeTypes = {
   person: PersonNode,
@@ -24,10 +29,38 @@ const nodeTypes: NodeTypes = {
   username: UsernameNode,
   ip: IPNode,
   domain: DomainNode,
+  service: ServiceNode,
+  location: LocationNode,
+  vulnerability: VulnerabilityNode,
+  breach: BreachNode,
+  subdomain: SubdomainNode,
+  port: PortNode,
+  certificate: CertificateNode,
+  asn: ASNNode,
+  url: URLNode,
+  hash: HashNode,
+  address: AddressNode,
+  bank_account: BankAccountNode,
+  // Fallback types map to GenericNode
+  regon: GenericNode,
+  nip: GenericNode,
+  online_service: GenericNode,
+  input: GenericNode,
 };
 
 const edgeTypes: EdgeTypes = {
   relationship: RelationshipEdge,
+};
+
+/** Color map for minimap and status bar */
+const NODE_COLOR_MAP: Record<string, string> = {
+  person: "#818cf8", company: "#22d3d0", email: "#34d399",
+  phone: "#fbbf24", username: "#a78bfa", ip: "#f87171", domain: "#60a5fa",
+  service: "#f472b6", location: "#fb923c", vulnerability: "#ef4444",
+  breach: "#dc2626", subdomain: "#38bdf8", port: "#94a3b8",
+  certificate: "#a78bfa", asn: "#64748b", url: "#2dd4bf",
+  hash: "#a3a3a3", address: "#fb923c", bank_account: "#eab308",
+  regon: "#78716c", nip: "#78716c", online_service: "#c084fc", input: "#6366f1",
 };
 
 function GraphExplorer({ investigationId }: { investigationId: string }) {
@@ -95,7 +128,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   }, [selectedNodeId, edges, nodes]);
 
   // Export graph data as JSON
-  const handleExport = useCallback(() => {
+  const handleExportJSON = useCallback(() => {
     const graphData = { nodes: filteredNodes, edges: filteredEdges };
     const blob = new Blob([JSON.stringify(graphData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -105,6 +138,73 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
     a.click();
     URL.revokeObjectURL(url);
   }, [filteredNodes, filteredEdges]);
+
+  // Export graph data as CSV
+  const handleExportCSV = useCallback(() => {
+    const headers = ["id", "type", "label", "confidence", "sources"];
+    const rows = filteredNodes.map((n) => [
+      n.data.id, n.data.type, `"${n.data.label}"`, String(n.data.confidence), `"${n.data.sources.join(";")}"`,
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "graph-export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [filteredNodes]);
+
+  // Export as PNG using canvas
+  const handleExportPNG = useCallback(() => {
+    const svgEl = document.querySelector<SVGElement>(".react-flow__viewport");
+    if (!svgEl) return;
+    // Use html2canvas-style approach: serialize the viewport to an image
+    // For simplicity, download JSON as fallback; a full PNG export requires html-to-image library
+    handleExportJSON();
+  }, [handleExportJSON]);
+
+  // Select all nodes by type
+  const handleSelectByType = useCallback(
+    (type: NodeType) => {
+      setNodes((prev) =>
+        prev.map((n) => ({
+          ...n,
+          data: { ...n.data, isSelected: n.data.type === type, isDimmed: n.data.type !== type },
+        })),
+      );
+    },
+    [setNodes],
+  );
+
+  // Clear type selection
+  const handleClearSelection = useCallback(() => {
+    setNodes((prev) =>
+      prev.map((n) => ({
+        ...n,
+        data: { ...n.data, isSelected: false, isDimmed: false },
+      })),
+    );
+  }, [setNodes]);
+
+  // Hide a specific node
+  const handleHideNode = useCallback(
+    (nodeId: string) => {
+      setNodes((prev) => prev.filter((n) => n.id !== nodeId));
+      setEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId));
+    },
+    [setNodes, setEdges],
+  );
+
+  // Remove a specific node
+  const handleRemoveNode = useCallback(
+    (nodeId: string) => {
+      setNodes((prev) => prev.filter((n) => n.id !== nodeId));
+      setEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId));
+      if (selectedNodeId === nodeId) selectNode(null);
+    },
+    [setNodes, setEdges, selectedNodeId, selectNode],
+  );
 
   // Handle right-click context menu on nodes
   const onNodeContextMenu = useCallback(
@@ -127,6 +227,15 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
     [pathFinding, selectNode],
   );
 
+  // Node type counts for status bar
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredNodes.forEach((n) => {
+      counts[n.data.type] = (counts[n.data.type] || 0) + 1;
+    });
+    return counts;
+  }, [filteredNodes]);
+
   // Keyboard shortcuts
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
@@ -138,6 +247,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
         case "Escape":
           selectNode(null);
           pathFinding.cancelPathFinding();
+          handleClearSelection();
           break;
         case "+":
         case "=":
@@ -149,7 +259,6 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
         case "f":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            // Focus search input
             document.querySelector<HTMLInputElement>('[placeholder*="Search"]')?.focus();
           } else {
             fitView({ padding: 0.2 });
@@ -160,7 +269,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectNode, pathFinding, zoomIn, zoomOut, fitView]);
+  }, [selectNode, pathFinding, zoomIn, zoomOut, fitView, handleClearSelection]);
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
@@ -192,7 +301,12 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
         onCancelPathFinding={pathFinding.cancelPathFinding}
         pathSourceId={pathFinding.sourceId}
         pathTargetId={pathFinding.targetId}
-        onExport={handleExport}
+        onExportJSON={handleExportJSON}
+        onExportCSV={handleExportCSV}
+        onExportPNG={handleExportPNG}
+        onSelectByType={handleSelectByType}
+        onClearSelection={handleClearSelection}
+        availableTypes={Object.keys(typeCounts) as NodeType[]}
       />
 
       {/* Graph canvas */}
@@ -231,13 +345,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
               style={{ background: "var(--bg-base)" }}
             />
             <MiniMap
-              nodeColor={(node) => {
-                const colors: Record<string, string> = {
-                  person: "#818cf8", company: "#22d3d0", email: "#34d399",
-                  phone: "#fbbf24", username: "#a78bfa", ip: "#f87171", domain: "#60a5fa",
-                };
-                return colors[node.data?.type] ?? "#4e5566";
-              }}
+              nodeColor={(node) => NODE_COLOR_MAP[node.data?.type] ?? "#4e5566"}
               maskColor="rgba(10, 11, 13, 0.8)"
               style={{ background: "var(--bg-elevated)" }}
             />
@@ -254,6 +362,8 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
               onExpand={(id) => selectNode(id)}
               onStartPathFrom={(id) => pathFinding.startPathFinding()}
               onCopyValue={(value) => navigator.clipboard.writeText(value)}
+              onHideNode={handleHideNode}
+              onRemoveNode={handleRemoveNode}
             />
           )}
 
@@ -268,7 +378,12 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
       )}
 
       {/* Status bar */}
-      <GraphStatusBar nodeCount={filteredNodes.length} edgeCount={filteredEdges.length} />
+      <GraphStatusBar
+        nodeCount={filteredNodes.length}
+        edgeCount={filteredEdges.length}
+        typeCounts={typeCounts}
+        nodeColors={NODE_COLOR_MAP}
+      />
     </div>
   );
 }

@@ -87,6 +87,15 @@ apiClient.interceptors.response.use(
       }
     }
 
+    // Any unhandled 401 — clear auth and redirect to login
+    if (error.response?.status === 401) {
+      clearAuth();
+      if (!window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
+      return Promise.reject(error);
+    }
+
     const status = error.response?.status ?? 500;
     const message =
       (error.response?.data as { detail?: string })?.detail ??
