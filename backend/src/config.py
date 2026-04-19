@@ -156,6 +156,21 @@ class Settings(BaseSettings):
     opencti_api_token: str = ""         # OpenCTI API token
     slack_bot_token: str = ""           # Slack bot OAuth token
     slack_signing_secret: str = ""      # Slack request signature verification
+    greynoise_api_key: str = ""         # GreyNoise Community API key
+
+    # IP enrichment / DNS scanner API keys (batch 3)
+    urlscan_api_key: str = ""           # urlscan.io — optional, unlocks higher rate limits
+    viewdns_api_key: str = ""           # viewdns.info — required for JSON API
+    ipinfo_api_key: str = ""            # ipinfo.io — 50k/month free with key
+
+    # Additional scanner API keys (batch 4+)
+    opencorporates_api_key: str = ""    # Free academic — opencorporates.com
+    companies_house_api_key: str = ""   # Free — developer.company-information.service.gov.uk
+    bevigil_api_key: str = ""           # Free tier — bevigil.com
+    marinetraffic_api_key: str = ""     # Marine vessel tracking
+    aishub_username: str = ""           # AIS vessel tracking hub
+    nuclei_templates_path: str = ""     # Path to local nuclei templates directory
+    theharvester_path: str = ""         # Path to theHarvester installation
 
     # Multi-region routing
     preferred_scan_regions: list[str] = ["default"]

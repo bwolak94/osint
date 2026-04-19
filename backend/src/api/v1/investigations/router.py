@@ -161,6 +161,7 @@ async def _run_scans_background(
     channel = f"investigation:{investigation_id}:progress"
     total = len(seed_inputs)
     completed = 0
+    aborted = False
 
     for seed in seed_inputs:
         input_type = ScanInputType(seed.input_type.value if hasattr(seed.input_type, "value") else seed.input_type)
@@ -176,6 +177,7 @@ async def _run_scans_background(
             inv_model = await check_session.get(InvestigationModel, investigation_id)
             if inv_model and inv_model.status != "running":
                 log.info("Investigation paused/stopped, aborting scan", investigation_id=str(investigation_id))
+                aborted = True
                 break
 
         # Publish progress before launching concurrent scans
@@ -194,11 +196,8 @@ async def _run_scans_background(
                 pass
 
         # Run all scanners for this seed concurrently
-        async def _run_single_scan(scanner, seed_value, scan_input_type, inv_id):
-            return await scanner.scan(seed_value, scan_input_type, investigation_id=inv_id)
-
         tasks = [
-            _run_single_scan(s, seed.value, input_type, investigation_id)
+            s.scan(seed.value, input_type, investigation_id=investigation_id)
             for s in scanners
         ]
         scan_results = await asyncio.gather(*tasks, return_exceptions=True)
