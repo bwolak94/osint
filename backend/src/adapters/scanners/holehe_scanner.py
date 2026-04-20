@@ -20,18 +20,37 @@ class HoleheScanner(BaseOsintScanner):
 
     scanner_name = "holehe"
     supported_input_types = frozenset({ScanInputType.EMAIL})
+    cache_ttl = 21600  # 6 hours — accounts change frequently
 
     async def _do_scan(self, input_value: str, input_type: ScanInputType) -> dict[str, Any]:
         try:
-            import holehe.core as holehe_core
+            import httpx
+            from holehe.core import import_submodules, get_functions
+            import holehe.modules
+
+            modules = import_submodules(holehe.modules)
+            fns = get_functions(modules)
 
             out: list[dict[str, Any]] = []
-            await holehe_core.import_from_web(input_value, out)
+
+            async with httpx.AsyncClient(timeout=15) as client:
+                # Run all checks concurrently in batches to avoid overwhelming
+                batch_size = 20
+                for i in range(0, len(fns), batch_size):
+                    batch = fns[i : i + batch_size]
+                    tasks = []
+                    for fn in batch:
+                        async def _check(f=fn) -> None:
+                            try:
+                                await f(input_value, client, out)
+                            except Exception:
+                                pass
+                        tasks.append(_check())
+                    await asyncio.gather(*tasks)
 
             registered = [r for r in out if r.get("exists") is True]
-            services = [r["name"] for r in registered]
+            services = [r.get("name", "") for r in registered]
 
-            # Extract partial recovery info if available
             partial_phone = None
             backup_email = None
             for r in registered:
@@ -41,31 +60,29 @@ class HoleheScanner(BaseOsintScanner):
                     backup_email = r["emailrecovery"]
 
             return {
+                "email": input_value,
                 "registered_on": services,
                 "registered_count": len(services),
                 "total_checked": len(out),
                 "partial_phone": partial_phone,
                 "backup_email": backup_email,
-                "raw_results": out,
                 "extracted_identifiers": self._build_identifiers(services, backup_email),
             }
-        except ImportError:
-            log.warning("holehe library not installed, returning stub results")
+        except ImportError as e:
+            log.warning("holehe not available", error=str(e))
             return {
                 "registered_on": [],
                 "registered_count": 0,
                 "total_checked": 0,
-                "partial_phone": None,
-                "backup_email": None,
-                "raw_results": [],
                 "extracted_identifiers": [],
                 "_stub": True,
             }
+        except Exception as e:
+            log.error("holehe scan error", error=str(e))
+            raise
 
     def _build_identifiers(self, services: list[str], backup_email: str | None) -> list[str]:
-        """Build a list of new identifiers discovered during the scan."""
         identifiers: list[str] = []
-        # Each service where the email is registered is a potential username source
         for service in services:
             identifiers.append(f"service:{service}")
         if backup_email:

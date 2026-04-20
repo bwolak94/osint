@@ -1,25 +1,26 @@
 """Use case: create a new investigation."""
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Callable, Coroutine
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from src.core.domain.entities.investigation import Investigation
+from src.core.domain.entities.types import InvestigationStatus, SeedInput
 from src.core.domain.events.base import DomainEvent
 from src.core.domain.events.investigation import InvestigationCreated
 from src.core.ports.repositories import IInvestigationRepository
 
-# Type alias for an async event publisher
 EventPublisher = Callable[[DomainEvent], Coroutine[Any, Any, None]]
 
 
 @dataclass
 class CreateInvestigationInput:
-    """Input DTO for creating an investigation."""
-
     title: str
     description: str
     owner_id: UUID
+    seed_inputs: list[SeedInput] | None = None
+    tags: frozenset[str] | None = None
 
 
 class CreateInvestigation:
@@ -30,19 +31,25 @@ class CreateInvestigation:
         self._publish = publish
 
     async def execute(self, data: CreateInvestigationInput) -> Investigation:
-        """Create the investigation, persist it, and emit an event."""
+        now = datetime.now(timezone.utc)
         investigation = Investigation(
+            id=uuid4(),
+            owner_id=data.owner_id,
             title=data.title,
             description=data.description,
-            owner_id=data.owner_id,
+            status=InvestigationStatus.DRAFT,
+            seed_inputs=data.seed_inputs or [],
+            tags=data.tags or frozenset(),
+            created_at=now,
+            updated_at=now,
         )
 
-        investigation = await self._repo.create(investigation)
+        investigation = await self._repo.save(investigation)
 
         event = InvestigationCreated(
             investigation_id=investigation.id,
             owner_id=investigation.owner_id,
-            title=investigation.title,
+            seed_inputs=tuple(),
         )
         await self._publish(event)
 

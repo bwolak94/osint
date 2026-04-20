@@ -1,0 +1,16 @@
+{
+  "name": "OSINT Platform",
+  "short_name": "OSINT",
+  "description": "Intelligence gathering platform for OSINT investigations",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0b0d",
+  "theme_color": "#0fb8b5",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

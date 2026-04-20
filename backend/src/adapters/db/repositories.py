@@ -172,43 +172,6 @@ class SqlAlchemyInvestigationRepository(IInvestigationRepository):
         await self._session.flush()
         return self._to_entity(model)
 
-    async def create(self, investigation: Investigation) -> Investigation:
-        model = InvestigationModel(
-            id=investigation.id,
-            title=investigation.title,
-            description=investigation.description,
-            status=investigation.status,
-            owner_id=investigation.owner_id,
-            seed_inputs=[
-                {"value": s.value, "type": s.input_type.value}
-                for s in investigation.seed_inputs
-            ],
-            tags=list(investigation.tags),
-            created_at=investigation.created_at,
-            updated_at=investigation.updated_at,
-            completed_at=investigation.completed_at,
-        )
-        self._session.add(model)
-        await self._session.flush()
-        return self._to_entity(model)
-
-    async def update(self, investigation: Investigation) -> Investigation:
-        model = await self._session.get(InvestigationModel, investigation.id)
-        if model is None:
-            raise ValueError(f"Investigation {investigation.id} not found")
-        model.title = investigation.title
-        model.description = investigation.description
-        model.status = investigation.status
-        model.seed_inputs = [
-            {"value": s.value, "type": s.input_type.value}
-            for s in investigation.seed_inputs
-        ]
-        model.tags = list(investigation.tags)
-        model.updated_at = investigation.updated_at
-        model.completed_at = investigation.completed_at
-        await self._session.flush()
-        return self._to_entity(model)
-
     async def delete(self, investigation_id: UUID) -> None:
         model = await self._session.get(InvestigationModel, investigation_id)
         if model:
@@ -278,4 +241,5 @@ class SqlAlchemyInvestigationRepository(IInvestigationRepository):
             created_at=model.created_at,
             updated_at=model.updated_at,
             completed_at=model.completed_at,
+            shared_with=list(model.shared_with) if model.shared_with else [],
         )

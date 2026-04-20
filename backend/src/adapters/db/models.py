@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -102,6 +102,7 @@ class InvestigationModel(Base):
     )
     seed_inputs: Mapped[dict] = mapped_column(JSON, default=list, nullable=False)
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
+    shared_with: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
@@ -171,6 +172,10 @@ class ScanResultModel(Base):
     )
 
     investigation: Mapped["InvestigationModel"] = relationship(back_populates="scan_results")
+
+    __table_args__ = (
+        Index("ix_scan_results_inv_scanner", "investigation_id", "scanner_name"),
+    )
 
     def __repr__(self) -> str:
         return f"<ScanResultModel id={self.id} scanner={self.scanner_name}>"

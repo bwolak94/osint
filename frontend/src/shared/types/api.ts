@@ -1,13 +1,15 @@
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
-  page: number;
-  size: number;
-  pages: number;
+  has_next: boolean;
+  next_cursor?: string | null;
 }
 
-export interface ApiError {
+export interface ApiErrorResponse {
   detail: string;
-  status_code: number;
-  errors?: Record<string, string[]>;
+  status_code?: number;
+}
+
+export interface MessageResponse {
+  message: string;
 }

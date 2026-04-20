@@ -31,6 +31,7 @@ class BaseOsintScanner(ABC):
 
     scanner_name: str
     supported_input_types: frozenset[ScanInputType]
+    cache_ttl: int = 86400  # Default: 24 hours
 
     def __init__(self, circuit_breaker: CircuitBreaker | None = None, cache: ICache | None = None) -> None:
         self._circuit_breaker = circuit_breaker or CircuitBreaker(name=self.scanner_name)
@@ -101,7 +102,7 @@ class BaseOsintScanner(ABC):
             # Cache the result
             if self._cache is not None:
                 cache_data = {**raw_data, "_extracted_identifiers": extracted}
-                await self._cache.set(cache_key, cache_data, ttl=86400)
+                await self._cache.set(cache_key, cache_data, ttl=self.cache_ttl)
 
             log.info("Scan completed", scanner=self.scanner_name, input=input_value, duration_ms=duration_ms, findings=len(extracted))
             return result

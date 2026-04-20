@@ -21,6 +21,7 @@ class PlaywrightKRSScanner(PlaywrightBaseScanner):
 
     scanner_name = "playwright_krs"
     supported_input_types = frozenset({ScanInputType.NIP, ScanInputType.DOMAIN})
+    cache_ttl = 604800  # 7 days — KRS data rarely changes
 
     async def _scrape_page(self, page: Any, input_value: str, input_type: Any) -> dict[str, Any]:
         await page.goto("https://ekrs.ms.gov.pl/web/wyszukiwarka-krs/strona-glowna/index.html", wait_until="networkidle")

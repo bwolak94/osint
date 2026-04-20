@@ -1,0 +1,65 @@
+import { useState, useRef, useCallback } from 'react'
+import { Cloud, History } from 'lucide-react'
+import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { CloudScanForm } from './components/CloudScanForm'
+import { CloudExposureResults } from './components/CloudExposureResults'
+import { CloudScanHistory } from './components/CloudScanHistory'
+import type { CloudExposureScan } from './types'
+
+export function CloudExposurePage() {
+  const [selectedScan, setSelectedScan] = useState<CloudExposureScan | null>(null)
+  const resultsRef = useRef<HTMLDivElement>(null)
+
+  const handleSuccess = useCallback((result: CloudExposureScan) => {
+    setSelectedScan(result)
+    setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }, [])
+
+  const handleHistorySelect = useCallback((scan: CloudExposureScan) => {
+    setSelectedScan(scan)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [])
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Cloud Storage Exposure Scanner</h1>
+        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+          Enumerate misconfigured public S3, Azure Blob, and GCP Storage buckets associated with a target
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Cloud className="h-4 w-4" style={{ color: 'var(--brand-500)' }} />
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Scan Target</h2>
+          </div>
+        </CardHeader>
+        <CardBody>
+          <CloudScanForm onSuccess={handleSuccess} />
+        </CardBody>
+      </Card>
+
+      {selectedScan !== null && (
+        <div ref={resultsRef} className="animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Results — <span className="font-normal" style={{ color: 'var(--text-tertiary)' }}>{selectedScan.target}</span>
+            </h2>
+            <button onClick={() => setSelectedScan(null)} className="text-xs transition-colors hover:underline" style={{ color: 'var(--text-tertiary)' }}>Dismiss</button>
+          </div>
+          <CloudExposureResults scan={selectedScan} />
+        </div>
+      )}
+
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <History className="h-4 w-4" style={{ color: 'var(--text-tertiary)' }} />
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Scan History</h2>
+        </div>
+        <CloudScanHistory onSelect={handleHistorySelect} />
+      </div>
+    </div>
+  )
+}

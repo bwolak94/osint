@@ -1,4 +1,11 @@
-"""Base class for Playwright-based scrapers with anti-detection measures."""
+"""Base class for Playwright-based scrapers with anti-detection measures.
+
+PERFORMANCE NOTE: Currently each scan launches a fresh browser instance (~1-2s overhead).
+For production deployments with heavy Playwright usage, implement a browser pool:
+- Maintain a persistent browser with `browser = await p.chromium.launch()`
+- Create fresh `browser.new_context()` for each scan (isolation without browser restart)
+- Use a semaphore to limit concurrent contexts to `MAX_CONCURRENT_BROWSERS`
+"""
 
 import asyncio
 import random

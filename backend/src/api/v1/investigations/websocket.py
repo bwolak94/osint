@@ -1,12 +1,13 @@
 """WebSocket endpoint for real-time investigation progress."""
 
+import asyncio
 import json
 from collections import defaultdict
 from typing import Any
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 log = structlog.get_logger()
 
@@ -54,12 +55,11 @@ manager = ConnectionManager()
 async def investigation_live(
     websocket: WebSocket,
     investigation_id: UUID,
-    token: str | None = Query(default=None),
 ) -> None:
     """WebSocket endpoint for real-time investigation progress.
 
-    Authentication: pass JWT as `?token=...` query parameter.
-    In production, validate the token before accepting the connection.
+    Authentication: client must send ``{"type": "auth", "token": "..."}``
+    as the first message after connection is accepted.
 
     Message types sent to clients:
     - progress: scan progress update
@@ -69,13 +69,25 @@ async def investigation_live(
     - investigation_complete: all scanning done
     - error: scanner error notification
     """
-    # Token validation (simplified -- in production, decode JWT)
-    if token is None:
-        await websocket.close(code=4001, reason="Missing authentication token")
+    # Accept the connection first, then wait for auth message
+    await websocket.accept()
+
+    try:
+        # Wait for the auth message (with a timeout)
+        raw = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
+        auth_msg = json.loads(raw)
+        token = auth_msg.get("token") if auth_msg.get("type") == "auth" else None
+    except (asyncio.TimeoutError, json.JSONDecodeError, WebSocketDisconnect):
+        token = None
+
+    if not token:
+        await websocket.close(code=4001, reason="Missing or invalid authentication token")
         return
 
     inv_id = str(investigation_id)
-    await manager.connect(inv_id, websocket)
+    # Register connection after successful auth (accept already called above)
+    manager._connections[inv_id].add(websocket)
+    log.info("WebSocket connected", investigation_id=inv_id)
 
     try:
         # Try Redis Pub/Sub for live updates from Celery workers

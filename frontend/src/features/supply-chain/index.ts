@@ -1,0 +1,1 @@
+export { SupplyChainPage } from './SupplyChainPage'

@@ -15,6 +15,7 @@ class PlaywrightCEIDGScanner(PlaywrightBaseScanner):
 
     scanner_name = "playwright_ceidg"
     supported_input_types = frozenset({ScanInputType.NIP})
+    cache_ttl = 604800  # 7 days — CEIDG data rarely changes
 
     async def _scrape_page(self, page: Any, input_value: str, input_type: Any) -> dict[str, Any]:
         await page.goto("https://aplikacja.ceidg.gov.pl/ceidg/ceidg.public.ui/Search.aspx", wait_until="networkidle")
@@ -33,10 +34,13 @@ class PlaywrightCEIDGScanner(PlaywrightBaseScanner):
             return {"query": input_value, "found": False, "results": [], "extracted_identifiers": []}
 
         content = await page.content()
+
+        # Without proper data extraction logic, we cannot confirm any real
+        # data was found. Return found: False to avoid misleading the caller.
         return {
             "query": input_value,
-            "found": True,
-            "source_url": "https://ceidg.gov.pl",
-            "page_length": len(content),
+            "found": False,
+            "results": [],
             "extracted_identifiers": [],
+            "_stub": True,
         }

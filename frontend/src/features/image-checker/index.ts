@@ -1,0 +1,1 @@
+export { ImageCheckerPage } from './ImageCheckerPage'

@@ -2,11 +2,15 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { queryClient } from "@/shared/api/queryClient";
 import { router } from "@/app/router";
+import { ToastContainer } from "@/shared/components/Toast";
 
 export function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
+    <>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+      <ToastContainer />
+    </>
   );
 }

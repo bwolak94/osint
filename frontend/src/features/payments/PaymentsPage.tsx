@@ -1,104 +1,108 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { Plus } from "lucide-react";
-import { usePayments, useCreatePayment } from "./hooks";
-import type { CreatePaymentRequest } from "./types";
+import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { Button } from "@/shared/components/Button";
-import { Input } from "@/shared/components/Input";
-import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
+import { Badge } from "@/shared/components/Badge";
+import { ProgressBar } from "@/shared/components/ProgressBar";
+import { Check, Zap, Building2, CreditCard } from "lucide-react";
+import { useAuth } from "@/shared/hooks/useAuth";
+import { PricingTable } from "./PricingTable";
+import { PaymentModal } from "./PaymentModal";
+import { PaymentHistory } from "./PaymentHistory";
 
 export function PaymentsPage() {
-  const [showForm, setShowForm] = useState(false);
-  const { data, isLoading } = usePayments();
-  const createMutation = useCreatePayment();
+  const { user, isPro, isEnterprise } = useAuth();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<{ tier: string; period: string } | null>(null);
 
-  const { register, handleSubmit, reset } = useForm<CreatePaymentRequest>();
+  const currentTier = user?.subscription_tier ?? "free";
+  const tierLabel = { free: "Free", pro: "Pro", enterprise: "Enterprise" }[currentTier] ?? "Free";
+  const tierBadgeVariant = { free: "neutral", pro: "brand", enterprise: "warning" }[currentTier] as any ?? "neutral";
 
-  const onSubmit = (formData: CreatePaymentRequest) => {
-    createMutation.mutate(formData, {
-      onSuccess: () => {
-        reset();
-        setShowForm(false);
-      },
-    });
+  const handleUpgrade = (tier: string, period: string) => {
+    setSelectedPlan({ tier, period });
+    setShowPaymentModal(true);
   };
 
-  if (isLoading) return <LoadingSpinner />;
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Payments</h1>
-        <Button onClick={() => setShowForm(!showForm)}>
-          <Plus className="mr-2 h-4 w-4" />
-          New Payment
-        </Button>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>Billing</h1>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Manage your subscription and payments</p>
       </div>
 
-      {showForm && (
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="space-y-4 rounded-lg border border-gray-800 bg-gray-900 p-6"
-        >
-          <Input
-            label="Amount"
-            type="number"
-            step="0.01"
-            {...register("amount", { valueAsNumber: true })}
-          />
-          <Input
-            label="Currency"
-            placeholder="USD"
-            {...register("currency")}
-          />
-          <Input label="Description" {...register("description")} />
-          <div className="flex gap-2">
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Processing..." : "Create Payment"}
-            </Button>
-            <Button variant="secondary" onClick={() => setShowForm(false)}>
-              Cancel
-            </Button>
+      {/* Current plan */}
+      <Card>
+        <CardBody>
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold" style={{ color: "var(--text-primary)" }}>{tierLabel} Plan</h2>
+                <Badge variant={tierBadgeVariant} dot>Active</Badge>
+              </div>
+              {isPro && (
+                <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+                  $29.99/month · Renews on March 15, 2025
+                </p>
+              )}
+              {isEnterprise && (
+                <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+                  $99.99/month · Renews on March 15, 2025
+                </p>
+              )}
+              {!isPro && !isEnterprise && (
+                <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Limited features · Upgrade to unlock more
+                </p>
+              )}
+            </div>
+            {!isEnterprise && (
+              <Button onClick={() => handleUpgrade(isPro ? "enterprise" : "pro", "monthly")}>
+                {isPro ? "Upgrade to Enterprise" : "Upgrade to Pro"}
+              </Button>
+            )}
           </div>
-        </form>
-      )}
 
-      <div className="overflow-hidden rounded-lg border border-gray-800">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-gray-900 text-gray-400">
-            <tr>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Description</th>
-              <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-800">
-            {data?.items.map((payment) => (
-              <tr key={payment.id} className="bg-gray-950">
-                <td className="px-4 py-3 text-gray-300">
-                  {new Date(payment.created_at).toLocaleDateString()}
-                </td>
-                <td className="px-4 py-3 text-gray-300">
-                  {payment.description}
-                </td>
-                <td className="px-4 py-3 text-white">
-                  {payment.amount} {payment.currency}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="rounded-full bg-gray-800 px-2 py-1 text-xs text-gray-300">
-                    {payment.status}
+          {/* Usage meters */}
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { label: "Investigations", value: 2, max: currentTier === "free" ? 3 : -1 },
+              { label: "Scans Today", value: 8, max: currentTier === "free" ? 5 : -1 },
+              { label: "Graph Nodes", value: 312, max: -1 },
+              { label: "Storage", value: 2.3, max: currentTier === "free" ? 1 : 10, unit: "GB" },
+            ].map((m) => (
+              <div key={m.label} className="rounded-md border p-3" style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated)" }}>
+                <p className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>{m.label}</p>
+                <p className="mt-1 text-lg font-bold font-mono" style={{ color: "var(--text-primary)" }}>
+                  {m.value}{m.unit ? ` ${m.unit}` : ""}
+                  <span className="text-xs font-normal" style={{ color: "var(--text-tertiary)" }}>
+                    {m.max > 0 ? ` / ${m.max}${m.unit ? ` ${m.unit}` : ""}` : " / unlimited"}
                   </span>
-                </td>
-              </tr>
+                </p>
+                {m.max > 0 && (
+                  <div className="mt-1">
+                    <ProgressBar value={m.value} max={m.max} showPercentage={false} size="sm" />
+                  </div>
+                )}
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </CardBody>
+      </Card>
 
-        {data?.items.length === 0 && (
-          <p className="p-6 text-center text-gray-500">No payments yet.</p>
-        )}
-      </div>
+      {/* Pricing table */}
+      {!isEnterprise && <PricingTable currentTier={currentTier} onUpgrade={handleUpgrade} />}
+
+      {/* Payment history */}
+      <PaymentHistory />
+
+      {/* Payment modal */}
+      {showPaymentModal && selectedPlan && (
+        <PaymentModal
+          tier={selectedPlan.tier}
+          period={selectedPlan.period}
+          onClose={() => { setShowPaymentModal(false); setSelectedPlan(null); }}
+        />
+      )}
     </div>
   );
 }

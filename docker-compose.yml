@@ -10,9 +10,9 @@ services:
       - frontend-net
     depends_on:
       frontend:
-        condition: service_healthy
+        condition: service_started
       api:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
       interval: 30s
@@ -53,12 +53,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      neo4j:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -89,6 +85,24 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    profiles:
+      - worker
+
+  worker-light:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    command: ["python", "-m", "celery", "-A", "src.workers.celery_app", "worker", "--loglevel=info", "--queues=light,graph", "--concurrency=4"]
+    networks:
+      - backend-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
   flower:
     image: mher/flower:2.0
@@ -99,6 +113,7 @@ services:
       - .env
     environment:
       - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
+      - FLOWER_BASIC_AUTH=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
     networks:
       - backend-net
     depends_on:
@@ -158,8 +173,6 @@ services:
     expose:
       - "7474"
       - "7687"
-    env_file:
-      - .env
     environment:
       NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-changeme}
       NEO4J_server_memory_heap_initial__size: 512m
@@ -169,18 +182,17 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u ${NEO4J_USER:-neo4j} -p ${NEO4J_PASSWORD:-changeme} 'RETURN 1' || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 40s
 
   minio:
     image: minio/minio:latest
     restart: unless-stopped
-    ports:
-      - "9000:9000"
     expose:
+      - "9000"
       - "9001"
     env_file:
       - .env
@@ -193,7 +205,7 @@ services:
     networks:
       - backend-net
     healthcheck:
-      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5

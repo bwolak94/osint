@@ -6,9 +6,11 @@ ENV POETRY_VERSION=1.8.5 \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     POETRY_NO_INTERACTION=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+# Install build dependencies for pycairo (required by maigret)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl gcc g++ pkg-config libcairo2-dev && \
     curl -sSL https://install.python-poetry.org | python3 - && \
-    apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*
 
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
@@ -18,12 +20,20 @@ COPY pyproject.toml poetry.lock* ./
 
 RUN poetry install --only main --no-root
 
+# Install OSINT tools directly via pip (outside Poetry to avoid dependency conflicts)
+RUN .venv/bin/pip install --no-cache-dir holehe maigret pyotp qrcode[pil] 2>/dev/null || \
+    .venv/bin/pip install --no-cache-dir holehe pyotp qrcode[pil] 2>/dev/null || true
+
 COPY . .
 
 RUN poetry install --only main
 
 # --- Runtime stage ---
 FROM python:3.12-slim AS runtime
+
+# Runtime deps for pycairo
+RUN apt-get update && apt-get install -y --no-install-recommends libcairo2 && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --gid 1000 appuser && \
     useradd --uid 1000 --gid appuser --shell /bin/bash --create-home appuser

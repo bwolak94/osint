@@ -1,7 +1,9 @@
 """Application configuration loaded from environment variables."""
 
+import warnings
 from functools import lru_cache
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -44,12 +46,23 @@ class Settings(BaseSettings):
     minio_bucket: str = "osint-data"
     minio_secure: bool = False
 
+    # Elasticsearch
+    elasticsearch_url: str = "http://localhost:9200"
+    elasticsearch_index_prefix: str = "osint"
+    elasticsearch_username: str = ""
+    elasticsearch_password: str = ""
+
     # JWT / Auth
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 15
     jwt_refresh_token_expire_minutes: int = 10080  # 7 days
     jwt_refresh_token_expire_days: int = 7
+
+    # WebAuthn
+    webauthn_rp_id: str = "localhost"
+    webauthn_rp_name: str = "OSINT Platform"
+    webauthn_origin: str = "http://localhost:5173"
 
     # Login protection
     login_max_attempts: int = 5
@@ -59,6 +72,18 @@ class Settings(BaseSettings):
     crypto_payment_provider_url: str = ""
     crypto_payment_api_key: str = ""
     crypto_webhook_secret: str = ""
+
+    # Payment / NowPayments
+    nowpayments_api_key: str = ""
+    nowpayments_ipn_secret: str = ""
+    nowpayments_sandbox: bool = True
+    base_url: str = "http://localhost:8000"
+    frontend_url: str = "http://localhost:5173"
+
+    # External OSINT API keys
+    shodan_api_key: str = ""
+    hibp_api_key: str = ""
+    virustotal_api_key: str = ""
 
     # OSINT settings
     osint_scan_timeout_seconds: int = 120
@@ -70,7 +95,100 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
 
     # CORS
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:8080", "http://localhost:5173", "http://localhost:3000"]
+
+    # Notification webhooks
+    slack_webhook_url: str = ""
+    discord_webhook_url: str = ""
+
+    # LLM / AI
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-4-20250514"
+    llm_provider: str = "openai"  # "openai" or "anthropic"
+    llm_max_tokens: int = 2048
+    llm_temperature: float = 0.7
+
+    # SIEM
+    siem_endpoint: str = ""
+    siem_api_key: str = ""
+    siem_type: str = "splunk"  # splunk, elastic_siem, sentinel
+
+    # MISP
+    misp_url: str = ""
+    misp_api_key: str = ""
+    misp_verify_ssl: bool = True
+
+    # TheHive
+    thehive_url: str = ""
+    thehive_api_key: str = ""
+
+    # Jira
+    jira_url: str = ""
+    jira_email: str = ""
+    jira_api_token: str = ""
+    jira_project_key: str = ""
+
+    # Security
+    pii_encryption_key: str = ""
+    ip_allowlist: list[str] = []
+    ip_allowlist_enabled: bool = False
+
+    # GitHub
+    github_api_token: str = ""
+
+    # OPSEC / Proxy settings
+    proxy_mode: str = "direct"          # "direct" | "tor" | "socks5" | "rotating"
+    socks5_proxy_url: str = ""          # e.g. "socks5://user:pass@host:1080"
+    socks5_proxy_pool: list[str] = []   # Proxy rotation pool (rotating mode)
+    tor_proxy_port: int = 9050          # Tor SOCKS5 port (localhost)
+
+    # Tracking code pivot
+    spyonweb_api_key: str = ""          # https://spyonweb.com/api
+
+    # New scanner API keys
+    serpapi_api_key: str = ""           # Google Dorking via SerpAPI
+    etherscan_api_key: str = ""         # Ethereum address tracing
+    abuseipdb_api_key: str = ""         # IOC enrichment
+    otx_api_key: str = ""               # AlienVault OTX
+    opencti_url: str = ""               # OpenCTI instance URL
+    opencti_api_token: str = ""         # OpenCTI API token
+    slack_bot_token: str = ""           # Slack bot OAuth token
+    slack_signing_secret: str = ""      # Slack request signature verification
+    greynoise_api_key: str = ""         # GreyNoise Community API key
+
+    # IP enrichment / DNS scanner API keys (batch 3)
+    urlscan_api_key: str = ""           # urlscan.io — optional, unlocks higher rate limits
+    viewdns_api_key: str = ""           # viewdns.info — required for JSON API
+    ipinfo_api_key: str = ""            # ipinfo.io — 50k/month free with key
+
+    # Additional scanner API keys (batch 4+)
+    opencorporates_api_key: str = ""    # Free academic — opencorporates.com
+    companies_house_api_key: str = ""   # Free — developer.company-information.service.gov.uk
+    bevigil_api_key: str = ""           # Free tier — bevigil.com
+    marinetraffic_api_key: str = ""     # Marine vessel tracking
+    aishub_username: str = ""           # AIS vessel tracking hub
+    nuclei_templates_path: str = ""     # Path to local nuclei templates directory
+    theharvester_path: str = ""         # Path to theHarvester installation
+
+    # Multi-region routing
+    preferred_scan_regions: list[str] = ["default"]
+
+    # Data retention defaults
+    default_investigation_retention_days: int = 365
+    default_scan_result_retention_days: int = 90
+    cold_archive_bucket: str = "osint-cold-archive"
+
+    @model_validator(mode="after")
+    def _check_secrets(self) -> "Settings":
+        if not self.debug and self.jwt_secret_key == "change-me-in-production":
+            warnings.warn(
+                "SECURITY WARNING: JWT_SECRET_KEY is using the default value. "
+                "Set a unique JWT_SECRET_KEY environment variable for production.",
+                stacklevel=2,
+            )
+        return self
 
 
 @lru_cache
