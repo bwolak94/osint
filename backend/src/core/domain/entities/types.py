@@ -67,6 +67,7 @@ class ScanInputType(str, Enum):
     URL = "url"
     IP_ADDRESS = "ip_address"
     DOMAIN = "domain"
+    COORDINATES = "coordinates"
 
 
 class NodeType(str, Enum):

@@ -1,0 +1,1 @@
+export { ImintPage } from './ImintPage'

@@ -27,6 +27,11 @@ import {
   Network,
   ShieldAlert,
   Globe2,
+  ScanLine,
+  Network as NetworkIcon,
+  UserSearch,
+  KeyRound,
+  MapPin,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -88,6 +93,7 @@ const mainNav: NavEntry[] = [
       { to: "/email-headers", label: "Email Headers", icon: Mail },
       { to: "/stealer-logs", label: "Stealer Logs", icon: AlertTriangle },
       { to: "/supply-chain", label: "Supply Chain", icon: Package },
+      { to: "/credential-intel", label: "Credential Intel", icon: KeyRound },
     ],
   },
   {
@@ -96,6 +102,23 @@ const mainNav: NavEntry[] = [
     icon: Globe2,
     children: [
       { to: "/fediverse", label: "Fediverse", icon: Users },
+      { to: "/socmint", label: "SOCMINT", icon: UserSearch },
+    ],
+  },
+  {
+    key: "tech-recon",
+    label: "Tech Recon",
+    icon: ScanLine,
+    children: [
+      { to: "/tech-recon", label: "Infra Recon", icon: NetworkIcon },
+    ],
+  },
+  {
+    key: "imint",
+    label: "IMINT / GEOINT",
+    icon: MapPin,
+    children: [
+      { to: "/imint", label: "Image & Geo Intel", icon: MapPin },
     ],
   },
 ];

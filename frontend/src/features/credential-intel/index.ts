@@ -1,0 +1,1 @@
+export { CredentialIntelPage } from './CredentialIntelPage'

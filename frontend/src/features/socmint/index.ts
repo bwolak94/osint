@@ -1,0 +1,1 @@
+export { SocmintPage } from './SocmintPage'

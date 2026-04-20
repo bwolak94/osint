@@ -25,6 +25,10 @@ const StealerLogsPage = lazy(() => import("@/features/stealer-logs").then((m) =>
 const SupplyChainPage = lazy(() => import("@/features/supply-chain").then((m) => ({ default: m.SupplyChainPage })));
 const FediversePage = lazy(() => import("@/features/fediverse").then((m) => ({ default: m.FediversePage })));
 const WiglePage = lazy(() => import("@/features/wigle").then((m) => ({ default: m.WiglePage })));
+const TechReconPage = lazy(() => import("@/features/tech-recon").then((m) => ({ default: m.TechReconPage })));
+const SocmintPage = lazy(() => import("@/features/socmint").then((m) => ({ default: m.SocmintPage })));
+const CredentialIntelPage = lazy(() => import("@/features/credential-intel").then((m) => ({ default: m.CredentialIntelPage })));
+const ImintPage = lazy(() => import("@/features/imint").then((m) => ({ default: m.ImintPage })));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -71,6 +75,10 @@ export const router = createBrowserRouter([
       { path: "supply-chain", element: <Lazy><SupplyChainPage /></Lazy> },
       { path: "fediverse", element: <Lazy><FediversePage /></Lazy> },
       { path: "wigle", element: <Lazy><WiglePage /></Lazy> },
+      { path: "tech-recon", element: <Lazy><TechReconPage /></Lazy> },
+      { path: "socmint", element: <Lazy><SocmintPage /></Lazy> },
+      { path: "credential-intel", element: <Lazy><CredentialIntelPage /></Lazy> },
+      { path: "imint", element: <Lazy><ImintPage /></Lazy> },
     ],
   },
 ]);

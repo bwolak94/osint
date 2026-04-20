@@ -81,6 +81,10 @@ from src.api.v1.stealer_logs.router import router as stealer_logs_router
 from src.api.v1.supply_chain.router import router as supply_chain_router
 from src.api.v1.fediverse.router import router as fediverse_router
 from src.api.v1.wigle.router import router as wigle_router
+from src.api.v1.tech_recon.router import router as tech_recon_router
+from src.api.v1.socmint.router import router as socmint_router
+from src.api.v1.credential_intel.router import router as credential_intel_router
+from src.api.v1.imint.router import router as imint_router
 from src.config import get_settings
 
 
@@ -254,6 +258,10 @@ def create_app() -> FastAPI:
     application.include_router(supply_chain_router, prefix="/api/v1/supply-chain", tags=["supply-chain"])
     application.include_router(fediverse_router, prefix="/api/v1/fediverse", tags=["fediverse"])
     application.include_router(wigle_router, prefix="/api/v1/wigle", tags=["wigle"])
+    application.include_router(tech_recon_router, prefix="/api/v1/tech-recon", tags=["tech-recon"])
+    application.include_router(socmint_router, prefix="/api/v1/socmint", tags=["socmint"])
+    application.include_router(credential_intel_router, prefix="/api/v1/credential-intel", tags=["credential-intel"])
+    application.include_router(imint_router, prefix="/api/v1/imint", tags=["imint"])
 
     return application
 
