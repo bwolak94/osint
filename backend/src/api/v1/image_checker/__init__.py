@@ -1,0 +1,1 @@
+"""Image checker API package."""

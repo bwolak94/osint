@@ -1,0 +1,1 @@
+export { WiglePage } from './WiglePage'

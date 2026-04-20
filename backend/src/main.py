@@ -71,6 +71,16 @@ from src.api.v1.sse import router as sse_router
 from src.api.v1.investigation_merge import router as investigation_merge_router
 from src.api.v1.tlp import router as tlp_router
 from src.api.v1.retention import router as retention_router
+from src.api.v1.image_checker.router import router as image_checker_router
+from src.api.v1.doc_metadata.router import router as doc_metadata_router
+from src.api.v1.email_headers.router import router as email_headers_router
+from src.api.v1.mac_lookup.router import router as mac_lookup_router
+from src.api.v1.domain_permutation.router import router as domain_permutation_router
+from src.api.v1.cloud_exposure.router import router as cloud_exposure_router
+from src.api.v1.stealer_logs.router import router as stealer_logs_router
+from src.api.v1.supply_chain.router import router as supply_chain_router
+from src.api.v1.fediverse.router import router as fediverse_router
+from src.api.v1.wigle.router import router as wigle_router
 from src.config import get_settings
 
 
@@ -234,6 +244,16 @@ def create_app() -> FastAPI:
     application.include_router(investigation_merge_router, prefix="/api/v1/investigations", tags=["investigations"])
     application.include_router(tlp_router, prefix="/api/v1", tags=["tlp"])
     application.include_router(retention_router, prefix="/api/v1/retention", tags=["retention"])
+    application.include_router(image_checker_router, prefix="/api/v1/image-checker", tags=["image-checker"])
+    application.include_router(doc_metadata_router, prefix="/api/v1/doc-metadata", tags=["doc-metadata"])
+    application.include_router(email_headers_router, prefix="/api/v1/email-headers", tags=["email-headers"])
+    application.include_router(mac_lookup_router, prefix="/api/v1/mac-lookup", tags=["mac-lookup"])
+    application.include_router(domain_permutation_router, prefix="/api/v1/domain-permutation", tags=["domain-permutation"])
+    application.include_router(cloud_exposure_router, prefix="/api/v1/cloud-exposure", tags=["cloud-exposure"])
+    application.include_router(stealer_logs_router, prefix="/api/v1/stealer-logs", tags=["stealer-logs"])
+    application.include_router(supply_chain_router, prefix="/api/v1/supply-chain", tags=["supply-chain"])
+    application.include_router(fediverse_router, prefix="/api/v1/fediverse", tags=["fediverse"])
+    application.include_router(wigle_router, prefix="/api/v1/wigle", tags=["wigle"])
 
     return application
 

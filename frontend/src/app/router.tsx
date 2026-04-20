@@ -15,6 +15,16 @@ const PaymentsPage = lazy(() => import("@/features/payments/PaymentsPage").then(
 const ScannersPage = lazy(() => import("@/features/scanners/ScannersPage").then((m) => ({ default: m.ScannersPage })));
 const AdminPage = lazy(() => import("@/features/admin/AdminPage").then((m) => ({ default: m.AdminPage })));
 const PlaybooksPage = lazy(() => import("@/features/playbooks/PlaybooksPage").then((m) => ({ default: m.PlaybooksPage })));
+const ImageCheckerPage = lazy(() => import("@/features/image-checker").then((m) => ({ default: m.ImageCheckerPage })));
+const DocMetadataPage = lazy(() => import("@/features/doc-metadata").then((m) => ({ default: m.DocMetadataPage })));
+const EmailHeadersPage = lazy(() => import("@/features/email-headers").then((m) => ({ default: m.EmailHeadersPage })));
+const MacLookupPage = lazy(() => import("@/features/mac-lookup").then((m) => ({ default: m.MacLookupPage })));
+const DomainPermutationPage = lazy(() => import("@/features/domain-permutation").then((m) => ({ default: m.DomainPermutationPage })));
+const CloudExposurePage = lazy(() => import("@/features/cloud-exposure").then((m) => ({ default: m.CloudExposurePage })));
+const StealerLogsPage = lazy(() => import("@/features/stealer-logs").then((m) => ({ default: m.StealerLogsPage })));
+const SupplyChainPage = lazy(() => import("@/features/supply-chain").then((m) => ({ default: m.SupplyChainPage })));
+const FediversePage = lazy(() => import("@/features/fediverse").then((m) => ({ default: m.FediversePage })));
+const WiglePage = lazy(() => import("@/features/wigle").then((m) => ({ default: m.WiglePage })));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -51,6 +61,16 @@ export const router = createBrowserRouter([
       { path: "admin", element: <Lazy><AdminPage /></Lazy> },
       { path: "settings", element: <Lazy><SettingsPage /></Lazy> },
       { path: "billing", element: <Lazy><PaymentsPage /></Lazy> },
+      { path: "image-checker", element: <Lazy><ImageCheckerPage /></Lazy> },
+      { path: "doc-metadata", element: <Lazy><DocMetadataPage /></Lazy> },
+      { path: "email-headers", element: <Lazy><EmailHeadersPage /></Lazy> },
+      { path: "mac-lookup", element: <Lazy><MacLookupPage /></Lazy> },
+      { path: "domain-permutation", element: <Lazy><DomainPermutationPage /></Lazy> },
+      { path: "cloud-exposure", element: <Lazy><CloudExposurePage /></Lazy> },
+      { path: "stealer-logs", element: <Lazy><StealerLogsPage /></Lazy> },
+      { path: "supply-chain", element: <Lazy><SupplyChainPage /></Lazy> },
+      { path: "fediverse", element: <Lazy><FediversePage /></Lazy> },
+      { path: "wigle", element: <Lazy><WiglePage /></Lazy> },
     ],
   },
 ]);
