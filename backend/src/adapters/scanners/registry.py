@@ -32,7 +32,7 @@ from src.adapters.scanners.visual_landmark_match_scanner import VisualLandmarkMa
 from src.adapters.scanners.license_plate_decoder_scanner import LicensePlateDecoderScanner
 from src.adapters.scanners.weather_correlation_scanner import WeatherCorrelationScanner
 from src.adapters.scanners.webcam_finder_scanner import WebcamFinderScanner
-from src.adapters.scanners.adsb_tracker_scanner import ADSBTrackerScanner
+from src.adapters.scanners.adsb_tracker_scanner import AdsbTrackerScanner as ADSBTrackerScanner
 from src.adapters.scanners.maritime_tracker_scanner import MaritimeTrackerScanner
 from src.adapters.scanners.neural_image_upscaler_scanner import NeuralImageUpscalerScanner
 from src.adapters.scanners.deepfake_detector_scanner import DeepfakeDetectorScanner
@@ -45,6 +45,26 @@ from src.adapters.scanners.social_media_geofence_scanner import SocialMediaGeofe
 from src.adapters.scanners.public_wifi_mapper_scanner import PublicWifiMapperScanner
 from src.adapters.scanners.historical_map_overlay_scanner import HistoricalMapOverlayScanner
 from src.adapters.scanners.forensic_image_auditor_scanner import ForensicImageAuditorScanner
+from src.adapters.scanners.xss_payload_tester_scanner import XSSPayloadTesterScanner
+from src.adapters.scanners.sqli_vulnerability_scanner import SQLiVulnerabilityScanner
+from src.adapters.scanners.fuzzing_engine_scanner import FuzzingEngineScanner
+from src.adapters.scanners.directory_buster_scanner import DirectoryBusterScanner
+from src.adapters.scanners.brute_force_ssh_scanner import BruteForceSSHScanner
+from src.adapters.scanners.binary_string_extractor_scanner import BinaryStringExtractorScanner
+from src.adapters.scanners.jwt_security_auditor_scanner import JWTSecurityAuditorScanner
+from src.adapters.scanners.cloud_storage_hunter_scanner import CloudStorageHunterScanner
+from src.adapters.scanners.cicd_secret_scanner import CICDSecretScanner
+from src.adapters.scanners.api_security_scanner import APISecurityScanner
+from src.adapters.scanners.dangling_dns_scanner import DanglingDNSScanner
+from src.adapters.scanners.threat_intel_aggregator_scanner import ThreatIntelAggregatorScanner
+from src.adapters.scanners.graphql_depth_auditor_scanner import GraphQLDepthAuditorScanner
+from src.adapters.scanners.kerberoasting_scanner import KerberoastingScanner
+from src.adapters.scanners.container_escape_auditor_scanner import ContainerEscapeAuditorScanner
+from src.adapters.scanners.ad_cs_abuse_scanner import ADCSAbuseScanner
+from src.adapters.scanners.encryption_sandbox_scanner import EncryptionSandboxScanner
+from src.adapters.scanners.ids_rule_generator_scanner import IDSRuleGeneratorScanner
+from src.adapters.scanners.aws_iam_auditor_scanner import AWSIAMAuditorScanner
+from src.adapters.scanners.payload_evasion_engine_scanner import PayloadEvasionEngineScanner
 from src.adapters.scanners.asn_scanner import ASNScanner
 from src.adapters.scanners.base import BaseOsintScanner
 from src.adapters.scanners.bgp_scanner import BGPHijackScanner
@@ -307,6 +327,27 @@ def create_default_registry() -> ScannerRegistry:
     registry.register(PublicWifiMapperScanner())
     registry.register(HistoricalMapOverlayScanner())
     registry.register(ForensicImageAuditorScanner())
+    # Batch 17 — Infrastructure & Exploitation scanners (Domain V, Modules 81-127)
+    registry.register(XSSPayloadTesterScanner())
+    registry.register(SQLiVulnerabilityScanner())
+    registry.register(FuzzingEngineScanner())
+    registry.register(DirectoryBusterScanner())
+    registry.register(BruteForceSSHScanner())
+    registry.register(BinaryStringExtractorScanner())
+    registry.register(JWTSecurityAuditorScanner())
+    registry.register(CloudStorageHunterScanner())
+    registry.register(CICDSecretScanner())
+    registry.register(APISecurityScanner())
+    registry.register(DanglingDNSScanner())
+    registry.register(ThreatIntelAggregatorScanner())
+    registry.register(GraphQLDepthAuditorScanner())
+    registry.register(KerberoastingScanner())
+    registry.register(ContainerEscapeAuditorScanner())
+    registry.register(ADCSAbuseScanner())
+    registry.register(EncryptionSandboxScanner())
+    registry.register(IDSRuleGeneratorScanner())
+    registry.register(AWSIAMAuditorScanner())
+    registry.register(PayloadEvasionEngineScanner())
     return registry
 
 

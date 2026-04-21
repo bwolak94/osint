@@ -23,6 +23,7 @@ python-jose = { extras = ["cryptography"], version = "^3.3" }
 passlib = { extras = ["bcrypt"], version = "^1.7" }
 httpx = "^0.28"
 structlog = "^25.1"
+python-multipart = "^0.0.20"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"

@@ -19,7 +19,7 @@ lint:
 	docker compose exec frontend npm run lint
 
 migrate:
-	docker compose exec api alembic upgrade head
+	docker compose exec -e DATABASE_URL=postgresql+asyncpg://osint:changeme@postgres:5432/osint api bash -c "cd /app && PYTHONPATH=/app alembic upgrade head"
 
 shell:
 	docker compose exec api /bin/bash

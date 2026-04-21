@@ -85,6 +85,8 @@ from src.api.v1.tech_recon.router import router as tech_recon_router
 from src.api.v1.socmint.router import router as socmint_router
 from src.api.v1.credential_intel.router import router as credential_intel_router
 from src.api.v1.imint.router import router as imint_router
+from src.api.v1.pentesting.router import router as pentesting_router
+from src.api.v1.redteam.router import router as redteam_router
 from src.config import get_settings
 
 
@@ -262,6 +264,8 @@ def create_app() -> FastAPI:
     application.include_router(socmint_router, prefix="/api/v1/socmint", tags=["socmint"])
     application.include_router(credential_intel_router, prefix="/api/v1/credential-intel", tags=["credential-intel"])
     application.include_router(imint_router, prefix="/api/v1/imint", tags=["imint"])
+    application.include_router(pentesting_router, prefix="/api/v1/pentesting", tags=["pentesting"])
+    application.include_router(redteam_router, prefix="/api/v1/redteam", tags=["red-team"])
 
     return application
 
