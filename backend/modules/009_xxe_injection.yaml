@@ -1,0 +1,18 @@
+id: 009
+name: XML External Entity (XXE) Injection
+ptes_phase: exploitation
+wstg_id: WSTG-INPV-07
+mitre:
+  - T1190
+cwe: 611
+tools:
+  - nuclei
+  - zap
+template: nuclei -u {target} -t xxe -j -silent -nt
+matchers:
+  - type: contains
+    value: "xxe"
+severity: critical
+description: Detect XML External Entity injection allowing file disclosure or SSRF.
+risk: Critical
+tags: [xxe, xml, injection, ssrf]

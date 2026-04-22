@@ -1,0 +1,19 @@
+id: 008
+name: Reflected XSS Detection
+ptes_phase: exploitation
+wstg_id: WSTG-INPV-01
+mitre:
+  - T1189
+cwe: 79
+tools:
+  - nuclei
+  - zap
+template: nuclei -u {target} -t xss -j -silent -nt
+matchers:
+  - type: json_key
+    key: template-id
+    values: ["xss-*", "reflected-xss"]
+severity: high
+description: Detect reflected cross-site scripting vulnerabilities in web parameters.
+risk: High
+tags: [xss, injection, web, client-side]

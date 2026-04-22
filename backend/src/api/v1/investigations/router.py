@@ -441,7 +441,7 @@ async def update_investigation(
     return _build_response(updated)
 
 
-@router.delete("/{investigation_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{investigation_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def delete_investigation(
     investigation_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],

@@ -1,0 +1,24 @@
+id: 002
+name: SSL/TLS Configuration Audit
+ptes_phase: vulnerability_analysis
+wstg_id: WSTG-CRYP-01
+mitre:
+  - T1040
+cwe: 326
+tools:
+  - sslyze
+  - nuclei
+template: sslyze {target}:443 --json_out=-
+matchers:
+  - type: contains
+    value: "SSLv3"
+  - type: contains
+    value: "TLSv1.0"
+  - type: contains
+    value: "RC4"
+  - type: contains
+    value: "NULL cipher"
+severity: high
+description: Audit SSL/TLS configuration for weak ciphers, deprecated protocols, certificate issues.
+risk: High
+tags: [crypto, ssl, tls, recon]

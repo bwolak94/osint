@@ -1,0 +1,18 @@
+id: 005
+name: Vulnerability Scan (Nuclei)
+ptes_phase: vulnerability_analysis
+wstg_id: WSTG-INFO-09
+mitre:
+  - T1190
+cwe: null
+tools:
+  - nuclei
+template: nuclei -u {target} -j -silent -nt -severity critical,high,medium
+matchers:
+  - type: json_key
+    key: severity
+    values: [critical, high, medium]
+severity: high
+description: Automated vulnerability scanning using Nuclei templates for CVEs, misconfigurations, and exposure.
+risk: High
+tags: [vuln, cve, nuclei, automated]

@@ -29,6 +29,20 @@ const TechReconPage = lazy(() => import("@/features/tech-recon").then((m) => ({ 
 const SocmintPage = lazy(() => import("@/features/socmint").then((m) => ({ default: m.SocmintPage })));
 const CredentialIntelPage = lazy(() => import("@/features/credential-intel").then((m) => ({ default: m.CredentialIntelPage })));
 const ImintPage = lazy(() => import("@/features/imint").then((m) => ({ default: m.ImintPage })));
+const EngagementsPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.EngagementsPage })));
+const EngagementDetailPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.EngagementDetailPage })));
+const NewScanPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.NewScanPage })));
+const ScanDetailPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.ScanDetailPage })));
+const FindingsPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.FindingsPage })));
+const ReportPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.ReportPage })));
+const AttackPlannerPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.AttackPlannerPage })));
+const CompliancePage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.CompliancePage })));
+const ExecutiveDashboardPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.ExecutiveDashboardPage })));
+const BASPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.BASPage })));
+const FindingLibraryPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.FindingLibraryPage })));
+const AttackPlannerIndexPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.AttackPlannerIndexPage })));
+const TargetsPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.TargetsPage })));
+const TargetDashboardPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.TargetDashboardPage })));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -79,6 +93,20 @@ export const router = createBrowserRouter([
       { path: "socmint", element: <Lazy><SocmintPage /></Lazy> },
       { path: "credential-intel", element: <Lazy><CredentialIntelPage /></Lazy> },
       { path: "imint", element: <Lazy><ImintPage /></Lazy> },
+      { path: "pentest/engagements", element: <Lazy><EngagementsPage /></Lazy> },
+      { path: "pentest/engagements/:id", element: <Lazy><EngagementDetailPage /></Lazy> },
+      { path: "pentest/engagements/:id/scan/new", element: <Lazy><NewScanPage /></Lazy> },
+      { path: "pentest/scans/:id", element: <Lazy><ScanDetailPage /></Lazy> },
+      { path: "pentest/scans/:id/planner", element: <Lazy><AttackPlannerPage /></Lazy> },
+      { path: "pentest/findings", element: <Lazy><FindingsPage /></Lazy> },
+      { path: "pentest/reports/:id", element: <Lazy><ReportPage /></Lazy> },
+      { path: "pentest/compliance", element: <Lazy><CompliancePage /></Lazy> },
+      { path: "pentest/dashboard", element: <Lazy><ExecutiveDashboardPage /></Lazy> },
+      { path: "pentest/bas", element: <Lazy><BASPage /></Lazy> },
+      { path: "pentest/finding-library", element: <Lazy><FindingLibraryPage /></Lazy> },
+      { path: "pentest/attack-planner", element: <Lazy><AttackPlannerIndexPage /></Lazy> },
+      { path: "pentest/targets", element: <Lazy><TargetsPage /></Lazy> },
+      { path: "pentest/targets/:engagementId", element: <Lazy><TargetDashboardPage /></Lazy> },
     ],
   },
 ]);

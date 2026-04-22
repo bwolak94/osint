@@ -1,0 +1,22 @@
+id: 023
+name: Cloud Metadata Service Exposure
+ptes_phase: exploitation
+wstg_id: WSTG-INPV-19
+mitre:
+  - T1552.005
+cwe: 918
+tools:
+  - nuclei
+  - httpx
+template: nuclei -u {target} -t cloud -t ssrf -j -silent -nt -tags cloud,metadata
+matchers:
+  - type: contains
+    value: "169.254.169.254"
+  - type: contains
+    value: "metadata"
+  - type: contains
+    value: "aws-metadata"
+severity: critical
+description: Test for cloud metadata service exposure (AWS/GCP/Azure) via SSRF.
+risk: Critical
+tags: [cloud, aws, gcp, azure, metadata, ssrf]

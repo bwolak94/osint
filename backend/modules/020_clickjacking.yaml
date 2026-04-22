@@ -1,0 +1,21 @@
+id: 020
+name: Clickjacking Vulnerability
+ptes_phase: vulnerability_analysis
+wstg_id: WSTG-CLNT-09
+mitre:
+  - T1185
+cwe: 1021
+tools:
+  - httpx
+  - nuclei
+template: httpx -u {target} -include-response-header X-Frame-Options -json
+matchers:
+  - type: missing_header
+    name: "X-Frame-Options"
+  - type: missing_header
+    name: "Content-Security-Policy"
+    contains: "frame-ancestors"
+severity: medium
+description: Check for missing X-Frame-Options allowing UI redressing / clickjacking.
+risk: Medium
+tags: [clickjacking, headers, ui-redress]

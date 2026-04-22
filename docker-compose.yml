@@ -104,6 +104,35 @@ services:
       postgres:
         condition: service_healthy
 
+  worker-pentest:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker-pentest
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - backend-net
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - backend-net
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+
   flower:
     image: mher/flower:2.0
     restart: unless-stopped
@@ -239,6 +268,7 @@ volumes:
   postgres-data:
   neo4j-data:
   minio-data:
+  ollama-data:
 
 networks:
   frontend-net:

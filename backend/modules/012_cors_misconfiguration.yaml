@@ -1,0 +1,21 @@
+id: 012
+name: CORS Misconfiguration
+ptes_phase: vulnerability_analysis
+wstg_id: WSTG-CLNT-07
+mitre:
+  - T1557
+cwe: 942
+tools:
+  - nuclei
+  - httpx
+template: nuclei -u {target} -t cors -j -silent -nt
+matchers:
+  - type: contains
+    value: "cors"
+  - type: header
+    name: "Access-Control-Allow-Origin"
+    value: "*"
+severity: high
+description: Identify CORS misconfigurations allowing cross-origin credential theft.
+risk: High
+tags: [cors, http, headers, web]

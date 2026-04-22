@@ -77,7 +77,13 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   const pathFinding = usePathFinding(investigationId);
 
   // Context menu state for right-click on nodes
-  const [contextMenu, setContextMenu] = useState<{x: number; y: number; nodeId: string; nodeLabel: string} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId: string;
+    nodeLabel: string;
+    nodeType: string;
+  } | null>(null);
 
   // Apply layout
   const handleLayoutChange = useCallback(
@@ -210,9 +216,27 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   const onNodeContextMenu = useCallback(
     (e: React.MouseEvent, node: Node<OsintNodeData>) => {
       e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY, nodeId: node.id, nodeLabel: node.data.label });
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        nodeId: node.id,
+        nodeLabel: node.data.label,
+        nodeType: node.data.type,
+      });
     },
     [],
+  );
+
+  const handlePentestThisTarget = useCallback(
+    (_nodeId: string, nodeLabel: string, nodeType: string) => {
+      navigate("/pentest/engagements/new", {
+        state: {
+          prefilled_target: { type: nodeType, value: nodeLabel },
+          osint_investigation_id: investigationId,
+        },
+      });
+    },
+    [navigate, investigationId],
   );
 
   // Handle node click
@@ -358,12 +382,14 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
               y={contextMenu.y}
               nodeId={contextMenu.nodeId}
               nodeLabel={contextMenu.nodeLabel}
+              nodeType={contextMenu.nodeType}
               onClose={() => setContextMenu(null)}
               onExpand={(id) => selectNode(id)}
               onStartPathFrom={(id) => pathFinding.startPathFinding()}
               onCopyValue={(value) => navigator.clipboard.writeText(value)}
               onHideNode={handleHideNode}
               onRemoveNode={handleRemoveNode}
+              onPentestThis={handlePentestThisTarget}
             />
           )}
 

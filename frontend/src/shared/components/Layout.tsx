@@ -5,10 +5,12 @@ import { TopBar } from "./TopBar";
 import { CommandPalette } from "./CommandPalette";
 import { OnboardingTour } from "./OnboardingTour";
 import { useAuthStore } from "@/features/auth/store";
+import { useScanNotificationMonitor } from "@/features/pentesting/hooks/useScanNotificationMonitor";
 
 export function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useScanNotificationMonitor();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;

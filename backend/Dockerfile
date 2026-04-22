@@ -44,6 +44,7 @@ COPY --from=builder /app/.venv .venv
 COPY --from=builder /app/src src
 COPY --from=builder /app/alembic alembic
 COPY --from=builder /app/alembic.ini alembic.ini
+COPY --from=builder /app/modules modules
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \

@@ -1,0 +1,17 @@
+id: 004
+name: HTTP Service Fingerprinting
+ptes_phase: intelligence_gathering
+wstg_id: WSTG-INFO-02
+mitre:
+  - T1592.002
+cwe: null
+tools:
+  - httpx
+template: httpx -u {target} -title -tech-detect -status-code -json
+matchers:
+  - type: contains
+    value: "200"
+severity: info
+description: Identify web server technology, frameworks, headers, and response characteristics.
+risk: Low
+tags: [recon, http, fingerprint]

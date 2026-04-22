@@ -32,6 +32,11 @@ import {
   UserSearch,
   KeyRound,
   MapPin,
+  Brain,
+  ClipboardCheck,
+  BarChart3,
+  Swords,
+  Library,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -119,6 +124,20 @@ const mainNav: NavEntry[] = [
     icon: MapPin,
     children: [
       { to: "/imint", label: "Image & Geo Intel", icon: MapPin },
+    ],
+  },
+  {
+    key: "pentest",
+    label: "Pentest",
+    icon: Shield,
+    children: [
+      { to: "/pentest/targets", label: "Targets", icon: Globe },
+      { to: "/pentest/dashboard", label: "Dashboard", icon: BarChart3 },
+      { to: "/pentest/findings", label: "Findings", icon: ShieldAlert },
+      { to: "/pentest/compliance", label: "Compliance", icon: ClipboardCheck },
+      { to: "/pentest/bas", label: "Attack Simulation", icon: Swords },
+      { to: "/pentest/finding-library", label: "Finding Library", icon: Library },
+      { to: "/pentest/attack-planner", label: "Attack Planner", icon: Brain },
     ],
   },
 ];

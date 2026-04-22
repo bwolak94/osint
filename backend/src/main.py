@@ -49,7 +49,7 @@ from src.api.v1.templates import router as templates_router
 from src.api.v1.integrations import router as integrations_router
 from src.api.v1.ticketing import router as ticketing_router
 from src.api.v1.graph_analytics import router as graph_analytics_router
-from src.api.v1.evidence import router as evidence_router
+from src.api.v1.evidence.router import router as evidence_router
 from src.api.v1.investigation_diff import router as investigation_diff_router
 from src.api.v1.saved_searches import router as saved_searches_router
 from src.api.v1.lineage import router as lineage_router
@@ -87,6 +87,35 @@ from src.api.v1.credential_intel.router import router as credential_intel_router
 from src.api.v1.imint.router import router as imint_router
 from src.api.v1.pentesting.router import router as pentesting_router
 from src.api.v1.redteam.router import router as redteam_router
+from src.api.v1.engagements.router import router as engagements_router
+from src.api.v1.pentest_scans.router import router as pentest_scans_router
+from src.api.v1.pentest_scans.llm_router import router as pentest_llm_router
+from src.api.v1.pentest_findings.router import router as pentest_findings_router
+from src.api.v1.pentest_reports.router import router as pentest_reports_router
+from src.api.v1.pentest_audit.router import router as pentest_audit_router
+from src.api.v1.rag.router import router as rag_router
+from src.api.v1.hitl.router import router as hitl_router
+from src.api.v1.attack_chains.router import router as attack_chains_router
+from src.api.v1.investigations.pentest_integration import (
+    investigations_router as pentest_integration_investigations_router,
+    scans_router as pentest_integration_scans_router,
+)
+from src.api.v1.ai_planner.router import router as ai_planner_router
+from src.api.v1.test_catalog.router import router as test_catalog_router
+from src.api.v1.bas.router import router as bas_router
+from src.api.v1.sarif.router import router as sarif_router
+from src.api.v1.finding_library.router import router as finding_library_router
+from src.api.v1.retest.router import router as retest_router
+from src.api.v1.notifications.router import router as notifications_router
+from src.api.v1.api_keys.router import router as api_keys_router
+from src.api.v1.pentest_integrations.jira_router import router as jira_router
+from src.api.v1.pentest_integrations.siem_router import router as siem_router
+from src.api.v1.pentest_scans.cvss_router import router as cvss_router
+from src.api.v1.pentest_findings.dedup_router import router as dedup_router
+from src.api.v1.team.router import router as team_router
+from src.api.v1.assets.router import router as assets_router
+from src.api.v1.phishing.router import router as phishing_router
+from src.api.v1.peer_review.router import router as peer_review_router
 from src.config import get_settings
 
 
@@ -266,6 +295,55 @@ def create_app() -> FastAPI:
     application.include_router(imint_router, prefix="/api/v1/imint", tags=["imint"])
     application.include_router(pentesting_router, prefix="/api/v1/pentesting", tags=["pentesting"])
     application.include_router(redteam_router, prefix="/api/v1/redteam", tags=["red-team"])
+
+    # PentAI module routers
+    application.include_router(engagements_router, prefix="/api/v1/engagements", tags=["pentest-engagements"])
+    application.include_router(pentest_scans_router, prefix="/api/v1/scans", tags=["pentest-scans"])
+    application.include_router(pentest_llm_router, prefix="/api/v1/scans", tags=["pentest-llm"])
+    application.include_router(pentest_findings_router, prefix="/api/v1/findings", tags=["pentest-findings"])
+    application.include_router(pentest_reports_router, prefix="/api/v1", tags=["pentest-reports"])
+    application.include_router(pentest_audit_router, prefix="/api/v1/audit-log", tags=["pentest-audit"])
+    application.include_router(hitl_router, prefix="/api/v1/hitl", tags=["pentest-hitl"])
+    application.include_router(attack_chains_router, prefix="/api/v1/scans", tags=["pentest-attack-chains"])
+
+    # RAG knowledge base
+    application.include_router(rag_router, prefix="/api/v1", tags=["rag"])
+
+    # AI Planner (LangGraph multi-agent)
+    application.include_router(ai_planner_router, prefix="/api/v1", tags=["ai-planner"])
+
+    # Test Catalog (YAML module definitions)
+    application.include_router(test_catalog_router, prefix="/api/v1", tags=["test-catalog"])
+
+    # Pentest extended features
+    application.include_router(bas_router, prefix="/api/v1/bas", tags=["bas"])
+    application.include_router(sarif_router, prefix="/api/v1", tags=["pentest-export"])
+    application.include_router(finding_library_router, prefix="/api/v1/finding-library", tags=["finding-library"])
+    application.include_router(retest_router, prefix="/api/v1", tags=["retest"])
+    application.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
+    application.include_router(api_keys_router, prefix="/api/v1/api-keys", tags=["api-keys"])
+    application.include_router(jira_router, prefix="/api/v1/integrations", tags=["integrations"])
+    application.include_router(siem_router, prefix="/api/v1/integrations", tags=["integrations-siem"])
+    application.include_router(cvss_router, prefix="/api/v1", tags=["cvss"])
+    application.include_router(dedup_router, prefix="/api/v1", tags=["pentest-findings-dedup"])
+    application.include_router(team_router, prefix="/api/v1", tags=["team"])
+    application.include_router(assets_router, prefix="/api/v1", tags=["assets"])
+    application.include_router(phishing_router, prefix="/api/v1", tags=["phishing"])
+    application.include_router(peer_review_router, prefix="/api/v1", tags=["peer-review"])
+
+    # OSINT ↔ Pentest integration bridge
+    # POST /api/v1/investigations/{id}/to-pentest
+    application.include_router(
+        pentest_integration_investigations_router,
+        prefix="/api/v1/investigations",
+        tags=["osint-pentest-integration"],
+    )
+    # POST /api/v1/scans/{id}/to-osint
+    application.include_router(
+        pentest_integration_scans_router,
+        prefix="/api/v1/scans",
+        tags=["osint-pentest-integration"],
+    )
 
     return application
 

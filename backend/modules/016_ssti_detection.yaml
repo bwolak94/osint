@@ -1,0 +1,17 @@
+id: 016
+name: Server-Side Template Injection (SSTI)
+ptes_phase: exploitation
+wstg_id: WSTG-INPV-18
+mitre:
+  - T1190
+cwe: 94
+tools:
+  - nuclei
+template: nuclei -u {target} -t ssti -j -silent -nt
+matchers:
+  - type: contains
+    value: "ssti"
+severity: critical
+description: Detect SSTI vulnerabilities in Jinja2, Twig, Freemarker, and other template engines.
+risk: Critical
+tags: [ssti, template, injection, rce]

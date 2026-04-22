@@ -11,6 +11,7 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     ANALYST = "analyst"
     VIEWER = "viewer"
+    PENTESTER = "pentester"
 
 
 class SubscriptionTier(str, Enum):

@@ -1,0 +1,21 @@
+id: 022
+name: API Security Testing
+ptes_phase: vulnerability_analysis
+wstg_id: WSTG-INPV-12
+mitre:
+  - T1190
+cwe: 284
+tools:
+  - nuclei
+  - httpx
+template: nuclei -u {target} -t api -j -silent -nt
+matchers:
+  - type: contains
+    value: "api"
+  - type: status_code
+    values: [200]
+    path_contains: "/api/"
+severity: high
+description: Test REST/GraphQL APIs for broken auth, mass assignment, and exposure of sensitive endpoints.
+risk: High
+tags: [api, rest, graphql, bola, bfla]

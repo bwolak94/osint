@@ -28,8 +28,19 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+function redirectToLogin(): void {
+  if (isRedirectingToLogin || window.location.pathname.startsWith("/login")) return;
+  isRedirectingToLogin = true;
+  clearAuth();
+  // Belt-and-suspenders: clear localStorage directly so Zustand persist can't
+  // race with the page reload and rehydrate stale auth on the next load.
+  try { localStorage.removeItem("auth-storage"); } catch {}
+  window.location.href = "/login";
+}
+
 // Response interceptor: handle 401 with refresh
 let isRefreshing = false;
+let isRedirectingToLogin = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
   reject: (error: unknown) => void;
@@ -53,6 +64,7 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({
             resolve: (token: string) => {
+              originalRequest._retry = true; // prevent infinite refresh loop on queued retries
               if (originalRequest.headers) {
                 originalRequest.headers.Authorization = `Bearer ${token}`;
               }
@@ -79,20 +91,16 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        clearAuth();
-        window.location.href = "/login";
+        redirectToLogin();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
 
-    // Any unhandled 401 — clear auth and redirect to login
+    // Retried request also got 401 — session fully expired
     if (error.response?.status === 401) {
-      clearAuth();
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
-      }
+      redirectToLogin();
       return Promise.reject(error);
     }
 

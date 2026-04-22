@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     # JWT / Auth
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 15
+    jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_minutes: int = 10080  # 7 days
     jwt_refresh_token_expire_days: int = 7
 
@@ -179,6 +179,24 @@ class Settings(BaseSettings):
     default_investigation_retention_days: int = 365
     default_scan_result_retention_days: int = 90
     cold_archive_bucket: str = "osint-cold-archive"
+
+    # PentAI LLM configuration (Ollama)
+    pentest_llm_planner_model: str = "llama3.1:8b"
+    pentest_llm_reporter_model: str = "llama3.1:8b"
+    ollama_host: str = "http://ollama:11434"
+
+    # GitHub integration (format: "owner/repo")
+    github_repo: str = ""
+
+    # Pentest active poisoning (disabled by default for safety)
+    pentest_enable_active_poisoning: bool = False
+
+    # SMTP — used for phishing simulation email delivery
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "pentest@localhost"
 
     @model_validator(mode="after")
     def _check_secrets(self) -> "Settings":
