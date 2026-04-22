@@ -6,10 +6,14 @@ import { CommandPalette } from "./CommandPalette";
 import { OnboardingTour } from "./OnboardingTour";
 import { useAuthStore } from "@/features/auth/store";
 import { useScanNotificationMonitor } from "@/features/pentesting/hooks/useScanNotificationMonitor";
+import { ChatPanel } from "@/features/chat/ChatPanel";
+import { useChatPanel } from "@/features/chat/hooks";
+import { MessageSquare } from "lucide-react";
 
 export function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { isOpen, toggle, close } = useChatPanel();
   useScanNotificationMonitor();
 
   if (!isAuthenticated) {
@@ -32,6 +36,22 @@ export function Layout() {
           </main>
         </div>
       </div>
+
+      {/* Floating AI Agent button */}
+      {!isOpen && (
+        <button
+          onClick={toggle}
+          aria-label="Open AI Agent"
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-all hover:scale-105 active:scale-95"
+          style={{ background: "var(--brand-500)", color: "white" }}
+        >
+          <MessageSquare className="h-5 w-5" />
+          <span className="text-sm font-medium">AI Agent</span>
+        </button>
+      )}
+
+      <ChatPanel isOpen={isOpen} onClose={close} />
+
       <CommandPalette />
       <OnboardingTour />
     </>

@@ -116,6 +116,7 @@ from src.api.v1.team.router import router as team_router
 from src.api.v1.assets.router import router as assets_router
 from src.api.v1.phishing.router import router as phishing_router
 from src.api.v1.peer_review.router import router as peer_review_router
+from src.api.v1.agent.router import router as agent_router
 from src.config import get_settings
 
 
@@ -330,6 +331,7 @@ def create_app() -> FastAPI:
     application.include_router(assets_router, prefix="/api/v1", tags=["assets"])
     application.include_router(phishing_router, prefix="/api/v1", tags=["phishing"])
     application.include_router(peer_review_router, prefix="/api/v1", tags=["peer-review"])
+    application.include_router(agent_router, prefix="/api/v1", tags=["agent"])
 
     # OSINT ↔ Pentest integration bridge
     # POST /api/v1/investigations/{id}/to-pentest
