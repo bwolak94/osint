@@ -307,7 +307,7 @@ async def stream_ai_planner(
 
         # Create a new DB session for the background graph task
         from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession, create_async_engine, async_sessionmaker
-        engine = create_async_engine(settings.database_url, echo=False)
+        engine = create_async_engine(settings.postgres_dsn, echo=False)
         session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
         # Subscribe to Redis BEFORE starting the graph

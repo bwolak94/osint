@@ -42,10 +42,6 @@ async def _ollama_chat(model: str, system: str, user: str, scan_id: str | None =
             {"role": "user", "content": user},
         ],
         "stream": True,
-        "options": {
-            "num_predict": 512,   # cap output tokens → faster, fewer timeouts
-            "num_ctx": 2048,      # smaller context window → less memory pressure
-        },
     }
 
     redis_client = None
@@ -58,7 +54,7 @@ async def _ollama_chat(model: str, system: str, user: str, scan_id: str | None =
 
     full_content = ""
     try:
-        async with httpx.AsyncClient(timeout=600.0) as client:
+        async with httpx.AsyncClient(timeout=180.0) as client:
             async with client.stream("POST", url, json=payload) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
@@ -398,28 +394,19 @@ async def attack_planner_agent(state: PentestState, db: Any) -> dict[str, Any]:
             )
     except Exception as exc:
         log.warning("attack_planner_parse_error", error=str(exc))
-
-    # Always fall back to a stub when LLM produced no scenarios
-    if not attack_scenarios:
-        # Build a context-aware stub from discovered ports/technologies
-        top_service = open_ports[0]["service"] if open_ports else "web application"
+        # Stub scenario
         attack_scenarios = [
             AttackScenario(
                 id="stub-001",
-                title=f"Service Exploitation — {top_service}",
+                title="Service Exploitation (stub)",
                 tactic="Initial Access",
                 technique_id="T1190",
                 technique_name="Exploit Public-Facing Application",
-                tools=["nuclei", "nmap", "metasploit"],
-                preconditions=["Reachable target", f"Open port on {top_service}"],
+                tools=["nuclei", "metasploit"],
+                preconditions=["Reachable target", "Known CVE"],
                 severity="high",
                 likelihood="medium",
-                steps=[
-                    f"Enumerate {top_service} service version",
-                    "Search for known CVEs/exploits",
-                    "Attempt exploitation",
-                    "Post-exploitation: privilege escalation",
-                ],
+                steps=["Enumerate services", "Match CVEs", "Exploit", "Escalate"],
             )
         ]
 
@@ -436,7 +423,7 @@ async def attack_planner_agent(state: PentestState, db: Any) -> dict[str, Any]:
                 "scenarios_count": len(attack_scenarios),
             },
         },
-        "scenarios": [dict(s) for s in attack_scenarios],
+        "scenarios": [s for s in attack_scenarios],
     }
 
     await log.ainfo(
@@ -493,6 +480,13 @@ async def reporter_agent(state: PentestState, db: Any) -> dict[str, Any]:
     await _emit(state.get("scan_id"), "llm_phase", phase="EN executive summary")
     raw_en = await _ollama_chat(settings.pentest_llm_reporter_model, system_en, user_en, scan_id=state.get("scan_id"))
 
+    system_pl = (
+        "Jesteś ekspertem cyberbezpieczeństwa. Odpowiedź TYLKO w JSON bez markdown.\n"
+        "Schema: {\"summary\": str, \"key_findings\": [str], \"recommended_actions\": [str]}"
+    )
+    await _emit(state.get("scan_id"), "llm_phase", phase="PL executive summary")
+    raw_pl = await _ollama_chat(settings.pentest_llm_reporter_model, system_pl, user_en, scan_id=state.get("scan_id"))
+
     try:
         data_en = json.loads(_extract_json(raw_en))
         exec_summary_en = data_en.get("summary", "Pentest completed. Review findings.")
@@ -503,8 +497,11 @@ async def reporter_agent(state: PentestState, db: Any) -> dict[str, Any]:
         key_findings = top_findings[:3]
         recommended_actions = ["Review and remediate high-severity findings."]
 
-    # PL summary: simple fallback without a second LLM call to keep latency reasonable
-    exec_summary_pl = f"Test penetracyjny dla {target} zakończony. Poziom ryzyka: {risk_level}. {exec_summary_en}"
+    try:
+        data_pl = json.loads(raw_pl)
+        exec_summary_pl = data_pl.get("summary", "Test penetracyjny zakończony.")
+    except Exception:
+        exec_summary_pl = "Test penetracyjny zakończony. Przejrzyj szczegółowe wyniki."
 
     await log.ainfo("reporter_agent_done", scan_id=state["scan_id"], risk_level=risk_level)
     await _emit(state.get("scan_id"), "agent_done", agent="reporter",

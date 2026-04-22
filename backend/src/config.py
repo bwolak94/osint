@@ -181,8 +181,8 @@ class Settings(BaseSettings):
     cold_archive_bucket: str = "osint-cold-archive"
 
     # PentAI LLM configuration (Ollama)
-    pentest_llm_planner_model: str = "llama3.1:8b"
-    pentest_llm_reporter_model: str = "llama3.1:8b"
+    pentest_llm_planner_model: str = "llama3.2:3b"
+    pentest_llm_reporter_model: str = "llama3.2:3b"
     ollama_host: str = "http://ollama:11434"
 
     # GitHub integration (format: "owner/repo")
