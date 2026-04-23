@@ -6,7 +6,7 @@ interface TechReconResultsProps {
 }
 
 export function TechReconResults({ scan }: TechReconResultsProps) {
-  const entries = Object.entries(scan.results)
+  const entries = Object.entries(scan.results ?? {})
   const foundCount = entries.filter(([, r]) => r.found).length
 
   return (

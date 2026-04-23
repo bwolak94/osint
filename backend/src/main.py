@@ -4,8 +4,11 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from src.adapters.db.database import engine
 from src.api.middleware.correlation import CorrelationIdMiddleware
@@ -120,6 +123,9 @@ from src.api.v1.agent.router import router as agent_router
 from src.api.v1.hub.router import router as hub_router
 from src.api.v1.hub_tasks.router import router as hub_tasks_router
 from src.api.v1.knowledge.router import router as knowledge_router
+from src.api.v1.threat_actors import router as threat_actors_router
+from src.api.v1.gdpr import router as gdpr_router
+from src.api.v1.scanner_health import router as scanner_health_router
 from src.api.middleware.locale import LocaleMiddleware
 from src.config import get_settings
 
@@ -221,6 +227,21 @@ def create_app() -> FastAPI:
     application.add_middleware(SecurityHeadersMiddleware)
     application.add_middleware(RequestLoggingMiddleware)
     application.add_middleware(LocaleMiddleware)
+
+    # Global exception handlers for consistent JSON error responses
+    @application.exception_handler(StarletteHTTPException)
+    async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"error": exc.detail, "code": f"HTTP_{exc.status_code}", "details": None},
+        )
+
+    @application.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={"error": "Validation error", "code": "VALIDATION_ERROR", "details": exc.errors()},
+        )
 
     # Health check and metrics routers
     application.include_router(health_router)
@@ -342,6 +363,15 @@ def create_app() -> FastAPI:
     application.include_router(hub_router, prefix="/api/v1", tags=["hub"])
     application.include_router(hub_tasks_router, prefix="/api/v1", tags=["hub-tasks"])
     application.include_router(knowledge_router, prefix="/api/v1", tags=["knowledge"])
+
+    # Threat Actor Knowledge Graph
+    application.include_router(threat_actors_router, prefix="/api/v1", tags=["threat-actors"])
+
+    # GDPR Data Subject Request Automation
+    application.include_router(gdpr_router, prefix="/api/v1", tags=["gdpr"])
+
+    # Scanner health endpoint
+    application.include_router(scanner_health_router, prefix="/api/v1", tags=["scanners"])
 
     # OSINT ↔ Pentest integration bridge
     # POST /api/v1/investigations/{id}/to-pentest

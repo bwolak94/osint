@@ -71,7 +71,7 @@ export function CloudExposureResults({ scan }: Props) {
                       </div>
                     )}
                   </div>
-                  {bucket.url && (
+                  {bucket.url && /^https?:\/\//i.test(bucket.url) && (
                     <a href={bucket.url} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded p-1 hover:bg-bg-overlay" title="Open bucket URL">
                       <ExternalLink className="h-4 w-4" style={{ color: 'var(--brand-500)' }} />
                     </a>

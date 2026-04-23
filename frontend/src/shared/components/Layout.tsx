@@ -11,7 +11,20 @@ import { useChatPanel } from "@/features/chat/hooks";
 import { MessageSquare } from "lucide-react";
 
 export function Layout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('sidebar-collapsed') === 'true'
+    } catch {
+      return false
+    }
+  });
+  const handleSidebarToggle = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev
+      try { localStorage.setItem('sidebar-collapsed', String(next)) } catch { /* storage unavailable */ }
+      return next
+    })
+  };
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { isOpen, toggle, close } = useChatPanel();
   useScanNotificationMonitor();
@@ -25,7 +38,7 @@ export function Layout() {
       <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
         <Sidebar
           collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          onToggle={handleSidebarToggle}
         />
         <div className="flex flex-1 flex-col overflow-hidden">
           <TopBar />

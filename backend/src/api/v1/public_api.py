@@ -11,9 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.db.models import InvestigationModel, ScanResultModel, UserModel
 from src.adapters.db.settings_models import UserSettingsModel
+from src.api.middleware.rate_limit import rate_limit
 from src.dependencies import get_db
 
 router = APIRouter()
+
+# Shared rate-limit dependency applied to every public API route.
+_rate_limit_dep = Depends(rate_limit(max_requests=60, window_seconds=60))
 
 
 async def authenticate_api_key(
@@ -56,7 +60,7 @@ class PublicScanResultResponse(BaseModel):
     raw_data: dict
 
 
-@router.get("/investigations", response_model=list[PublicInvestigationResponse])
+@router.get("/investigations", response_model=list[PublicInvestigationResponse], dependencies=[_rate_limit_dep])
 async def list_investigations(
     user=Depends(authenticate_api_key),
     db: AsyncSession = Depends(get_db),
@@ -80,7 +84,7 @@ async def list_investigations(
     ]
 
 
-@router.get("/investigations/{investigation_id}/results", response_model=list[PublicScanResultResponse])
+@router.get("/investigations/{investigation_id}/results", response_model=list[PublicScanResultResponse], dependencies=[_rate_limit_dep])
 async def get_results(
     investigation_id: UUID,
     user=Depends(authenticate_api_key),

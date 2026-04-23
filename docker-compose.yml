@@ -35,6 +35,13 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend/src
+          target: /app/src
+        - action: rebuild
+          path: ./frontend/package.json
 
   api:
     build:
@@ -59,6 +66,13 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend/src
+          target: /app/src
+        - action: rebuild
+          path: ./backend/pyproject.toml
 
   worker:
     image: mcr.microsoft.com/playwright/python:v1.50.0-noble

@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { Layout } from "@/shared/components/Layout";
 import { LoadingSpinner } from "@/shared/components/LoadingSpinner";
+import { FeatureErrorBoundary } from "@/shared/components/FeatureErrorBoundary";
 
 const LoginPage = lazy(() => import("@/features/auth/LoginPage").then((m) => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import("@/features/auth/RegisterPage").then((m) => ({ default: m.RegisterPage })));
@@ -44,12 +45,21 @@ const AttackPlannerIndexPage = lazy(() => import("@/features/pentesting").then((
 const TargetsPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.TargetsPage })));
 const TargetDashboardPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.TargetDashboardPage })));
 const HubPage = lazy(() => import("@/features/hub").then((m) => ({ default: m.HubPage })));
+const WatchlistPage = lazy(() => import("@/features/watchlist/WatchlistPage").then((m) => ({ default: m.WatchlistPage })));
+const ReportBuilderPage = lazy(() => import("@/features/report-builder/ReportBuilderPage").then((m) => ({ default: m.ReportBuilderPage })));
+const InvestigationDiffPage = lazy(() => import("@/features/investigation-diff/InvestigationDiffPage").then((m) => ({ default: m.InvestigationDiffPage })));
+const CampaignsPage = lazy(() => import("@/features/campaigns/CampaignsPage").then((m) => ({ default: m.CampaignsPage })));
+const ThreatActorsPage = lazy(() => import("@/features/threat-actors/ThreatActorsPage").then((m) => ({ default: m.ThreatActorsPage })));
+const GdprPage = lazy(() => import("@/features/gdpr").then((m) => ({ default: m.GdprPage })));
+const MaltegoPage = lazy(() => import("@/features/maltego/MaltegoPage").then((m) => ({ default: m.MaltegoPage })));
 
-function Lazy({ children }: { children: React.ReactNode }) {
+function Lazy({ children, name }: { children: React.ReactNode; name?: string }) {
   return (
-    <Suspense fallback={<LoadingSpinner size="lg" className="mt-32" />}>
-      {children}
-    </Suspense>
+    <FeatureErrorBoundary featureName={name}>
+      <Suspense fallback={<LoadingSpinner size="lg" className="mt-32" />}>
+        {children}
+      </Suspense>
+    </FeatureErrorBoundary>
   );
 }
 
@@ -109,6 +119,13 @@ export const router = createBrowserRouter([
       { path: "pentest/targets", element: <Lazy><TargetsPage /></Lazy> },
       { path: "pentest/targets/:engagementId", element: <Lazy><TargetDashboardPage /></Lazy> },
       { path: "hub", element: <Lazy><HubPage /></Lazy> },
+      { path: "watchlist", element: <Lazy><WatchlistPage /></Lazy> },
+      { path: "report-builder", element: <Lazy><ReportBuilderPage /></Lazy> },
+      { path: "investigation-diff", element: <Lazy><InvestigationDiffPage /></Lazy> },
+      { path: "campaigns", element: <Lazy><CampaignsPage /></Lazy> },
+      { path: "threat-actors", element: <Lazy><ThreatActorsPage /></Lazy> },
+      { path: "gdpr", element: <Lazy><GdprPage /></Lazy> },
+      { path: "maltego", element: <Lazy><MaltegoPage /></Lazy> },
     ],
   },
 ]);

@@ -1,8 +1,8 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import ReactFlow, { Background, MiniMap, ReactFlowProvider, useReactFlow, type NodeTypes, type EdgeTypes, type Node } from "reactflow";
 import "reactflow/dist/style.css";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 
 import {
   PersonNode, CompanyNode, EmailNode, PhoneNode, UsernameNode, IPNode, DomainNode,
@@ -75,6 +75,8 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   const { query: searchQuery, setQuery: setSearchQuery } = useNodeSearch(setNodes);
   const { visibleTypes, toggleType, minConfidence, setMinConfidence } = useNodeFilters();
   const pathFinding = usePathFinding(investigationId);
+
+  const canvasSearchRef = useRef<HTMLInputElement>(null);
 
   // Context menu state for right-click on nodes
   const [contextMenu, setContextMenu] = useState<{
@@ -260,6 +262,12 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
     return counts;
   }, [filteredNodes]);
 
+  // Match count for the canvas search overlay
+  const matchCount = useMemo(() => {
+    if (!searchQuery) return filteredNodes.length;
+    return filteredNodes.filter((n) => !n.data.isDimmed).length;
+  }, [filteredNodes, searchQuery]);
+
   // Keyboard shortcuts
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
@@ -269,9 +277,13 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
 
       switch (e.key) {
         case "Escape":
-          selectNode(null);
-          pathFinding.cancelPathFinding();
-          handleClearSelection();
+          if (searchQuery) {
+            setSearchQuery("");
+          } else {
+            selectNode(null);
+            pathFinding.cancelPathFinding();
+            handleClearSelection();
+          }
           break;
         case "+":
         case "=":
@@ -283,7 +295,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
         case "f":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            document.querySelector<HTMLInputElement>('[placeholder*="Search"]')?.focus();
+            canvasSearchRef.current?.focus();
           } else {
             fitView({ padding: 0.2 });
           }
@@ -293,7 +305,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectNode, pathFinding, zoomIn, zoomOut, fitView, handleClearSelection]);
+  }, [selectNode, pathFinding, zoomIn, zoomOut, fitView, handleClearSelection, searchQuery, setSearchQuery]);
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
@@ -346,6 +358,53 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
         </Card>
       ) : (
         <div className="relative mt-2 flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-subtle)" }}>
+          {/* Floating canvas search bar */}
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 10,
+            }}
+          >
+            <div
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 shadow-lg"
+              style={{
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-default)",
+                minWidth: 260,
+              }}
+            >
+              <Search className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+              <input
+                ref={canvasSearchRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter nodes by label or type..."
+                className="flex-1 bg-transparent text-xs outline-none"
+                style={{ color: "var(--text-primary)" }}
+              />
+              {searchQuery && (
+                <>
+                  <span
+                    className="shrink-0 text-xs font-medium tabular-nums"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    {matchCount} / {filteredNodes.length}
+                  </span>
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="shrink-0 rounded p-0.5 transition-colors hover:bg-bg-overlay"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3 w-3" style={{ color: "var(--text-tertiary)" }} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
           <ReactFlow
             nodes={filteredNodes}
             edges={filteredEdges}

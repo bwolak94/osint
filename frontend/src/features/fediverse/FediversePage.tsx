@@ -1,17 +1,21 @@
 import { useState, useRef, useCallback } from 'react'
-import { Users, History } from 'lucide-react'
+import { Users, History, SearchX } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
 import { FediverseSearchForm } from './components/FediverseSearchForm'
 import { FediverseResults } from './components/FediverseResults'
 import { FediverseHistory } from './components/FediverseHistory'
 import type { FediverseScan } from './types'
 
+type ScanState = 'idle' | 'done'
+
 export function FediversePage() {
   const [currentScan, setCurrentScan] = useState<FediverseScan | null>(null)
+  const [scanState, setScanState] = useState<ScanState>('idle')
   const resultsRef = useRef<HTMLDivElement>(null)
 
   const handleSuccess = useCallback((result: FediverseScan) => {
     setCurrentScan(result)
+    setScanState('done')
     setTimeout(() => {
       resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 50)
@@ -19,8 +23,12 @@ export function FediversePage() {
 
   const handleHistorySelect = useCallback((scan: FediverseScan) => {
     setCurrentScan(scan)
+    setScanState('done')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
+
+  const hasResults = currentScan !== null && currentScan.results.length > 0
+  const scanRanNoResults = scanState === 'done' && currentScan !== null && currentScan.results.length === 0
 
   return (
     <div className="space-y-6">
@@ -48,8 +56,36 @@ export function FediversePage() {
         </CardBody>
       </Card>
 
-      {/* Results card — only shown when there is a current result */}
-      {currentScan !== null && (
+      {/* Before scan: idle empty state */}
+      {scanState === 'idle' && (
+        <div
+          className="flex flex-col items-center justify-center rounded-lg border py-12 text-center"
+          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+          aria-label="No scan run yet"
+        >
+          <Users className="mb-3 h-8 w-8" style={{ color: 'var(--text-tertiary)' }} aria-hidden="true" />
+          <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+            No scan run yet — enter a username above to begin
+          </p>
+        </div>
+      )}
+
+      {/* After scan, no results */}
+      {scanRanNoResults && (
+        <div
+          className="flex flex-col items-center justify-center rounded-lg border py-12 text-center"
+          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+          aria-label="No profiles found"
+        >
+          <SearchX className="mb-3 h-8 w-8" style={{ color: 'var(--text-tertiary)' }} aria-hidden="true" />
+          <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+            No profiles found for this target
+          </p>
+        </div>
+      )}
+
+      {/* Results card — only shown when there are results */}
+      {hasResults && (
         <div
           ref={resultsRef}
           className="animate-in fade-in slide-in-from-top-2 duration-300"
@@ -62,7 +98,7 @@ export function FediversePage() {
               </span>
             </h2>
             <button
-              onClick={() => setCurrentScan(null)}
+              onClick={() => { setCurrentScan(null); setScanState('idle') }}
               className="text-xs transition-colors hover:underline"
               style={{ color: 'var(--text-tertiary)' }}
               aria-label="Dismiss scan results"

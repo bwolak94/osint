@@ -38,6 +38,12 @@ import {
   Swords,
   Library,
   Sparkles,
+  Bell,
+  GitBranch,
+  Flag,
+  FileOutput,
+  Scale,
+  Plug,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -70,6 +76,8 @@ const mainNav: NavEntry[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/hub", label: "AI Hub", icon: Sparkles },
   { to: "/investigations", label: "Investigations", icon: Search },
+  { to: "/campaigns", label: "Campaigns", icon: Flag },
+  { to: "/investigation-diff", label: "Diff & Merge", icon: GitBranch },
   { to: "/scanners", label: "Scanners", icon: Radar },
   { to: "/playbooks", label: "Playbooks", icon: BookOpen },
   {
@@ -101,6 +109,8 @@ const mainNav: NavEntry[] = [
       { to: "/stealer-logs", label: "Stealer Logs", icon: AlertTriangle },
       { to: "/supply-chain", label: "Supply Chain", icon: Package },
       { to: "/credential-intel", label: "Credential Intel", icon: KeyRound },
+      { to: "/threat-actors", label: "Threat Actors", icon: Shield },
+      { to: "/watchlist", label: "Watchlist", icon: Bell },
     ],
   },
   {
@@ -140,6 +150,23 @@ const mainNav: NavEntry[] = [
       { to: "/pentest/bas", label: "Attack Simulation", icon: Swords },
       { to: "/pentest/finding-library", label: "Finding Library", icon: Library },
       { to: "/pentest/attack-planner", label: "Attack Planner", icon: Brain },
+      { to: "/report-builder", label: "Report Builder", icon: FileOutput },
+    ],
+  },
+  {
+    key: "legal",
+    label: "Compliance & Legal",
+    icon: Scale,
+    children: [
+      { to: "/gdpr", label: "GDPR Requests", icon: Scale },
+    ],
+  },
+  {
+    key: "integrations",
+    label: "Integrations",
+    icon: Plug,
+    children: [
+      { to: "/maltego", label: "Maltego", icon: Plug },
     ],
   },
 ];
@@ -167,7 +194,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return open;
   };
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getDefaultOpen);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem('sidebar-groups')
+      if (stored) return { ...getDefaultOpen(), ...JSON.parse(stored) as Record<string, boolean> }
+    } catch { /* storage unavailable */ }
+    return getDefaultOpen()
+  });
 
   const tierColors: Record<string, string> = {
     free: "text-text-tertiary",
@@ -176,7 +209,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   };
 
   function toggleGroup(key: string) {
-    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: !prev[key] }
+      try { localStorage.setItem('sidebar-groups', JSON.stringify(next)) } catch { /* storage unavailable */ }
+      return next
+    })
   }
 
   function renderItem(item: NavItem, indent = false) {

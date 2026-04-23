@@ -1,0 +1,1 @@
+export { GdprPage } from './GdprPage'

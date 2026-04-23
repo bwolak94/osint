@@ -7,11 +7,12 @@ interface SocmintResultsProps {
 }
 
 export function SocmintResults({ scan }: SocmintResultsProps) {
-  const foundCount = Object.values(scan.results).filter((r) => r.found).length
-  const totalCount = Object.keys(scan.results).length
+  const safeResults = scan.results ?? {}
+  const foundCount = Object.values(safeResults).filter((r) => r.found).length
+  const totalCount = Object.keys(safeResults).length
 
   const allGroupModules = new Set(SOCMINT_MODULE_GROUPS.flatMap((g) => g.modules))
-  const ungrouped = Object.keys(scan.results).filter((m) => !allGroupModules.has(m))
+  const ungrouped = Object.keys(safeResults).filter((m) => !allGroupModules.has(m))
 
   return (
     <div className="space-y-5">
@@ -41,7 +42,7 @@ export function SocmintResults({ scan }: SocmintResultsProps) {
 
       {/* Group results by category */}
       {SOCMINT_MODULE_GROUPS.map((group) => {
-        const groupModules = group.modules.filter((m) => scan.results[m] !== undefined)
+        const groupModules = group.modules.filter((m) => safeResults[m] !== undefined)
         if (groupModules.length === 0) return null
 
         return (
@@ -54,7 +55,7 @@ export function SocmintResults({ scan }: SocmintResultsProps) {
             </h3>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {groupModules.map((module) => (
-                <SocmintModuleCard key={module} name={module} result={scan.results[module]} />
+                <SocmintModuleCard key={module} name={module} result={safeResults[module]} />
               ))}
             </div>
           </div>
@@ -72,7 +73,7 @@ export function SocmintResults({ scan }: SocmintResultsProps) {
           </h3>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {ungrouped.map((module) => (
-              <SocmintModuleCard key={module} name={module} result={scan.results[module]} />
+              <SocmintModuleCard key={module} name={module} result={safeResults[module]} />
             ))}
           </div>
         </div>

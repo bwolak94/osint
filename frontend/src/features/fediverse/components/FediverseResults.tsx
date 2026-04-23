@@ -117,10 +117,10 @@ export function FediverseResults({ scan }: Props) {
     <div className="space-y-4">
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
         <strong style={{ color: 'var(--text-primary)' }}>{scan.total_results}</strong> profiles found across{' '}
-        <strong style={{ color: 'var(--text-primary)' }}>{scan.platforms_searched.length}</strong> platforms
+        <strong style={{ color: 'var(--text-primary)' }}>{(scan.platforms_searched ?? []).length}</strong> platforms
       </p>
 
-      {scan.results.length > 0 ? (
+      {(scan.results ?? []).length > 0 ? (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -132,7 +132,7 @@ export function FediverseResults({ scan }: Props) {
           </CardHeader>
           <CardBody>
             <div className="grid gap-3 sm:grid-cols-2">
-              {scan.results.map((profile, i) => (
+              {(scan.results ?? []).map((profile, i) => (
                 <ProfileCard key={i} profile={profile} />
               ))}
             </div>

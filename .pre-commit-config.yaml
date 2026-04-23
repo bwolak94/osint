@@ -1,15 +1,45 @@
+# Pre-commit hooks for OSINT platform
+# Install: pip install pre-commit && pre-commit install
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.0
+    rev: v0.4.4
     hooks:
       - id: ruff
         args: [--fix]
+        files: ^backend/
       - id: ruff-format
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+        files: ^backend/
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.0
     hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
+      - id: mypy
+        files: ^backend/src/
+        args: [--ignore-missing-imports, --no-error-summary]
+        additional_dependencies: [pydantic, fastapi, sqlalchemy]
+
+  - repo: local
+    hooks:
+      - id: tsc
+        name: TypeScript type check
+        language: system
+        entry: bash -c 'cd frontend && npm run type-check'
+        pass_filenames: false
+        files: ^frontend/src/
+
+      - id: eslint
+        name: ESLint
+        language: system
+        entry: bash -c 'cd frontend && npm run lint'
+        pass_filenames: false
+        files: ^frontend/src/
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-json
       - id: check-yaml
-      - id: check-added-large-files
-        args: [--maxkb=500]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: detect-private-key

@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OSINT Platform</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #09090b;
+      --surface:   #18181b;
+      --overlay:   #27272a;
+      --border:    #3f3f46;
+      --text:      #e4e4e7;
+      --muted:     #a1a1aa;
+      --subtle:    #71717a;
+      --brand:     #6366f1;
+      --brand-dim: #4f46e5;
+      --danger:    #ef4444;
+      --success:   #22c55e;
+    }
+
+    body {
+      width: 320px;
+      min-height: 200px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .header-icon {
+      width: 20px;
+      height: 20px;
+      background: var(--brand);
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #fff;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .header-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    /* Sections */
+    .section {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section:last-child { border-bottom: none; }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--subtle);
+      margin-bottom: 8px;
+    }
+
+    /* Form elements */
+    .row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    input, select {
+      flex: 1;
+      background: var(--overlay);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      padding: 5px 9px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input:focus, select:focus {
+      border-color: var(--brand);
+    }
+    input::placeholder { color: var(--subtle); }
+
+    button {
+      background: var(--brand);
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 11px;
+      cursor: pointer;
+      transition: background .15s;
+      white-space: nowrap;
+    }
+    button:hover { background: var(--brand-dim); }
+    button.secondary {
+      background: var(--overlay);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    button.secondary:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    /* Save feedback */
+    .saved-msg {
+      font-size: 11px;
+      color: var(--success);
+      margin-left: 4px;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .saved-msg.visible { opacity: 1; }
+
+    /* Recent list */
+    .recent-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 190px;
+      overflow-y: auto;
+    }
+    .recent-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: var(--overlay);
+      cursor: pointer;
+      transition: background .12s;
+    }
+    .recent-item:hover { background: var(--border); }
+    .recent-badge {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--brand);
+      border: 1px solid var(--brand)44;
+      flex-shrink: 0;
+    }
+    .recent-value {
+      font-size: 12px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .recent-time {
+      font-size: 10px;
+      color: var(--subtle);
+      flex-shrink: 0;
+    }
+    .empty-msg {
+      font-size: 12px;
+      color: var(--subtle);
+      text-align: center;
+      padding: 8px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">O</div>
+    <span class="header-title">OSINT Platform</span>
+  </div>
+
+  <!-- Platform URL setting -->
+  <div class="section">
+    <div class="section-label">Platform URL</div>
+    <div class="row">
+      <input id="platform-url" type="url" placeholder="http://localhost:8080" />
+      <button id="save-url">Save</button>
+      <span class="saved-msg" id="save-msg">Saved</span>
+    </div>
+  </div>
+
+  <!-- Quick investigate -->
+  <div class="section">
+    <div class="section-label">Quick Investigate</div>
+    <div class="row" style="margin-bottom:6px;">
+      <input id="target-input" type="text" placeholder="IP, domain, email, username…" />
+    </div>
+    <div class="row">
+      <select id="type-select">
+        <option value="ip">IP Address</option>
+        <option value="domain">Domain</option>
+        <option value="email">Email</option>
+        <option value="username">Username</option>
+        <option value="phone">Phone Number</option>
+        <option value="url">URL</option>
+      </select>
+      <button id="open-btn">Open</button>
+    </div>
+  </div>
+
+  <!-- Recent investigations -->
+  <div class="section">
+    <div class="section-label">Recent</div>
+    <ul class="recent-list" id="recent-list">
+      <li class="empty-msg">No recent investigations</li>
+    </ul>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

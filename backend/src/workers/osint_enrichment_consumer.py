@@ -80,6 +80,8 @@ async def _enrich_neo4j_nodes(event: dict[str, Any]) -> int:
     driver = AsyncGraphDatabase.driver(
         settings.neo4j_uri,
         auth=(settings.neo4j_user, settings.neo4j_password),
+        connection_timeout=30.0,
+        max_transaction_retry_time=30.0,
     )
     updated = 0
     try:

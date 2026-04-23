@@ -1,10 +1,13 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { Cloud, History } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
 import { CloudScanForm } from './components/CloudScanForm'
-import { CloudExposureResults } from './components/CloudExposureResults'
 import { CloudScanHistory } from './components/CloudScanHistory'
 import type { CloudExposureScan } from './types'
+
+const CloudExposureResults = lazy(() =>
+  import('./components/CloudExposureResults').then((m) => ({ default: m.CloudExposureResults })),
+)
 
 export function CloudExposurePage() {
   const [selectedScan, setSelectedScan] = useState<CloudExposureScan | null>(null)
@@ -49,7 +52,9 @@ export function CloudExposurePage() {
             </h2>
             <button onClick={() => setSelectedScan(null)} className="text-xs transition-colors hover:underline" style={{ color: 'var(--text-tertiary)' }}>Dismiss</button>
           </div>
-          <CloudExposureResults scan={selectedScan} />
+          <Suspense fallback={<div style={{ color: 'var(--text-tertiary)' }} className="py-4 text-sm">Loading results...</div>}>
+            <CloudExposureResults scan={selectedScan} />
+          </Suspense>
         </div>
       )}
 

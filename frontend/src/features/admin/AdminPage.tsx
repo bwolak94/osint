@@ -5,6 +5,7 @@ import { EmptyState } from "@/shared/components/EmptyState";
 import { apiClient } from "@/shared/api/client";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { Users, Activity, Search, Shield, BarChart3 } from "lucide-react";
+import { ScannerHealthPanel } from "./components/ScannerHealthPanel";
 
 function useAdminStats() {
   return useQuery({
@@ -73,6 +74,9 @@ export function AdminPage() {
           ))}
         </div>
       )}
+
+      {/* Scanner Health */}
+      <ScannerHealthPanel />
 
       {/* Users table */}
       <Card>

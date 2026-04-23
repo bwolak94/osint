@@ -1,10 +1,13 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { Package, History } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
 import { SupplyChainForm } from './components/SupplyChainForm'
-import { SupplyChainResults } from './components/SupplyChainResults'
 import { SupplyChainHistory } from './components/SupplyChainHistory'
 import type { SupplyChainScan } from './types'
+
+const SupplyChainResults = lazy(() =>
+  import('./components/SupplyChainResults').then((m) => ({ default: m.SupplyChainResults })),
+)
 
 export function SupplyChainPage() {
   const [selectedScan, setSelectedScan] = useState<SupplyChainScan | null>(null)
@@ -36,7 +39,9 @@ export function SupplyChainPage() {
             <h2 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Results — <span className="font-normal" style={{ color: 'var(--text-tertiary)' }}>{selectedScan.target}</span></h2>
             <button onClick={() => setSelectedScan(null)} className="text-xs transition-colors hover:underline" style={{ color: 'var(--text-tertiary)' }}>Dismiss</button>
           </div>
-          <SupplyChainResults scan={selectedScan} />
+          <Suspense fallback={<div style={{ color: 'var(--text-tertiary)' }} className="py-4 text-sm">Loading results...</div>}>
+            <SupplyChainResults scan={selectedScan} />
+          </Suspense>
         </div>
       )}
       <div>

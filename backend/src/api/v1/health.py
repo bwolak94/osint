@@ -47,7 +47,12 @@ async def readiness(request: Request) -> JSONResponse:
         from src.config import get_settings
         from neo4j import AsyncGraphDatabase
         settings = get_settings()
-        driver = AsyncGraphDatabase.driver(settings.neo4j_uri, auth=(settings.neo4j_user, settings.neo4j_password))
+        driver = AsyncGraphDatabase.driver(
+            settings.neo4j_uri,
+            auth=(settings.neo4j_user, settings.neo4j_password),
+            connection_timeout=30.0,
+            max_transaction_retry_time=30.0,
+        )
         async with driver.session() as session:
             await session.run("RETURN 1")
         await driver.close()

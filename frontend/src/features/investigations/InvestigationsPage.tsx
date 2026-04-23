@@ -10,7 +10,7 @@ import { Card, CardBody } from "@/shared/components/Card";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { InvestigationCard } from "@/shared/components/osint/InvestigationCard";
 import { CreateInvestigationModal } from "@/features/investigations/CreateInvestigationModal";
-import { useInvestigations } from "./hooks";
+import { useInvestigationsInfinite } from "./hooks";
 
 type ViewMode = "grid" | "table";
 type StatusFilter = "all" | "draft" | "running" | "paused" | "completed" | "archived";
@@ -44,10 +44,11 @@ export function InvestigationsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
 
-  const { data, isLoading } = useInvestigations();
+  const { data, isLoading, isFetching, fetchNextPage, hasNextPage } = useInvestigationsInfinite();
 
   // Map API items to the shape expected by the UI
-  const investigations = (data?.items ?? []).map((item) => ({
+  const allApiItems = data?.pages.flatMap(p => p.items) ?? [];
+  const investigations = allApiItems.map((item) => ({
     id: item.id,
     title: item.title,
     status: item.status,
@@ -80,7 +81,7 @@ export function InvestigationsPage() {
           <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
             Investigations
           </h1>
-          <Badge variant="neutral" size="sm">{data?.total ?? 0}</Badge>
+          <Badge variant="neutral" size="sm">{data?.pages[0]?.total ?? 0}</Badge>
         </div>
         <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setShowCreateModal(true)}>
           New Investigation
@@ -198,6 +199,21 @@ export function InvestigationsPage() {
             </table>
           </CardBody>
         </Card>
+      )}
+
+      {/* Load more */}
+      {hasNextPage && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => fetchNextPage()}
+            disabled={isFetching}
+            className="flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors"
+            style={{ background: 'var(--bg-elevated)', color: 'var(--text-secondary)', opacity: isFetching ? 0.6 : 1 }}
+          >
+            {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            Load more
+          </button>
+        </div>
       )}
 
       {/* Create modal */}

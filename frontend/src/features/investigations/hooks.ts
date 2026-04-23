@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/shared/api/client";
 import { toast } from "@/shared/components/Toast";
 
@@ -62,6 +62,20 @@ export function useInvestigations(cursor?: string) {
       const res = await apiClient.get<InvestigationListResponse>(`/investigations/?${params}`);
       return res.data;
     },
+  });
+}
+
+export function useInvestigationsInfinite() {
+  return useInfiniteQuery({
+    queryKey: ["investigations-infinite"],
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
+      const params = new URLSearchParams();
+      if (pageParam) params.set("cursor", pageParam);
+      const res = await apiClient.get<InvestigationListResponse>(`/investigations/?${params}`);
+      return res.data;
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
   });
 }
 

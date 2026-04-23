@@ -7,8 +7,9 @@ interface CredentialIntelResultsProps {
 }
 
 export function CredentialIntelResults({ scan }: CredentialIntelResultsProps) {
-  const foundCount = Object.values(scan.results).filter((r) => r.found).length
-  const total = Object.keys(scan.results).length
+  const safeResults = scan.results ?? {}
+  const foundCount = Object.values(safeResults).filter((r) => r.found).length
+  const total = Object.keys(safeResults).length
   const allGroupModules = new Set(CREDENTIAL_INTEL_GROUPS.flatMap((g) => g.modules))
 
   return (
@@ -35,7 +36,7 @@ export function CredentialIntelResults({ scan }: CredentialIntelResultsProps) {
       </div>
 
       {CREDENTIAL_INTEL_GROUPS.map((group) => {
-        const groupModules = group.modules.filter((m) => scan.results[m] !== undefined)
+        const groupModules = group.modules.filter((m) => safeResults[m] !== undefined)
         if (groupModules.length === 0) return null
         return (
           <div key={group.key} className="space-y-2">
@@ -44,7 +45,7 @@ export function CredentialIntelResults({ scan }: CredentialIntelResultsProps) {
             </h3>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {groupModules.map((m) => (
-                <CredentialIntelModuleCard key={m} name={m} result={scan.results[m]} />
+                <CredentialIntelModuleCard key={m} name={m} result={safeResults[m]} />
               ))}
             </div>
           </div>
@@ -53,14 +54,14 @@ export function CredentialIntelResults({ scan }: CredentialIntelResultsProps) {
 
       {/* Ungrouped modules */}
       {(() => {
-        const ungrouped = Object.keys(scan.results).filter((m) => !allGroupModules.has(m))
+        const ungrouped = Object.keys(safeResults).filter((m) => !allGroupModules.has(m))
         if (!ungrouped.length) return null
         return (
           <div className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Other</h3>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {ungrouped.map((m) => (
-                <CredentialIntelModuleCard key={m} name={m} result={scan.results[m]} />
+                <CredentialIntelModuleCard key={m} name={m} result={safeResults[m]} />
               ))}
             </div>
           </div>

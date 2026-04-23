@@ -12,7 +12,7 @@ const TARGET_TYPE_LABELS: Record<string, string> = {
 }
 
 export function ImintResults({ scan }: ImintResultsProps) {
-  const entries = Object.entries(scan.results)
+  const entries = Object.entries(scan.results ?? {})
   const foundCount = entries.filter(([, r]) => r.found).length
 
   return (

@@ -1,17 +1,21 @@
 import { useState, useRef, useCallback } from 'react'
-import { Wifi, History } from 'lucide-react'
+import { Wifi, History, SearchX } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
 import { WigleForm } from './components/WigleForm'
 import { WigleResults } from './components/WigleResults'
 import { WigleHistory } from './components/WigleHistory'
 import type { WigleScan } from './types'
 
+type ScanState = 'idle' | 'done'
+
 export function WiglePage() {
   const [currentScan, setCurrentScan] = useState<WigleScan | null>(null)
+  const [scanState, setScanState] = useState<ScanState>('idle')
   const resultsRef = useRef<HTMLDivElement>(null)
 
   const handleSuccess = useCallback((result: WigleScan) => {
     setCurrentScan(result)
+    setScanState('done')
     setTimeout(() => {
       resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }, 50)
@@ -19,8 +23,12 @@ export function WiglePage() {
 
   const handleHistorySelect = useCallback((scan: WigleScan) => {
     setCurrentScan(scan)
+    setScanState('done')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
+
+  const hasResults = currentScan !== null && currentScan.results.length > 0
+  const scanRanNoResults = scanState === 'done' && currentScan !== null && currentScan.results.length === 0
 
   return (
     <div className="space-y-6">
@@ -50,8 +58,36 @@ export function WiglePage() {
         </CardBody>
       </Card>
 
-      {/* Results — only shown when a scan is selected */}
-      {currentScan !== null && (
+      {/* Before scan: idle empty state */}
+      {scanState === 'idle' && (
+        <div
+          className="flex flex-col items-center justify-center rounded-lg border py-12 text-center"
+          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+          aria-label="No scan run yet"
+        >
+          <Wifi className="mb-3 h-8 w-8" style={{ color: 'var(--text-tertiary)' }} aria-hidden="true" />
+          <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+            No scan run yet — enter a BSSID or SSID above to begin
+          </p>
+        </div>
+      )}
+
+      {/* After scan, no results */}
+      {scanRanNoResults && (
+        <div
+          className="flex flex-col items-center justify-center rounded-lg border py-12 text-center"
+          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}
+          aria-label="No networks found"
+        >
+          <SearchX className="mb-3 h-8 w-8" style={{ color: 'var(--text-tertiary)' }} aria-hidden="true" />
+          <p className="text-sm font-medium" style={{ color: 'var(--text-tertiary)' }}>
+            No networks found for this target
+          </p>
+        </div>
+      )}
+
+      {/* Results — only shown when a scan has results */}
+      {hasResults && (
         <div
           ref={resultsRef}
           className="animate-in fade-in slide-in-from-top-2 duration-300"
@@ -64,7 +100,7 @@ export function WiglePage() {
               </span>
             </h2>
             <button
-              onClick={() => setCurrentScan(null)}
+              onClick={() => { setCurrentScan(null); setScanState('idle') }}
               className="text-xs transition-colors hover:underline"
               style={{ color: 'var(--text-tertiary)' }}
               aria-label="Dismiss scan results"
