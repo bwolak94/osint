@@ -13,6 +13,7 @@ import { useHubStore } from "../store";
 import type { AgentRunRequest, HubModule } from "../types";
 
 const ACTIVE_STATUSES = new Set(["queued", "running", "awaiting_hitl"]);
+const TERMINAL_STATUSES = new Set(["completed", "failed", "cancelled"]);
 // Poll every 2 s while the task is active (WebSocket is the primary channel;
 // this is a fallback for environments where WS is unavailable).
 const POLL_INTERVAL_MS = 2_000;
@@ -55,7 +56,7 @@ export function useTaskStatus() {
         newThoughts.forEach((t) => appendThought(t));
       }
 
-      if (!ACTIVE_STATUSES.has(res.status)) {
+      if (TERMINAL_STATUSES.has(res.status)) {
         setStatus(res.status);
         setResult(res.result, res.error, res.result_metadata);
       }

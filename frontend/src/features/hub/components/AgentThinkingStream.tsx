@@ -20,6 +20,7 @@ const STATUS_LABELS: Record<AgentStatus | "idle", string> = {
   completed: "Done",
   failed: "Failed",
   awaiting_hitl: "Awaiting your approval",
+  cancelled: "Cancelled",
 };
 
 const STATUS_COLORS: Record<AgentStatus | "idle", string> = {
@@ -29,6 +30,7 @@ const STATUS_COLORS: Record<AgentStatus | "idle", string> = {
   completed: "var(--success-500)",
   failed: "var(--danger-500)",
   awaiting_hitl: "var(--warning-500)",
+  cancelled: "var(--text-tertiary)",
 };
 
 export const AgentThinkingStream = memo(function AgentThinkingStream({
@@ -63,7 +65,7 @@ export const AgentThinkingStream = memo(function AgentThinkingStream({
         </p>
       )}
 
-      <ol className="space-y-1.5" aria-label="Agent thoughts">
+      <ol className="space-y-1.5" aria-label="Agent thoughts" aria-live="polite" aria-atomic="false">
         {thoughts.map((thought, idx) => (
           <li
             key={idx}

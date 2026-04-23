@@ -14,6 +14,7 @@ import structlog
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
     Distance,
+    PayloadSchemaType,
     SparseVectorParams,
     VectorParams,
 )
@@ -89,6 +90,18 @@ class QdrantCollectionManager:
             },
         )
         log.info("qdrant_collection_created", collection=NEWS_COLLECTION)
+
+        # Create payload index for 'tags' field to make tag filtering fast
+        # (avoids full collection scan when filtering by tag)
+        try:
+            await self._client.create_payload_index(
+                collection_name=NEWS_COLLECTION,
+                field_name="tags",
+                field_schema=PayloadSchemaType.KEYWORD,
+            )
+            log.info("qdrant_payload_index_created", collection=NEWS_COLLECTION, field="tags")
+        except Exception as exc:
+            log.warning("qdrant_payload_index_error", collection=NEWS_COLLECTION, field="tags", error=str(exc))
 
     async def delete_knowledge_collection(self) -> None:
         """Delete the knowledge collection (used in tests / data wipes)."""

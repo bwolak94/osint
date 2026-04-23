@@ -65,6 +65,12 @@ export function useAgentStream(taskId: string | null): void {
           });
           break;
 
+        case "graph_error":
+          // Emitted by cancel_task endpoint — treat as a terminal cancellation signal
+          setStatus("cancelled");
+          setResult(null, event.message ?? null);
+          break;
+
         case "error":
           setResult(null, event.message ?? "Unknown streaming error");
           break;

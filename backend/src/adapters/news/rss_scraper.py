@@ -43,7 +43,8 @@ _TIMEOUT = 10.0
 def _extract_domain(url: str) -> str:
     """Extract the domain from a URL, stripping the leading www. prefix."""
     try:
-        return urlparse(url).netloc.lstrip("www.")
+        netloc = urlparse(url).netloc
+        return netloc.removeprefix("www.")
     except Exception:
         return ""
 
@@ -68,7 +69,7 @@ def _parse_rss(root: ET.Element, feed_url: str) -> list[dict[str, Any]]:
         pub_raw = item.findtext("pubDate") or ""
 
         articles.append({
-            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, url or str(uuid.uuid4()))),
+            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, url)) if url else str(uuid.uuid4()),
             "url": url,
             "title": title,
             "content": content,
@@ -109,7 +110,7 @@ def _parse_atom(root: ET.Element, feed_url: str) -> list[dict[str, Any]]:
         )
 
         articles.append({
-            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, url or str(uuid.uuid4()))),
+            "id": str(uuid.uuid5(uuid.NAMESPACE_URL, url)) if url else str(uuid.uuid4()),
             "url": url,
             "title": title,
             "content": content,
@@ -154,16 +155,23 @@ async def fetch_feed(client: httpx.AsyncClient, feed_url: str) -> list[dict[str,
 async def scrape_all_feeds(
     feed_urls: list[str] | None = None,
     concurrency: int = 5,
+    redis: Any = None,
 ) -> list[dict[str, Any]]:
     """Fetch all configured feeds concurrently and return a deduplicated article list.
 
     Args:
         feed_urls:   Override the default feed list. Defaults to DEFAULT_FEED_URLS.
         concurrency: Max simultaneous HTTP connections.
+        redis:       Optional async Redis client; if provided and feed_urls is None,
+                     feeds are loaded from the feed registry stored in Redis.
 
     Returns:
         Deduplicated (by URL) list of raw article dicts.
     """
+    if feed_urls is None and redis is not None:
+        from src.adapters.news.feed_registry import get_feeds
+        all_feeds = await get_feeds(redis)
+        feed_urls = [f["url"] for f in all_feeds if f.get("enabled", True)]
     urls = feed_urls or DEFAULT_FEED_URLS
     semaphore = asyncio.Semaphore(concurrency)
     headers = {"User-Agent": "Mozilla/5.0 (compatible; OSINTBot/1.0)"}

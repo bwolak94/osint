@@ -10,7 +10,8 @@ export type AgentStatus =
   | "running"
   | "completed"
   | "failed"
-  | "awaiting_hitl";
+  | "awaiting_hitl"
+  | "cancelled";
 
 // ── API request/response shapes ──────────────────────────────────────────────
 
@@ -102,11 +103,44 @@ export interface NewsRagResponse {
   sources: Array<{ title: string; url: string; source_domain: string }>;
 }
 
+// ── Conversation history types ────────────────────────────────────────────────
+
+export interface ConversationRecord {
+  task_id: string;
+  module: HubModule;
+  query: string;
+  result: string | null;
+  error: string | null;
+  created_at: string | null;
+  completed_at: string | null;
+}
+
+// ── News source types ─────────────────────────────────────────────────────────
+
+export interface NewsSource {
+  url: string;
+  name: string;
+  enabled: boolean;
+}
+
+export interface NewsTopic {
+  topics: string[];
+}
+
+export interface NewsBookmark {
+  article_id: string;
+  bookmarked_at: string;
+  url?: string;
+  title?: string;
+  source_domain?: string;
+}
+
 // ── WebSocket event shapes ────────────────────────────────────────────────────
 
 export type WsEventType =
   | "graph_start"
   | "graph_done"
+  | "graph_error"
   | "node_start"
   | "thought"
   | "status_update"

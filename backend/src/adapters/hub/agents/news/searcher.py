@@ -7,6 +7,7 @@ mock articles so the pipeline can be tested end-to-end without network calls.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
@@ -16,32 +17,39 @@ from src.adapters.hub.agents.news.state import NewsArticle, NewsState
 
 log = structlog.get_logger(__name__)
 
-_MOCK_ARTICLES: list[dict[str, Any]] = [
-    {
-        "url": "https://example.com/news/ai-breakthrough",
-        "title": "AI Breakthrough Changes Industry",
-        "content": "Scientists have developed a new AI model that outperforms previous benchmarks.",
-        "published_date": "2026-04-22T09:00:00Z",
-        "score": 0.9,
-        "image": "https://example.com/news/ai-breakthrough/thumbnail.jpg",
-    },
-    {
-        "url": "https://techcrunch.com/news/startup-funding",
-        "title": "Startup Funding Hits Record High",
-        "content": "Venture capital investment in AI startups reached an all-time high this quarter.",
-        "published_date": "2026-04-22T10:00:00Z",
-        "score": 0.8,
-        "image": None,
-    },
-    {
-        "url": "https://reuters.com/tech/regulation",
-        "title": "New Tech Regulations Announced",
-        "content": "Governments worldwide are introducing new regulations targeting AI companies.",
-        "published_date": "2026-04-22T11:00:00Z",
-        "score": 0.75,
-        "image": "https://reuters.com/tech/regulation/cover.jpg",
-    },
-]
+# Dynamic dates — always relative to now so they don't become stale
+_now = datetime.now(timezone.utc)
+
+
+def _mock_articles() -> list[dict[str, Any]]:
+    """Build mock articles with dates relative to the current time."""
+    now = datetime.now(timezone.utc)
+    return [
+        {
+            "url": "https://example.com/news/ai-breakthrough",
+            "title": "AI Breakthrough Changes Industry",
+            "content": "Scientists have developed a new AI model that outperforms previous benchmarks.",
+            "published_date": (now - timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "score": 0.9,
+            "image": "https://example.com/news/ai-breakthrough/thumbnail.jpg",
+        },
+        {
+            "url": "https://techcrunch.com/news/startup-funding",
+            "title": "Startup Funding Hits Record High",
+            "content": "Venture capital investment in AI startups reached an all-time high this quarter.",
+            "published_date": (now - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "score": 0.8,
+            "image": None,
+        },
+        {
+            "url": "https://reuters.com/tech/regulation",
+            "title": "New Tech Regulations Announced",
+            "content": "Governments worldwide are introducing new regulations targeting AI companies.",
+            "published_date": (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "score": 0.75,
+            "image": "https://reuters.com/tech/regulation/cover.jpg",
+        },
+    ]
 
 
 class TavilySearcher(Protocol):
@@ -114,7 +122,7 @@ async def news_searcher_agent(
 
     if tavily_searcher is None:
         thoughts.append("NewsSearcher: no searcher configured — returning mock articles.")
-        raw_results = list(_MOCK_ARTICLES)
+        raw_results = _mock_articles()
     else:
         try:
             raw_results = await tavily_searcher.search(

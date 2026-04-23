@@ -1,6 +1,5 @@
 """Application configuration loaded from environment variables."""
 
-import warnings
 from functools import lru_cache
 
 from pydantic import model_validator
@@ -231,10 +230,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _check_secrets(self) -> "Settings":
         if not self.debug and self.jwt_secret_key == "change-me-in-production":
-            warnings.warn(
-                "SECURITY WARNING: JWT_SECRET_KEY is using the default value. "
-                "Set a unique JWT_SECRET_KEY environment variable for production.",
-                stacklevel=2,
+            raise ValueError(
+                "SECURITY ERROR: JWT_SECRET_KEY is using the default value. "
+                "Set a unique JWT_SECRET_KEY environment variable for production."
             )
         return self
 

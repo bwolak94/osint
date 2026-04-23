@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import re as re_mod
+import textwrap
 from datetime import datetime, timezone
 from typing import Any
 
@@ -19,6 +20,9 @@ import structlog
 from src.workers.celery_app import celery_app
 
 log = structlog.get_logger(__name__)
+
+# Safety limit for the dedup scroll loop
+_MAX_SCROLL_PAGES = 100
 
 
 async def _run_scrape() -> dict[str, Any]:
@@ -35,8 +39,23 @@ async def _run_scrape() -> dict[str, Any]:
     from src.config import get_settings
 
     settings = get_settings()
-    raw_articles = await scrape_all_feeds()
+
+    # ── Get async Redis client for feed registry ───────────────────────────────
+    redis_async = None
+    try:
+        import redis.asyncio as aioredis
+        redis_async = aioredis.from_url(settings.redis_url, decode_responses=True)
+    except Exception as exc:
+        log.warning("news_scraper_redis_unavailable", error=str(exc))
+
+    raw_articles = await scrape_all_feeds(redis=redis_async)
     log.info("news_scraper_fetched", count=len(raw_articles))
+
+    if redis_async is not None:
+        try:
+            await redis_async.aclose()
+        except Exception:
+            pass
 
     if not raw_articles:
         return {"scraped": 0, "stored": 0}
@@ -99,7 +118,9 @@ async def _run_scrape() -> dict[str, Any]:
     known_urls: set[str] = set()
     try:
         offset = None
-        while True:
+        page_count = 0
+        while page_count < _MAX_SCROLL_PAGES:
+            page_count += 1
             scroll_result = await qdrant.scroll(
                 collection_name=NEWS_COLLECTION,
                 scroll_filter=None,
@@ -155,6 +176,7 @@ async def _run_scrape() -> dict[str, Any]:
         async def retrieve(self, query: str, top_k: int = 5) -> list:
             return []
 
+    # Fix 7: use correct parameter name 'qdrant_searcher' (matches validator signature)
     val_result = await news_validator_agent(
         state=state,  # type: ignore[arg-type]
         qdrant_searcher=_StubRetriever(),
@@ -175,12 +197,17 @@ async def _run_scrape() -> dict[str, Any]:
     if not enriched:
         return {"scraped": len(raw_articles), "new": len(new_articles), "stored": 0}
 
-    # ── Extractive summary (fast, no LLM) ─────────────────────────────────────
+    # ── Extractive summary (fast, no LLM) and action_relevance_score ──────────
     for art in enriched:
         content = art.get("content", "")
         sentences = re_mod.split(r"(?<=[.!?])\s+", content)
-        art["summary"] = " ".join(sentences[:3])[:300] if sentences else content[:300]
+        summary = " ".join(sentences[:3]) if sentences else content
+        art["summary"] = textwrap.shorten(summary, width=400, placeholder="…")
         art["critique_score"] = 0.7  # default score for RSS-scraped articles
+        # Compute action_relevance_score so synergy signals can fire
+        credibility = art.get("credibility_score", 0.7)
+        relevance = art.get("relevance_score", 0.5)
+        art["action_relevance_score"] = round(credibility * relevance, 3)
 
     state["final_articles"] = enriched
 
@@ -207,7 +234,7 @@ async def _run_scrape() -> dict[str, Any]:
     bind=True,
     max_retries=2,
     default_retry_delay=120,
-    ignore_result=False,
+    ignore_result=True,  # Fix 12: results are never consumed by callers
 )
 def scrape_news_task(self: Any) -> dict[str, Any]:
     """Periodic task: scrape all configured RSS feeds and store in Qdrant."""

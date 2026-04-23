@@ -63,7 +63,7 @@ class AgentStatusResponse(BaseModel):
     """GET /api/v1/hub/tasks/{task_id} — current task status."""
 
     task_id: str
-    status: Literal["queued", "running", "completed", "failed", "awaiting_hitl"]
+    status: Literal["queued", "running", "completed", "failed", "awaiting_hitl", "cancelled"]
     result: str | None = None
     result_metadata: dict[str, Any] = Field(default_factory=dict)
     error: str | None = None
@@ -84,3 +84,19 @@ class HitlApprovalResponse(BaseModel):
     task_id: str
     approved: bool
     status: Literal["resumed", "aborted"]
+
+
+# ── News RAG schemas ───────────────────────────────────────────────────────────
+
+class NewsRagRequest(BaseModel):
+    """POST /api/v1/hub/news/ask — RAG query over stored news articles."""
+
+    query: str = Field(..., min_length=1, max_length=2000)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class NewsRagResponse(BaseModel):
+    """Response from news RAG endpoint."""
+
+    answer: str
+    sources: list[dict[str, str]]

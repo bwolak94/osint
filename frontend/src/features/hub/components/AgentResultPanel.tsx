@@ -1,11 +1,12 @@
 /**
- * AgentResultPanel — displays the final agent result (markdown-safe text).
+ * AgentResultPanel — displays the final agent result with markdown rendering.
  *
  * Memoised with React.memo since result text doesn't change after completion.
  */
 
 import { memo, useId } from "react";
 import { CheckCircle, AlertCircle } from "lucide-react";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface AgentResultPanelProps {
   result: string | null;
@@ -56,12 +57,16 @@ export const AgentResultPanel = memo(function AgentResultPanel({
         </h3>
       </div>
 
-      <div
-        className="whitespace-pre-wrap text-sm leading-relaxed"
-        style={{ color: isError ? "var(--danger-400)" : "var(--text-secondary)" }}
-      >
-        {error ?? result}
-      </div>
+      {isError ? (
+        <p
+          className="text-sm leading-relaxed whitespace-pre-wrap"
+          style={{ color: "var(--danger-400)" }}
+        >
+          {error}
+        </p>
+      ) : (
+        <MarkdownContent content={result ?? ""} />
+      )}
     </section>
   );
 });

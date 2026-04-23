@@ -17,14 +17,28 @@ from typing import Any
 import structlog
 
 from src.workers.celery_app import celery_app
+from src.adapters.hub.redis_keys import (
+    HUB_TTL,
+    task_status_key,
+    task_result_key,
+    task_state_key,
+    task_events_channel,
+)
 
 log = structlog.get_logger(__name__)
 
-_TASK_STATUS_KEY = "hub:task:{}:status"
-_TASK_RESULT_KEY = "hub:task:{}:result"
-_TASK_STATE_KEY = "hub:task:{}:state"
-_EVENTS_CHANNEL = "hub:task:{}:events"
-_TTL = 3600  # 1 hour
+# Module-level engine singleton — avoids creating a new connection pool on every task
+_db_engine = None
+
+
+def _get_db_engine() -> Any:
+    """Return (or lazily initialise) the module-level async SQLAlchemy engine."""
+    global _db_engine  # noqa: PLW0603
+    if _db_engine is None:
+        from sqlalchemy.ext.asyncio import create_async_engine
+        from src.config import get_settings
+        _db_engine = create_async_engine(get_settings().postgres_dsn, pool_pre_ping=True)
+    return _db_engine
 
 
 def _get_redis_sync() -> Any:
@@ -40,7 +54,7 @@ async def _publish_event(task_id: str, event: dict[str, Any]) -> None:
     import redis.asyncio as aioredis
     from src.config import get_settings
     r = aioredis.from_url(get_settings().redis_url)
-    channel = _EVENTS_CHANNEL.format(task_id)
+    channel = task_events_channel(task_id)
     await r.publish(channel, json.dumps(event))
     await r.aclose()
 
@@ -133,14 +147,13 @@ def _build_graph(task_id: str) -> Any:
         pass
 
     # Wire HubTaskRepository (async session factory via SQLAlchemy)
+    # Fix 13: use module-level engine singleton instead of creating a new engine per task
     task_repository = None
     try:
         from src.adapters.repositories.hub_task_repository import HubTaskRepository
-        from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+        from sqlalchemy.ext.asyncio import AsyncSession
         from sqlalchemy.orm import sessionmaker
-        from src.config import get_settings
-        settings = get_settings()
-        engine = create_async_engine(settings.postgres_dsn, pool_pre_ping=True)
+        engine = _get_db_engine()
         async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         # Create a single session for the lifetime of the task; closed on task end
         _task_session = async_session()
@@ -158,6 +171,37 @@ def _build_graph(task_id: str) -> Any:
         llm_summarizer=llm_summarizer,
         llm_critic=llm_critic,
     )
+
+
+async def _save_conversation(
+    task_id: str,
+    user_id: str,
+    module: str,
+    query: str,
+    state: dict[str, Any],
+) -> None:
+    """Persist the completed conversation to the hub_conversations table."""
+    try:
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from src.adapters.db.models.hub_conversation import HubConversation
+        from datetime import datetime, timezone
+
+        async with AsyncSession(_get_db_engine()) as session:
+            conv = HubConversation(
+                user_id=user_id,
+                task_id=task_id,
+                module=module,
+                query=query,
+                result=state.get("result"),
+                error=state.get("error"),
+                thoughts=state.get("thoughts", []),
+                result_metadata=state.get("result_metadata", {}),
+                completed_at=datetime.now(timezone.utc),
+            )
+            session.add(conv)
+            await session.commit()
+    except Exception as exc:
+        log.warning("hub_conversation_save_error", task_id=task_id, error=str(exc))
 
 
 @celery_app.task(
@@ -184,7 +228,7 @@ def run_hub_agent_task(
     redis = _get_redis_sync()
 
     try:
-        redis.setex(_TASK_STATUS_KEY.format(task_id), _TTL, "running")
+        redis.setex(task_status_key(task_id), HUB_TTL, "running")
 
         async def _run() -> None:
             from src.adapters.hub.checkpointer import get_checkpointer  # noqa: PLC0415
@@ -208,20 +252,20 @@ def run_hub_agent_task(
 
             # ── HITL pause ─────────────────────────────────────────────────
             if state.get("human_approval_pending"):
-                redis.setex(_TASK_STATUS_KEY.format(task_id), _TTL, "awaiting_hitl")
+                redis.setex(task_status_key(task_id), HUB_TTL, "awaiting_hitl")
                 redis.setex(
-                    _TASK_STATE_KEY.format(task_id),
-                    _TTL,
+                    task_state_key(task_id),
+                    HUB_TTL,
                     json.dumps(state),
                 )
                 return
 
             # ── Completed or failed ────────────────────────────────────────
             final_status = "failed" if state.get("error") else "completed"
-            redis.setex(_TASK_STATUS_KEY.format(task_id), _TTL, final_status)
+            redis.setex(task_status_key(task_id), HUB_TTL, final_status)
             redis.setex(
-                _TASK_RESULT_KEY.format(task_id),
-                _TTL,
+                task_result_key(task_id),
+                HUB_TTL,
                 json.dumps(
                     {
                         "result": state.get("result"),
@@ -232,6 +276,10 @@ def run_hub_agent_task(
                     }
                 ),
             )
+
+            # Persist conversation to DB (non-fatal)
+            await _save_conversation(task_id, user_id, module, query, state)
+
             # Publish graph_done AFTER Redis writes so the frontend fetch
             # always returns a non-null result (fixes race condition).
             await _publish_event(task_id, {"type": "graph_done", "task_id": task_id})
@@ -240,10 +288,10 @@ def run_hub_agent_task(
 
     except Exception as exc:
         log.error("hub_task_error", task_id=task_id, error=str(exc))
-        redis.setex(_TASK_STATUS_KEY.format(task_id), _TTL, "failed")
+        redis.setex(task_status_key(task_id), HUB_TTL, "failed")
         redis.setex(
-            _TASK_RESULT_KEY.format(task_id),
-            _TTL,
+            task_result_key(task_id),
+            HUB_TTL,
             json.dumps({"result": None, "thoughts": [], "error": str(exc)}),
         )
         raise self.retry(exc=exc)
@@ -266,7 +314,7 @@ def resume_hub_agent_task(
     redis = _get_redis_sync()
 
     try:
-        redis.setex(_TASK_STATUS_KEY.format(task_id), _TTL, "running")
+        redis.setex(task_status_key(task_id), HUB_TTL, "running")
 
         async def _resume() -> None:
             from src.adapters.hub.graph import HubAgentGraph
@@ -279,10 +327,10 @@ def resume_hub_agent_task(
             )
 
             final_status = "failed" if final_state.get("error") else "completed"
-            redis.setex(_TASK_STATUS_KEY.format(task_id), _TTL, final_status)
+            redis.setex(task_status_key(task_id), HUB_TTL, final_status)
             redis.setex(
-                _TASK_RESULT_KEY.format(task_id),
-                _TTL,
+                task_result_key(task_id),
+                HUB_TTL,
                 json.dumps(
                     {
                         "result": final_state.get("result"),
@@ -293,9 +341,12 @@ def resume_hub_agent_task(
                 ),
             )
 
+            # Fix 15: publish graph_done so WebSocket clients are notified after resume
+            await _publish_event(task_id, {"type": "graph_done", "task_id": task_id})
+
         asyncio.run(_resume())
 
     except Exception as exc:
         log.error("hub_resume_error", task_id=task_id, error=str(exc))
-        redis.setex(_TASK_STATUS_KEY.format(task_id), _TTL, "failed")
+        redis.setex(task_status_key(task_id), HUB_TTL, "failed")
         raise self.retry(exc=exc)

@@ -63,9 +63,9 @@ export function CloudExposureResults({ scan }: Props) {
                       {bucket.file_count} files indexed
                       {bucket.sensitive_file_count > 0 && ` · ${bucket.sensitive_file_count} sensitive`}
                     </p>
-                    {bucket.sample_files.length > 0 && (
+                    {(bucket.sample_files?.length ?? 0) > 0 && (
                       <div className="mt-2 flex flex-wrap gap-1">
-                        {bucket.sample_files.slice(0, 5).map((f, j) => (
+                        {(bucket.sample_files ?? []).slice(0, 5).map((f, j) => (
                           <span key={j} className="rounded px-1.5 py-0.5 font-mono text-xs" style={{ background: 'var(--bg-elevated)', color: 'var(--text-tertiary)' }}>{f}</span>
                         ))}
                       </div>
