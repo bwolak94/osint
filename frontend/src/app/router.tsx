@@ -43,6 +43,7 @@ const FindingLibraryPage = lazy(() => import("@/features/pentesting").then((m) =
 const AttackPlannerIndexPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.AttackPlannerIndexPage })));
 const TargetsPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.TargetsPage })));
 const TargetDashboardPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.TargetDashboardPage })));
+const HubPage = lazy(() => import("@/features/hub").then((m) => ({ default: m.HubPage })));
 
 function Lazy({ children }: { children: React.ReactNode }) {
   return (
@@ -107,6 +108,7 @@ export const router = createBrowserRouter([
       { path: "pentest/attack-planner", element: <Lazy><AttackPlannerIndexPage /></Lazy> },
       { path: "pentest/targets", element: <Lazy><TargetsPage /></Lazy> },
       { path: "pentest/targets/:engagementId", element: <Lazy><TargetDashboardPage /></Lazy> },
+      { path: "hub", element: <Lazy><HubPage /></Lazy> },
     ],
   },
 ]);

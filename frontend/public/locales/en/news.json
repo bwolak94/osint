@@ -1,0 +1,18 @@
+{
+  "title": "News",
+  "pipeline_running": "Analyzing {{count}} source",
+  "pipeline_running_plural": "Analyzing {{count}} sources",
+  "pipeline_done": "Pipeline complete — {{count}} article found",
+  "pipeline_done_plural": "Pipeline complete — {{count}} articles found",
+  "no_articles": "No articles found. Try a different query.",
+  "credibility": "Credibility",
+  "relevance": "Relevance",
+  "action_signal": "Action signal detected",
+  "duplicate": "Duplicate",
+  "search_placeholder": "Search for news topics, events…",
+  "source": "Source",
+  "published": "Published",
+  "read_more": "Read more",
+  "summary": "Summary",
+  "tags": "Tags"
+}

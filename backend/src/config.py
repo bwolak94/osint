@@ -198,6 +198,36 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from: str = "pentest@localhost"
 
+    # ── Hub AI Productivity ───────────────────────────────────────────────────
+    qdrant_url: str = "http://qdrant:6333"
+    qdrant_api_key: str = ""
+    qdrant_collection_knowledge: str = "knowledge"
+
+    # LangSmith observability (optional — set to enable tracing)
+    langchain_tracing_v2: bool = False
+    langchain_api_key: str = ""
+    langchain_project: str = "hub-production"
+    langchain_endpoint: str = "https://api.smith.langchain.com"
+
+    # LangSmith observability (Phase 1.6)
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "hub-agent"
+    langsmith_tracing_enabled: bool = False
+
+    # Hub task settings
+    hub_task_ttl_seconds: int = 3600
+    hub_max_steps: int = 10
+    hub_sandbox_image: str = "hub-agent-sandbox:hardened"
+    hub_sandbox_network: str = "sandbox-net"
+    hub_sandbox_timeout_seconds: int = 300
+
+    # Tavily (Phase 2 — web research)
+    tavily_api_key: str = ""
+
+    # Google Calendar MCP (Phase 3 — HTTP/SSE only, STDIO banned)
+    google_calendar_mcp_url: str = "https://mcp.googleapis.com/calendar/sse"
+    google_calendar_oauth_token: str = ""
+
     @model_validator(mode="after")
     def _check_secrets(self) -> "Settings":
         if not self.debug and self.jwt_secret_key == "change-me-in-production":

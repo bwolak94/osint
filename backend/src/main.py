@@ -117,6 +117,10 @@ from src.api.v1.assets.router import router as assets_router
 from src.api.v1.phishing.router import router as phishing_router
 from src.api.v1.peer_review.router import router as peer_review_router
 from src.api.v1.agent.router import router as agent_router
+from src.api.v1.hub.router import router as hub_router
+from src.api.v1.hub_tasks.router import router as hub_tasks_router
+from src.api.v1.knowledge.router import router as knowledge_router
+from src.api.middleware.locale import LocaleMiddleware
 from src.config import get_settings
 
 
@@ -216,6 +220,7 @@ def create_app() -> FastAPI:
     application.add_middleware(RateLimitMiddleware)
     application.add_middleware(SecurityHeadersMiddleware)
     application.add_middleware(RequestLoggingMiddleware)
+    application.add_middleware(LocaleMiddleware)
 
     # Health check and metrics routers
     application.include_router(health_router)
@@ -332,6 +337,11 @@ def create_app() -> FastAPI:
     application.include_router(phishing_router, prefix="/api/v1", tags=["phishing"])
     application.include_router(peer_review_router, prefix="/api/v1", tags=["peer-review"])
     application.include_router(agent_router, prefix="/api/v1", tags=["agent"])
+
+    # Hub AI Productivity (Phase 1 + Phase 2)
+    application.include_router(hub_router, prefix="/api/v1", tags=["hub"])
+    application.include_router(hub_tasks_router, prefix="/api/v1", tags=["hub-tasks"])
+    application.include_router(knowledge_router, prefix="/api/v1", tags=["knowledge"])
 
     # OSINT ↔ Pentest integration bridge
     # POST /api/v1/investigations/{id}/to-pentest

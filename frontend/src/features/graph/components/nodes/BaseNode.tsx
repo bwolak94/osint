@@ -1,5 +1,6 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { Handle, Position, type NodeProps } from "reactflow";
+import { Shield } from "lucide-react";
 import type { OsintNodeData, NodeType } from "../../types";
 
 const nodeColors: Record<NodeType, string> = {
@@ -31,10 +32,12 @@ const nodeColors: Record<NodeType, string> = {
 interface BaseNodeProps {
   icon: React.ReactNode;
   nodeProps: NodeProps<OsintNodeData>;
+  onPentestTarget?: () => void;
 }
 
-export const BaseNode = memo(function BaseNode({ icon, nodeProps }: BaseNodeProps) {
+export const BaseNode = memo(function BaseNode({ icon, nodeProps, onPentestTarget }: BaseNodeProps) {
   const { data, selected } = nodeProps;
+  const [hovered, setHovered] = useState(false);
   const color = nodeColors[data.type] ?? "var(--text-tertiary)";
   const truncatedLabel = data.label.length > 25 ? data.label.slice(0, 22) + "..." : data.label;
 
@@ -57,6 +60,8 @@ export const BaseNode = memo(function BaseNode({ icon, nodeProps }: BaseNodeProp
           minWidth: nodeWidth,
           maxWidth: 260,
         }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
       >
         {/* Child count bubble (Maltego-style entity count) */}
         {data.childCount != null && data.childCount > 0 && (
@@ -112,6 +117,18 @@ export const BaseNode = memo(function BaseNode({ icon, nodeProps }: BaseNodeProp
             {data.sources.length > 2 ? ` +${data.sources.length - 2}` : ""}
           </span>
         </div>
+
+        {onPentestTarget && hovered && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onPentestTarget(); }}
+            className="mt-1.5 flex w-full items-center justify-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors hover:opacity-80"
+            style={{ background: "var(--warning-500)15", color: "var(--warning-500)", border: "1px solid var(--warning-500)40" }}
+            title="Create pentest engagement for this target"
+          >
+            <Shield className="h-3 w-3" aria-hidden="true" />
+            Pentest this target
+          </button>
+        )}
       </div>
 
       <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !border-0" style={{ background: color }} />

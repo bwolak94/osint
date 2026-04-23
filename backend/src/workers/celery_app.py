@@ -38,6 +38,7 @@ celery_app.conf.update(
         "src.workers.pentest_orchestrator.run_tool_module": {"queue": "pentest_heavy"},
         "src.workers.pentest_orchestrator.generate_pentest_report": {"queue": "pentest_light"},
         "src.workers.pentest_orchestrator.check_sla_breaches": {"queue": "pentest_light"},
+        "src.workers.pentest_orchestrator.expire_stale_hitl_requests": {"queue": "pentest_light"},
         "src.workers.retest_tasks.retest_finding": {"queue": "pentest_heavy"},
         "src.workers.notification_tasks.notify_finding_created": {"queue": "pentest_light"},
         "src.workers.notification_tasks.notify_scan_complete": {"queue": "pentest_light"},
@@ -46,12 +47,16 @@ celery_app.conf.update(
         "src.workers.tasks.scanner_tasks.maigret_scan_task": {"queue": "light"},
         "src.workers.tasks.scanner_tasks.vat_scan_task": {"queue": "light"},
         "src.workers.tasks.scanner_tasks.playwright_scan_task": {"queue": "heavy"},
+        "hub.run_agent": {"queue": "light"},
+        "hub.resume_agent": {"queue": "light"},
+        "news.scrape_all": {"queue": "light"},
         "src.workers.tasks.graph_tasks.*": {"queue": "graph"},
         "src.workers.tasks.investigation_tasks.*": {"queue": "light"},
         "src.workers.tasks.scheduled_scan_tasks.*": {"queue": "light"},
         "src.workers.tasks.retention_tasks.*": {"queue": "light"},
         "src.workers.tasks.ioc_enrichment_tasks.*": {"queue": "light"},
         "src.workers.tasks.alert_tasks.*": {"queue": "light"},
+        "osint.enrich_from_pentest": {"queue": "light"},
         "src.workers.tasks.community_detection_tasks.detect_communities": {"queue": "graph"},
         "src.workers.tasks.community_detection_tasks.propagate_confidence": {"queue": "graph"},
         "src.workers.tasks.community_detection_tasks.score_attribution": {"queue": "light"},
@@ -94,9 +99,17 @@ celery_app.conf.update(
             "task": "src.workers.pentest_orchestrator.verify_audit_chains",
             "schedule": 86400.0,  # daily
         },
+        "pentest-expire-stale-hitl": {
+            "task": "src.workers.pentest_orchestrator.expire_stale_hitl_requests",
+            "schedule": 300.0,   # every 5 minutes — catches any request past 30-min limit
+        },
         "rag-nightly-ingest": {
             "task": "rag.ingest_all_sources",
             "schedule": crontab(hour=2, minute=0),  # 02:00 UTC daily
+        },
+        "news-scrape-feeds": {
+            "task": "news.scrape_all",
+            "schedule": 1800.0,  # every 30 minutes
         },
     },
 )
@@ -114,3 +127,12 @@ import src.workers.notification_tasks  # noqa: E402, F401
 
 # Explicitly import RAG ingestion so its tasks are registered
 import src.workers.rag_ingestion  # noqa: E402, F401
+
+# Explicitly import OSINT enrichment consumer so its tasks are registered
+import src.workers.osint_enrichment_consumer  # noqa: E402, F401
+
+# Explicitly import Hub AI agent tasks so they are registered
+import src.workers.tasks.hub_tasks  # noqa: E402, F401
+
+# Explicitly import news scraper task so it is registered with Celery beat
+import src.workers.tasks.news_scraper_task  # noqa: E402, F401

@@ -1,0 +1,14 @@
+{
+  "title": "Calendar",
+  "draft_schedule": "Proposed schedule",
+  "approved": "Approved",
+  "conflict": "Conflict detected",
+  "free_slots": "Free slots",
+  "no_slots": "No free slots found in the next 7 days.",
+  "cognitive_load": "Cognitive load",
+  "peak_focus": "Peak focus",
+  "approve_schedule": "Approve schedule",
+  "regenerate": "Regenerate",
+  "why_this_slot": "Why this slot?",
+  "overload_warning": "Cognitive overload detected — consider rescheduling"
+}

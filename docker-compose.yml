@@ -263,12 +263,30 @@ services:
       minio:
         condition: service_healthy
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    expose:
+      - "6333"
+      - "6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - backend-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:6333/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
 volumes:
   redis-data:
   postgres-data:
   neo4j-data:
   minio-data:
   ollama-data:
+  qdrant-data:
 
 networks:
   frontend-net:

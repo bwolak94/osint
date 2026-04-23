@@ -37,6 +37,7 @@ import {
   BarChart3,
   Swords,
   Library,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -67,6 +68,7 @@ function isNavGroup(entry: NavEntry): entry is NavGroup {
 
 const mainNav: NavEntry[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/hub", label: "AI Hub", icon: Sparkles },
   { to: "/investigations", label: "Investigations", icon: Search },
   { to: "/scanners", label: "Scanners", icon: Radar },
   { to: "/playbooks", label: "Playbooks", icon: BookOpen },

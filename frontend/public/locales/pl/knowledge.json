@@ -1,0 +1,17 @@
+{
+  "title": "Baza wiedzy",
+  "ingesting": "Przetwarzanie dokumentu…",
+  "ingestion_done": "Dokument zindeksowany — zapisano {{chunks}} fragmentów",
+  "upload_label": "Prześlij dokument (PDF, Markdown, zwykły tekst)",
+  "url_label": "Lub wklej URL do wyodrębnienia",
+  "ingest_button": "Dodaj do bazy wiedzy",
+  "no_documents": "Baza wiedzy jest pusta. Prześlij dokument.",
+  "delete_confirm": "Usunąć ten dokument z bazy wiedzy?",
+  "chunks_1": "{{count}} fragment",
+  "chunks_2": "{{count}} fragmenty",
+  "chunks_5": "{{count}} fragmentów",
+  "chunks_many": "{{count}} fragmentów",
+  "source": "Źródło",
+  "tags": "Tagi",
+  "drag_drop": "Przeciągnij pliki tutaj lub kliknij, aby wybrać"
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Hub AI",
+  "thinking": "Agent myśli…",
+  "idle_hint": "Wpisz pytanie, a agent wyszuka, zaplanuje lub pobierze wiedzę dla Ciebie.",
+  "input_placeholder": "Zapytaj o cokolwiek — wiadomości, zadania, wiedza…",
+  "send": "Wyślij",
+  "hitl_title": "Wymagane zatwierdzenie",
+  "hitl_description": "Agent wykrył potencjalnie niszczącą operację.",
+  "hitl_approve": "Zatwierdź",
+  "hitl_reject": "Odrzuć",
+  "result": "Wynik",
+  "error": "Błąd",
+  "step": "Krok {{n}}"
+}
