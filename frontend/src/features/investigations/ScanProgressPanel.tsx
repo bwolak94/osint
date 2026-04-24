@@ -2,7 +2,7 @@ import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
 import { ProgressBar } from "@/shared/components/ProgressBar";
 import { ScannerBadge } from "@/shared/components/osint/ScannerBadge";
-import { Wifi, WifiOff, Radio } from "lucide-react";
+import { Radio } from "lucide-react";
 import type { WSMessage } from "./useInvestigationWebSocket";
 
 interface ScanProgressPanelProps {
@@ -24,7 +24,7 @@ function EventIcon({ type }: { type: string }) {
 }
 
 export function ScanProgressPanel({
-  completed, total, percentage, currentScanner,
+  completed, total, percentage: _percentage, currentScanner,
   nodesDiscovered, edgesDiscovered, events, connected,
 }: ScanProgressPanelProps) {
   return (

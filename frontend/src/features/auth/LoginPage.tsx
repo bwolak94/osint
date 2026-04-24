@@ -131,7 +131,7 @@ export function LoginPage() {
               type="email"
               placeholder="you@example.com"
               prefixIcon={<Mail className="h-4 w-4" />}
-              error={errors.email?.message}
+              {...(errors.email?.message ? { error: errors.email.message } : {})}
               autoFocus
               {...register("email")}
             />
@@ -152,7 +152,7 @@ export function LoginPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 }
-                error={errors.password?.message}
+                {...(errors.password?.message ? { error: errors.password.message } : {})}
                 {...register("password")}
               />
               <div className="text-right">

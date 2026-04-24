@@ -88,5 +88,5 @@ export function buildRunRequest(
   module: HubModule,
   userPreferences?: Record<string, unknown>,
 ): AgentRunRequest {
-  return { query, module, user_preferences: userPreferences };
+  return { query, module, ...(userPreferences !== undefined ? { user_preferences: userPreferences } : {}) };
 }

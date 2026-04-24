@@ -49,10 +49,10 @@ export function ThreatActorsPage() {
 
   const filters = useMemo<ThreatActorFilters>(
     () => ({
-      motivation: motivation || undefined,
-      sophistication: sophistication || undefined,
-      origin_country: country || undefined,
-      search: search || undefined,
+      motivation,
+      sophistication,
+      origin_country: country,
+      search,
     }),
     [motivation, sophistication, country, search],
   )

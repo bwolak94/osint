@@ -106,7 +106,7 @@ export function JWTAuditorPanel() {
   const handleSubmit = useCallback(() => {
     if (!targetUrl.trim() && !token.trim()) return
     mutation.mutate(
-      { targetUrl: targetUrl.trim(), token: token.trim() || undefined },
+      { targetUrl: targetUrl.trim(), ...(token.trim() ? { token: token.trim() } : {}) },
       { onSuccess: setResult },
     )
   }, [targetUrl, token, mutation])

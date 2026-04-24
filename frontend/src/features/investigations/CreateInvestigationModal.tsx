@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, Plus, Trash2, Tag, ArrowRight, ArrowLeft, Zap, CheckSquare, FileText } from "lucide-react";
+import { X, Plus, Trash2, Tag, ArrowRight, ArrowLeft, Zap, FileText } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
@@ -157,8 +157,8 @@ function isValidNIP(nip: string): boolean {
   if (cleaned.length !== 10 || !/^\d+$/.test(cleaned)) return false;
   const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];
   const digits = cleaned.split("").map(Number);
-  const sum = weights.reduce((acc, w, i) => acc + w * digits[i], 0);
-  return sum % 11 === digits[9];
+  const sum = weights.reduce((acc, w, i) => acc + w * (digits[i] ?? 0), 0);
+  return sum % 11 === (digits[9] ?? -1);
 }
 
 const templates = [
@@ -260,10 +260,10 @@ export function CreateInvestigationModal({ onClose }: Props) {
     try {
       const result = await createMutation.mutateAsync({
         title: data.title,
-        description: data.description,
+        ...(data.description ? { description: data.description } : {}),
         seed_inputs: data.seeds.map((s) => ({ type: s.type, value: s.value })),
         tags: data.tags,
-        enabled_scanners: data.enabledScanners.length > 0 ? data.enabledScanners : undefined,
+        ...(data.enabledScanners.length > 0 ? { enabled_scanners: data.enabledScanners } : {}),
       });
       onClose();
       navigate(`/investigations/${result.id}`);
@@ -326,7 +326,7 @@ export function CreateInvestigationModal({ onClose }: Props) {
                     </div>
                   </div>
 
-                  <Input label="Title" placeholder="Investigation #1 — XYZ Company" error={errors.title?.message} {...register("title")} autoFocus />
+                  <Input label="Title" placeholder="Investigation #1 — XYZ Company" {...(errors.title?.message ? { error: errors.title.message } : {})} {...register("title")} autoFocus />
                   <div>
                     <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Description (optional)</label>
                     <textarea

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, Search, LayoutGrid, LayoutList, MoreHorizontal, X, Loader2,
+  Plus, Search, LayoutGrid, LayoutList, MoreHorizontal, X, Loader2, FlaskConical,
 } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
@@ -83,9 +83,23 @@ export function InvestigationsPage() {
           </h1>
           <Badge variant="neutral" size="sm">{data?.pages[0]?.total ?? 0}</Badge>
         </div>
-        <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setShowCreateModal(true)}>
-          New Investigation
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate("/deep-research")}
+            className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors hover:opacity-80"
+            style={{
+              background: "var(--bg-elevated)",
+              borderColor: "var(--border-subtle)",
+              color: "var(--text-secondary)",
+            }}
+          >
+            <FlaskConical className="h-4 w-4" style={{ color: "var(--brand-400)" }} />
+            Deep Research
+          </button>
+          <Button leftIcon={<Plus className="h-4 w-4" />} onClick={() => setShowCreateModal(true)}>
+            New Investigation
+          </Button>
+        </div>
       </div>
 
       {/* Filters bar */}
@@ -144,8 +158,8 @@ export function InvestigationsPage() {
         />
       ) : viewMode === "grid" ? (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((inv) => (
-            <InvestigationCard key={inv.id} {...inv} />
+          {filtered.map(({ progress, ...inv }) => (
+            <InvestigationCard key={inv.id} {...inv} {...(progress !== undefined ? { progress } : {})} />
           ))}
         </div>
       ) : (
@@ -179,7 +193,7 @@ export function InvestigationsPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant={statusVariant[inv.status]} size="sm" dot>{inv.status}</Badge>
+                      <Badge variant={(statusVariant[inv.status] ?? "neutral") as "success" | "warning" | "danger" | "info" | "neutral" | "brand"} size="sm" dot>{inv.status}</Badge>
                     </td>
                     <td className="px-4 py-3 text-sm" style={{ color: "var(--text-secondary)" }}>{inv.seedCount}</td>
                     <td className="px-4 py-3 font-mono text-sm" style={{ color: "var(--text-primary)" }}>

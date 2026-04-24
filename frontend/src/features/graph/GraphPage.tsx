@@ -68,7 +68,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   const [currentLayout, setCurrentLayout] = useState<LayoutType>("force");
   const { applyLayout } = useGraphLayout();
 
-  const { nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange, isLoading, meta } =
+  const { nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange, isLoading } =
     useGraphNodes(investigationId);
 
   const { selectedNodeId, selectNode } = useNodeSelection();
@@ -444,7 +444,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
               nodeType={contextMenu.nodeType}
               onClose={() => setContextMenu(null)}
               onExpand={(id) => selectNode(id)}
-              onStartPathFrom={(id) => pathFinding.startPathFinding()}
+              onStartPathFrom={(_id) => pathFinding.startPathFinding()}
               onCopyValue={(value) => navigator.clipboard.writeText(value)}
               onHideNode={handleHideNode}
               onRemoveNode={handleRemoveNode}

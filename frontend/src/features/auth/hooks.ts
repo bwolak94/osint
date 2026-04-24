@@ -1,7 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
-import { apiClient, ApiError } from "@/shared/api/client";
+import { apiClient } from "@/shared/api/client";
 import { useAuthStore } from "./store";
-import { useNavigate } from "react-router-dom";
 
 interface LoginRequest { email: string; password: string; }
 interface RegisterRequest { email: string; password: string; fullName?: string; companyName?: string; }

@@ -79,7 +79,7 @@ export function CredentialIntelModuleCard({ name, result }: ModuleCardProps) {
         <div className="text-xs space-y-0.5" style={{ color: 'var(--text-secondary)' }}>
           <p>Severity: <span className={`font-mono font-bold ${sevColor}`}>{severity}</span></p>
           <p>Exposed paths: <span className="font-mono">{count}</span></p>
-          {data.is_git_confirmed && <p className="text-danger-400 font-medium">Full git repo accessible!</p>}
+          {Boolean(data.is_git_confirmed) && <p className="text-danger-400 font-medium">Full git repo accessible!</p>}
         </div>
       )
     }
@@ -116,7 +116,7 @@ export function CredentialIntelModuleCard({ name, result }: ModuleCardProps) {
         <div className="text-xs space-y-0.5" style={{ color: 'var(--text-secondary)' }}>
           <p>Abuse score: <span className={`font-mono font-bold ${scoreColor}`}>{score}/100</span></p>
           <p>Reports: <span className="font-mono">{reports}</span></p>
-          {data.isp && <p>ISP: {String(data.isp)}</p>}
+          {Boolean(data.isp) && <p>ISP: {String(data.isp)}</p>}
         </div>
       )
     }

@@ -172,7 +172,7 @@ export function SocmintForm({ onSubmit, isLoading }: SocmintFormProps) {
                   <div className="mt-1.5 flex flex-wrap gap-1">
                     {group.modules.map((m) => (
                       <Badge key={m} variant="outline" className="px-1 py-0 text-[10px]">
-                        {MODULE_DESCRIPTIONS[m]?.split('—')[0].trim() ?? m.replace(/_/g, ' ')}
+                        {MODULE_DESCRIPTIONS[m]?.split('—')[0]?.trim() ?? m.replace(/_/g, ' ')}
                       </Badge>
                     ))}
                   </div>

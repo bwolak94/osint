@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Monitor, Smartphone, Globe, Trash2, ShieldAlert } from "lucide-react";
 import { apiClient } from "@/shared/api/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

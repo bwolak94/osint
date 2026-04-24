@@ -35,7 +35,11 @@ export function SectionPicker({ sections, selected, onChange }: SectionPickerPro
     (index: number) => {
       if (index === 0) return
       const next = [...selected]
-      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
+      const tmp = next[index - 1]
+      if (tmp !== undefined && next[index] !== undefined) {
+        next[index - 1] = next[index]!
+        next[index] = tmp
+      }
       onChange(next)
     },
     [selected, onChange],
@@ -45,7 +49,11 @@ export function SectionPicker({ sections, selected, onChange }: SectionPickerPro
     (index: number) => {
       if (index === selected.length - 1) return
       const next = [...selected]
-      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
+      const tmp = next[index]
+      if (tmp !== undefined && next[index + 1] !== undefined) {
+        next[index] = next[index + 1]!
+        next[index + 1] = tmp
+      }
       onChange(next)
     },
     [selected, onChange],

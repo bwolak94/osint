@@ -291,7 +291,7 @@ export const NewsFeedPanel = memo(function NewsFeedPanel() {
       getNewsFeed({
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
-        tag: tagFilter.trim() || undefined,
+        ...(tagFilter.trim() ? { tag: tagFilter.trim() } : {}),
       }),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 60_000,

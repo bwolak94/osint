@@ -126,6 +126,36 @@ from src.api.v1.knowledge.router import router as knowledge_router
 from src.api.v1.threat_actors import router as threat_actors_router
 from src.api.v1.gdpr import router as gdpr_router
 from src.api.v1.scanner_health import router as scanner_health_router
+from src.api.v1.dark_web import router as dark_web_router
+from src.api.v1.passive_dns import router as passive_dns_router
+from src.api.v1.footprint import router as footprint_router
+from src.api.v1.phone_intel import router as phone_intel_router
+from src.api.v1.social_graph import router as social_graph_router
+from src.api.v1.brand_protection import router as brand_protection_router
+from src.api.v1.cert_transparency import router as cert_transparency_router
+from src.api.v1.crypto_trace import router as crypto_trace_router
+from src.api.v1.corporate_intel import router as corporate_intel_router
+from src.api.v1.deep_research import router as deep_research_router
+from src.api.v1.correlation import router as correlation_router
+from src.api.v1.evidence_locker import router as evidence_locker_router
+from src.api.v1.vuln_management import router as vuln_management_router
+from src.api.v1.phishing_campaigns import router as phishing_campaigns_router
+from src.api.v1.exploit_chain import router as exploit_chain_router
+from src.api.v1.c2_integration import router as c2_integration_router
+from src.api.v1.network_topology import router as network_topology_router
+from src.api.v1.methodology import router as methodology_router
+from src.api.v1.collaboration import router as collaboration_router
+from src.api.v1.retest_engine import router as retest_engine_router
+from src.api.v1.client_portal import router as client_portal_router
+from src.api.v1.secure_notes import router as secure_notes_router
+from src.api.v1.time_tracking import router as time_tracking_router
+from src.api.v1.sla import router as sla_router
+from src.api.v1.ai_debrief import router as ai_debrief_router
+from src.api.v1.threat_feed import router as threat_feed_router
+from src.api.v1.canary import router as canary_router
+from src.api.v1.custom_scanner import router as custom_scanner_router
+from src.api.v1.knowledge_base import router as knowledge_base_router
+from src.api.v1.client_handoff import router as client_handoff_router
 from src.api.middleware.locale import LocaleMiddleware
 from src.config import get_settings
 
@@ -372,6 +402,54 @@ def create_app() -> FastAPI:
 
     # Scanner health endpoint
     application.include_router(scanner_health_router, prefix="/api/v1", tags=["scanners"])
+
+    # OSINT intelligence features
+    application.include_router(dark_web_router)
+    application.include_router(passive_dns_router)
+    application.include_router(footprint_router)
+
+    # Certificate Transparency, Crypto Tracing, Corporate Intelligence
+    application.include_router(cert_transparency_router)
+    application.include_router(crypto_trace_router)
+    application.include_router(corporate_intel_router)
+    application.include_router(deep_research_router)
+
+    # Phone Intel, Social Graph Mapper, Brand Protection Monitor
+    application.include_router(phone_intel_router)
+    application.include_router(social_graph_router)
+    application.include_router(brand_protection_router)
+
+    # OSINT Correlation Engine, Evidence Locker, Vulnerability Management
+    application.include_router(correlation_router)
+    application.include_router(evidence_locker_router)
+    application.include_router(vuln_management_router)
+
+    # Pentest advanced features: Phishing Campaigns, Exploit Chain Builder, C2 Integration
+    application.include_router(phishing_campaigns_router)
+    application.include_router(exploit_chain_router)
+    application.include_router(c2_integration_router)
+
+    # Infra scanners: Network Topology, Methodology Enforcer, Collaboration
+    application.include_router(network_topology_router)
+    application.include_router(methodology_router)
+    application.include_router(collaboration_router)
+
+    # Pentest productivity features: Retest Engine, Client Portal, Secure Notes
+    application.include_router(retest_engine_router)
+    application.include_router(client_portal_router)
+    application.include_router(secure_notes_router)
+
+    # Pentest management features: Time Tracking, SLA Dashboard, AI Debrief
+    application.include_router(time_tracking_router)
+    application.include_router(sla_router)
+    application.include_router(ai_debrief_router)
+
+    # Threat intel, deception, custom scanners, knowledge base, client handoff
+    application.include_router(threat_feed_router)
+    application.include_router(canary_router)
+    application.include_router(custom_scanner_router)
+    application.include_router(knowledge_base_router)
+    application.include_router(client_handoff_router)
 
     # OSINT ↔ Pentest integration bridge
     # POST /api/v1/investigations/{id}/to-pentest

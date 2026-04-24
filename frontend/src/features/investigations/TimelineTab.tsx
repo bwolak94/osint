@@ -1,4 +1,3 @@
-import { Card, CardBody } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
 import { ScannerBadge } from "@/shared/components/osint/ScannerBadge";
 import { Clock, CheckCircle2, AlertCircle, Search } from "lucide-react";

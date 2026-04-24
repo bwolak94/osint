@@ -41,8 +41,8 @@ function apiEdgeToReactFlow(e: GraphApiEdge): Edge<OsintEdgeData> {
       label: e.label || e.type,
       relationType: e.type as OsintEdgeData["relationType"],
       confidence: e.confidence,
-      validFrom: e.valid_from,
-      validTo: e.valid_to,
+      validFrom: e.valid_from ?? null,
+      validTo: e.valid_to ?? null,
       isOnPath: false,
     },
   };

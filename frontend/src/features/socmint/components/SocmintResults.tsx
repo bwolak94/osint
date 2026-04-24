@@ -54,9 +54,9 @@ export function SocmintResults({ scan }: SocmintResultsProps) {
               {group.label}
             </h3>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {groupModules.map((module) => (
-                <SocmintModuleCard key={module} name={module} result={safeResults[module]} />
-              ))}
+              {groupModules.map((module) => safeResults[module] ? (
+                <SocmintModuleCard key={module} name={module} result={safeResults[module]!} />
+              ) : null)}
             </div>
           </div>
         )
@@ -72,9 +72,9 @@ export function SocmintResults({ scan }: SocmintResultsProps) {
             Other
           </h3>
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {ungrouped.map((module) => (
-              <SocmintModuleCard key={module} name={module} result={safeResults[module]} />
-            ))}
+            {ungrouped.map((module) => safeResults[module] ? (
+              <SocmintModuleCard key={module} name={module} result={safeResults[module]!} />
+            ) : null)}
           </div>
         </div>
       )}

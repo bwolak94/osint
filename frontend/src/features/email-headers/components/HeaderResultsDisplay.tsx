@@ -68,7 +68,7 @@ export function HeaderResultsDisplay({ check }: Props) {
               ].map(([label, result]) => (
                 <div key={label} className="flex items-center justify-between gap-4">
                   <dt className="font-mono" style={{ color: 'var(--text-tertiary)' }}>{label}</dt>
-                  <dd><Badge variant={authVariant(result)} size="sm">{result ?? 'not checked'}</Badge></dd>
+                  <dd><Badge variant={authVariant(result ?? null)} size="sm">{result ?? 'not checked'}</Badge></dd>
                 </div>
               ))}
             </dl>

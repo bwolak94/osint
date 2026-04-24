@@ -4,7 +4,7 @@ import {
   useMemo,
   type ChangeEvent,
 } from "react";
-import { X, Plus, AlertCircle, CheckCircle2, Upload } from "lucide-react";
+import { X, Plus, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
 import { Input } from "@/shared/components/Input";

@@ -24,7 +24,6 @@ async function fetchScanProfiles(): Promise<ScanProfile[]> {
   return data;
 }
 
-const NO_PROFILE_VALUE = "__none__";
 
 export function ScanProfileSelector({
   value,

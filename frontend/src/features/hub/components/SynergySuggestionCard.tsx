@@ -126,7 +126,7 @@ function CalendarProposalRow({ proposal }: { proposal: CalendarAdjustmentProposa
 
 export function SynergySuggestionCard({
   chain,
-  taskId,
+  taskId: _taskId,
   onApprove,
   onDismiss,
 }: SynergySuggestionCardProps) {
@@ -135,15 +135,11 @@ export function SynergySuggestionCard({
   const [isActing, startTransition] = useTransition();
 
   const handleApprove = useCallback(() => {
-    startTransition(async () => {
-      await onApprove(chain.chain_id);
-    });
+    startTransition(() => { void onApprove(chain.chain_id); });
   }, [chain.chain_id, onApprove, startTransition]);
 
   const handleDismiss = useCallback(() => {
-    startTransition(async () => {
-      await onDismiss(chain.chain_id, chain.event.event_id);
-    });
+    startTransition(() => { void onDismiss(chain.chain_id, chain.event.event_id); });
   }, [chain.chain_id, chain.event.event_id, onDismiss, startTransition]);
 
   const toggleExpand = useCallback(() => setIsExpanded((v) => !v), []);

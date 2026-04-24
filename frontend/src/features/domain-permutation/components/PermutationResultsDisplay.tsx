@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Globe, AlertTriangle } from 'lucide-react'
-import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { AlertTriangle } from 'lucide-react'
+import { Card, CardBody } from '@/shared/components/Card'
 import { Badge } from '@/shared/components/Badge'
-import type { DomainPermutationScan, PermutationItem } from '../types'
+import type { DomainPermutationScan } from '../types'
 
 interface Props {
   scan: DomainPermutationScan
@@ -34,7 +34,7 @@ export function PermutationResultsDisplay({ scan }: Props) {
           { label: 'Total Generated', value: scan.total_permutations, variant: 'neutral' as const },
           { label: 'Registered', value: scan.registered_count, variant: scan.registered_count > 0 ? 'warning' as const : 'success' as const },
           { label: 'Safe', value: scan.total_permutations - scan.registered_count, variant: 'neutral' as const },
-        ].map(({ label, value, variant }) => (
+        ].map(({ label, value }) => (
           <div key={label} className="rounded-xl border px-4 py-3 text-center" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
             <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{value}</p>
             <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{label}</p>

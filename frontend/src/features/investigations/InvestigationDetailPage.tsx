@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon, Copy, FileText, MessageSquare, Send, Timer, Brain, CheckCircle, AlertTriangle, Lightbulb, MapPin } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -94,9 +94,9 @@ export function InvestigationDetailPage() {
     if (!id) return;
     try {
       const res = await apiClient.get(`/investigations/${id}/report`, { responseType: "blob" });
-      const contentType = res.headers["content-type"] || "application/pdf";
+      const contentType = String(res.headers["content-type"] ?? "application/pdf");
       const ext = contentType.includes("pdf") ? "pdf" : "html";
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: contentType }));
+      const url = window.URL.createObjectURL(new Blob([res.data as BlobPart], { type: contentType }));
       const a = document.createElement("a");
       a.href = url;
       a.download = `report-${id}.${ext}`;
@@ -179,7 +179,7 @@ export function InvestigationDetailPage() {
             <h1 className="truncate text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
               {investigation.title}
             </h1>
-            <Badge variant={statusVariant[investigation.status]} dot>{investigation.status}</Badge>
+            <Badge variant={(statusVariant[investigation.status] ?? "neutral") as "success" | "warning" | "danger" | "info" | "neutral" | "brand"} dot>{investigation.status}</Badge>
           </div>
           <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
             {investigation.description}

@@ -24,7 +24,6 @@ function createBlankFinding(id: string): ReportFinding {
     description: '',
     proofOfConcept: '',
     remediation: '',
-    cvssScore: undefined,
     cveIds: [],
   }
 }
@@ -147,7 +146,7 @@ function FindingEditor({ finding, index, onChange, onRemove }: FindingEditorProp
             max={10}
             step={0.1}
             value={finding.cvssScore ?? ''}
-            onChange={(e) => onChange(finding.id, { cvssScore: e.target.value ? Number(e.target.value) : undefined })}
+            onChange={(e) => onChange(finding.id, e.target.value ? { cvssScore: Number(e.target.value) } : {})}
             placeholder="7.5"
             className="w-full rounded-md border bg-transparent px-2.5 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}

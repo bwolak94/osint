@@ -44,9 +44,9 @@ export function CredentialIntelResults({ scan }: CredentialIntelResultsProps) {
               {group.label}
             </h3>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {groupModules.map((m) => (
-                <CredentialIntelModuleCard key={m} name={m} result={safeResults[m]} />
-              ))}
+              {groupModules.map((m) => safeResults[m] ? (
+                <CredentialIntelModuleCard key={m} name={m} result={safeResults[m]!} />
+              ) : null)}
             </div>
           </div>
         )
@@ -60,9 +60,9 @@ export function CredentialIntelResults({ scan }: CredentialIntelResultsProps) {
           <div className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-tertiary)' }}>Other</h3>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {ungrouped.map((m) => (
-                <CredentialIntelModuleCard key={m} name={m} result={safeResults[m]} />
-              ))}
+              {ungrouped.map((m) => safeResults[m] ? (
+                <CredentialIntelModuleCard key={m} name={m} result={safeResults[m]!} />
+              ) : null)}
             </div>
           </div>
         )

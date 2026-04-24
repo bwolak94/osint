@@ -5,7 +5,7 @@
 
 import { memo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, CheckCircle, Loader2, Plus, Trash2, ToggleLeft, ToggleRight, Rss } from "lucide-react";
+import { AlertCircle, Loader2, Plus, Trash2, ToggleLeft, ToggleRight, Rss } from "lucide-react";
 import { getNewsSources, addNewsSource, removeNewsSource } from "../api";
 import type { NewsSource } from "../types";
 import apiClient from "@/shared/api/client";

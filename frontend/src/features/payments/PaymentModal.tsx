@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-import { X, Bitcoin, CheckCircle2, Clock, AlertTriangle, Copy, Check, HelpCircle } from "lucide-react";
+import { X, CheckCircle2, AlertTriangle, Copy, Check, HelpCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/shared/components/Button";
-import { Badge } from "@/shared/components/Badge";
-import { Card, CardBody } from "@/shared/components/Card";
 import { ProgressBar } from "@/shared/components/ProgressBar";
 
 interface PaymentModalProps {

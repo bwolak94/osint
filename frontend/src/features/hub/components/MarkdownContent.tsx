@@ -75,6 +75,7 @@ function parseBlock(lines: string[], keyPrefix: string): ReactNode[] {
 
   while (i < lines.length) {
     const line = lines[i];
+    if (line === undefined) { i++; continue; }
 
     // Headings
     const h3 = line.match(/^###\s+(.+)/);
@@ -83,7 +84,7 @@ function parseBlock(lines: string[], keyPrefix: string): ReactNode[] {
     if (h1) {
       nodes.push(
         <h2 key={`${keyPrefix}-h1-${i}`} className="text-base font-bold mt-3 mb-1" style={{ color: "var(--text-primary)" }}>
-          {applyInline(h1[1])}
+          {applyInline(h1[1] ?? "")}
         </h2>,
       );
       i++;
@@ -92,7 +93,7 @@ function parseBlock(lines: string[], keyPrefix: string): ReactNode[] {
     if (h2) {
       nodes.push(
         <h3 key={`${keyPrefix}-h2-${i}`} className="text-sm font-semibold mt-2 mb-1" style={{ color: "var(--text-primary)" }}>
-          {applyInline(h2[1])}
+          {applyInline(h2[1] ?? "")}
         </h3>,
       );
       i++;
@@ -101,7 +102,7 @@ function parseBlock(lines: string[], keyPrefix: string): ReactNode[] {
     if (h3) {
       nodes.push(
         <h4 key={`${keyPrefix}-h3-${i}`} className="text-xs font-semibold mt-2 mb-0.5 uppercase tracking-wide" style={{ color: "var(--text-secondary)" }}>
-          {applyInline(h3[1])}
+          {applyInline(h3[1] ?? "")}
         </h4>,
       );
       i++;
@@ -111,8 +112,10 @@ function parseBlock(lines: string[], keyPrefix: string): ReactNode[] {
     // Bullet lists
     if (/^[-*]\s+/.test(line)) {
       const items: string[] = [];
-      while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^[-*]\s+/, ""));
+      while (i < lines.length) {
+        const cur = lines[i];
+        if (!cur || !/^[-*]\s+/.test(cur)) break;
+        items.push(cur.replace(/^[-*]\s+/, ""));
         i++;
       }
       nodes.push(
@@ -130,8 +133,10 @@ function parseBlock(lines: string[], keyPrefix: string): ReactNode[] {
     // Numbered lists
     if (/^\d+\.\s+/.test(line)) {
       const items: string[] = [];
-      while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\d+\.\s+/, ""));
+      while (i < lines.length) {
+        const cur = lines[i];
+        if (!cur || !/^\d+\.\s+/.test(cur)) break;
+        items.push(cur.replace(/^\d+\.\s+/, ""));
         i++;
       }
       nodes.push(

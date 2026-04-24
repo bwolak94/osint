@@ -1,5 +1,5 @@
-import { Package, AlertTriangle } from 'lucide-react'
-import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { Package } from 'lucide-react'
+import { Card, CardHeader } from '@/shared/components/Card'
 import { Badge } from '@/shared/components/Badge'
 import type { SupplyChainScan } from '../types'
 

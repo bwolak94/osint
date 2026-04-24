@@ -25,8 +25,10 @@ interface NodeTypeIconProps {
 
 const sizes = { sm: "h-4 w-4", md: "h-5 w-5", lg: "h-6 w-6" };
 
+const PERSON_CONFIG = { icon: User, color: "var(--node-person)" };
+
 export function NodeTypeIcon({ type, size = "md" }: NodeTypeIconProps) {
-  const config = nodeConfig[type] ?? nodeConfig.person;
+  const config = nodeConfig[type] ?? PERSON_CONFIG;
   const Icon = config.icon;
   return <Icon className={sizes[size]} style={{ color: config.color }} />;
 }

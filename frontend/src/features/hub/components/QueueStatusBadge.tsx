@@ -17,7 +17,7 @@ interface QueueStatus {
 export const QueueStatusBadge = memo(function QueueStatusBadge() {
   const { data, isLoading, isError } = useQuery<QueueStatus>({
     queryKey: ["hub", "queue-status"],
-    queryFn: () => getQueueStatus() as Promise<QueueStatus>,
+    queryFn: () => getQueueStatus() as unknown as Promise<QueueStatus>,
     refetchInterval: 30_000,
     staleTime: 15_000,
     retry: false,

@@ -8,7 +8,7 @@ import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { apiClient } from "@/shared/api/client";
 import { toast } from "@/shared/components/Toast";
-import { Play, BookOpen, Zap, X, Plus, Trash2, GripVertical } from "lucide-react";
+import { Play, Zap, X, Plus, Trash2, GripVertical } from "lucide-react";
 
 function usePlaybooks() {
   return useQuery({

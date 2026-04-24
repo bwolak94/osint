@@ -48,7 +48,7 @@ function shortEntityType(entityType: string): string {
 }
 
 export function MaltegoPage() {
-  const [selectedEntityType, setSelectedEntityType] = useState<string>(ENTITY_TYPES[0])
+  const [selectedEntityType, setSelectedEntityType] = useState<string>(ENTITY_TYPES[0] ?? '')
   const [entityValue, setEntityValue] = useState('')
   const [selectedTransform, setSelectedTransform] = useState<string>('')
   const [testResult, setTestResult] = useState<MaltegoTransformResponse | null>(null)

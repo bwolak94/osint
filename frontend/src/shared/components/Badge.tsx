@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type BadgeVariant = "success" | "warning" | "danger" | "info" | "neutral" | "brand";
 type BadgeSize = "sm" | "md";
@@ -8,6 +8,8 @@ interface BadgeProps {
   size?: BadgeSize;
   dot?: boolean;
   children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
 }
 
 const variantStyles: Record<BadgeVariant, string> = {
@@ -24,10 +26,11 @@ const sizeStyles: Record<BadgeSize, string> = {
   md: "px-2 py-0.5 text-xs",
 };
 
-export function Badge({ variant = "neutral", size = "md", dot, children }: BadgeProps) {
+export function Badge({ variant = "neutral", size = "md", dot, children, className = "", style }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full border font-medium ${variantStyles[variant]} ${sizeStyles[size]}`}
+      className={`inline-flex items-center gap-1 rounded-full border font-medium ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+      style={style}
     >
       {dot && (
         <span

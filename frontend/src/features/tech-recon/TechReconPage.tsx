@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ScanLine } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { useRunTechRecon } from './hooks'
 import { TechReconForm } from './components/TechReconForm'
 import { TechReconResults } from './components/TechReconResults'

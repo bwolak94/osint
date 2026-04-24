@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/shared/components/Button";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface TourStep {
   target: string;  // CSS selector
@@ -34,6 +34,7 @@ export function OnboardingTour() {
   if (!active) return null;
 
   const current = tourSteps[step];
+  if (!current) return null;
 
   return (
     <div className="fixed inset-0 z-50">

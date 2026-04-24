@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { FileText, Download } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
+import { FileText, Download, FlaskConical } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
 import { useReportSections, useBuildReport } from './hooks'
 import { SectionPicker } from './components/SectionPicker'
@@ -40,9 +40,30 @@ const labelStyle: React.CSSProperties = {
   letterSpacing: '0.04em',
 }
 
+interface ReportPrefill {
+  title: string
+  markdown: string
+  source: string
+  requestId: string
+}
+
 export function ReportBuilderPage() {
   const [investigationId, setInvestigationId] = useState('')
   const [title, setTitle] = useState('')
+  const [prefill, setPrefill] = useState<ReportPrefill | null>(null)
+
+  // Read pre-fill data from sessionStorage (set by Deep Research export)
+  useEffect(() => {
+    const raw = sessionStorage.getItem('report_prefill')
+    if (raw) {
+      try {
+        const data = JSON.parse(raw) as ReportPrefill
+        setPrefill(data)
+        setTitle(data.title)
+        sessionStorage.removeItem('report_prefill')
+      } catch { /* ignore */ }
+    }
+  }, [])
   const [classification, setClassification] = useState<ReportClassification>('UNCLASSIFIED')
   const [format, setFormat] = useState<ReportFormat>('pdf')
   const [selectedSections, setSelectedSections] = useState<string[]>([])
@@ -88,7 +109,7 @@ export function ReportBuilderPage() {
         investigation_id: investigationId.trim(),
         sections: mergedSelected(),
         format,
-        title: title.trim() || undefined,
+        ...(title.trim() ? { title: title.trim() } : {}),
         classification,
       },
       {
@@ -113,6 +134,25 @@ export function ReportBuilderPage() {
           Compose, customise, and export investigation reports in your preferred format
         </p>
       </div>
+
+      {/* Deep Research pre-fill banner */}
+      {prefill && (
+        <div
+          className="flex items-start gap-3 rounded-lg border px-4 py-3"
+          style={{ background: 'var(--brand-900)', borderColor: 'var(--brand-500)' }}
+        >
+          <FlaskConical className="h-4 w-4 mt-0.5 shrink-0" style={{ color: 'var(--brand-400)' }} />
+          <div className="text-sm">
+            <p className="font-medium" style={{ color: 'var(--brand-300)' }}>
+              Pre-filled from Deep Research
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+              Title and content have been imported from research on <strong>{prefill.title.replace('Deep Research: ', '')}</strong>.
+              Set an Investigation ID and click Build Report to generate the document.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Two-column layout */}
       <div className="flex gap-6">

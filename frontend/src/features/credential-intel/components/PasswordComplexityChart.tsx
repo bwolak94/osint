@@ -23,7 +23,8 @@ export function PasswordComplexityChart({ rows }: PasswordComplexityChartProps) 
   const lookup: Record<string, Record<number, ComplexityRow>> = {}
   for (const row of rows) {
     if (!lookup[row.charset]) lookup[row.charset] = {}
-    lookup[row.charset][row.length] = row
+    const charsetLookup = lookup[row.charset]
+    if (charsetLookup) charsetLookup[row.length] = row
   }
 
   const charsets = CHARSET_ORDER.filter((c) => lookup[c])
@@ -50,7 +51,7 @@ export function PasswordComplexityChart({ rows }: PasswordComplexityChartProps) 
       {/* Charset selector */}
       <div className="flex flex-wrap gap-2">
         {charsets.map((c) => {
-          const sample = Object.values(lookup[c])[0]
+          const sample = Object.values(lookup[c] ?? {})[0]
           return (
             <button
               key={c}

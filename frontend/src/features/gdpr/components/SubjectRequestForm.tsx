@@ -49,8 +49,8 @@ export function SubjectRequestForm({ onSuccess }: Props) {
     const request: GdprSubjectRequest = {
       full_name: form.full_name.trim(),
       email: form.email.trim(),
-      phone: form.phone.trim() || undefined,
-      requester_reference: form.requester_reference.trim() || undefined,
+      ...(form.phone.trim() ? { phone: form.phone.trim() } : {}),
+      ...(form.requester_reference.trim() ? { requester_reference: form.requester_reference.trim() } : {}),
       include_breach_check: form.include_breach_check,
       include_social_scan: form.include_social_scan,
       include_paste_check: form.include_paste_check,

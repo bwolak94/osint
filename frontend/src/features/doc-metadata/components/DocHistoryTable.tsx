@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Eye, Trash2, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react'
+import { Eye, Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { Button } from '@/shared/components/Button'
 import { Badge } from '@/shared/components/Badge'

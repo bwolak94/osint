@@ -6,7 +6,7 @@ interface Props {
 }
 
 export function ScanProgressBar({ scanId, onComplete }: Props) {
-  const { progress } = useScanProgress({ scanId, onComplete })
+  const { progress } = useScanProgress({ scanId, ...(onComplete !== undefined ? { onComplete: () => onComplete() } : {}) })
 
   if (!scanId || !progress) return null
 

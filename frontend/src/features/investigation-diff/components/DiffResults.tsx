@@ -46,7 +46,7 @@ const COLUMN_CONFIG: {
 
 function DiffEntryRow({
   entry,
-  accentVar,
+  accentVar: _accentVar,
 }: {
   entry: DiffEntry;
   accentVar: string;
