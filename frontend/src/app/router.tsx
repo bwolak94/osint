@@ -82,6 +82,8 @@ const CustomScannerPage = lazy(() => import("@/features/custom-scanner/CustomSca
 const KnowledgeBasePage = lazy(() => import("@/features/knowledge-base/KnowledgeBasePage").then((m) => ({ default: m.KnowledgeBasePage })));
 const ClientHandoffPage = lazy(() => import("@/features/client-handoff/ClientHandoffPage").then((m) => ({ default: m.ClientHandoffPage })));
 const DeepResearchPage = lazy(() => import("@/features/deep-research").then((m) => ({ default: m.DeepResearchPage })));
+const ScenarioEditorPage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.ScenarioEditorPage })));
+const MarketplacePage = lazy(() => import("@/features/pentesting").then((m) => ({ default: m.MarketplacePage })));
 
 function Lazy({ children, name }: { children: React.ReactNode; name?: string }) {
   return (
@@ -148,6 +150,9 @@ export const router = createBrowserRouter([
       { path: "pentest/attack-planner", element: <Lazy><AttackPlannerIndexPage /></Lazy> },
       { path: "pentest/targets", element: <Lazy><TargetsPage /></Lazy> },
       { path: "pentest/targets/:engagementId", element: <Lazy><TargetDashboardPage /></Lazy> },
+      { path: "pentest/marketplace", element: <Lazy name="Marketplace"><MarketplacePage /></Lazy> },
+      { path: "pentest/scans/:scanId/scenario-editor/:chainId", element: <Lazy name="Scenario Editor"><ScenarioEditorPage /></Lazy> },
+      { path: "pentest/scans/:scanId/scenario-editor", element: <Lazy name="Scenario Editor"><ScenarioEditorPage /></Lazy> },
       { path: "hub", element: <Lazy><HubPage /></Lazy> },
       { path: "watchlist", element: <Lazy><WatchlistPage /></Lazy> },
       { path: "report-builder", element: <Lazy><ReportBuilderPage /></Lazy> },

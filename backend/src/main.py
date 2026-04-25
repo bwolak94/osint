@@ -124,7 +124,6 @@ from src.api.v1.hub.router import router as hub_router
 from src.api.v1.hub_tasks.router import router as hub_tasks_router
 from src.api.v1.knowledge.router import router as knowledge_router
 from src.api.v1.threat_actors import router as threat_actors_router
-from src.api.v1.gdpr import router as gdpr_router
 from src.api.v1.scanner_health import router as scanner_health_router
 from src.api.v1.dark_web import router as dark_web_router
 from src.api.v1.passive_dns import router as passive_dns_router
@@ -156,6 +155,13 @@ from src.api.v1.canary import router as canary_router
 from src.api.v1.custom_scanner import router as custom_scanner_router
 from src.api.v1.knowledge_base import router as knowledge_base_router
 from src.api.v1.client_handoff import router as client_handoff_router
+from src.api.v1.auth.tos import router as tos_router
+from src.api.v1.scenarios.marketplace_router import router as marketplace_router
+from src.api.v1.workflows.n8n_router import router as n8n_router
+from src.api.v1.tools.custom_tools_router import router as custom_tools_router
+from src.api.v1.rbac.router import router as rbac_router
+from src.api.v1.gdpr.router import router as gdpr_compliance_router
+from src.api.v1.auth.sso import router as sso_router
 from src.api.middleware.locale import LocaleMiddleware
 from src.config import get_settings
 
@@ -243,6 +249,10 @@ def create_app() -> FastAPI:
         debug=settings.debug,
         lifespan=lifespan,
     )
+
+    # OpenTelemetry (no-op when OTEL_ENABLED=false)
+    from src.adapters.telemetry import setup_telemetry
+    setup_telemetry(application)
 
     # Middleware (order matters: outermost first)
     application.add_middleware(
@@ -397,9 +407,6 @@ def create_app() -> FastAPI:
     # Threat Actor Knowledge Graph
     application.include_router(threat_actors_router, prefix="/api/v1", tags=["threat-actors"])
 
-    # GDPR Data Subject Request Automation
-    application.include_router(gdpr_router, prefix="/api/v1", tags=["gdpr"])
-
     # Scanner health endpoint
     application.include_router(scanner_health_router, prefix="/api/v1", tags=["scanners"])
 
@@ -450,6 +457,17 @@ def create_app() -> FastAPI:
     application.include_router(custom_scanner_router)
     application.include_router(knowledge_base_router)
     application.include_router(client_handoff_router)
+    application.include_router(tos_router, prefix="/api/v1/auth", tags=["auth-tos"])
+    application.include_router(marketplace_router, prefix="/api/v1", tags=["scenario-marketplace"])
+
+    # Phase 3: n8n workflow integration, custom tool containers
+    application.include_router(n8n_router, prefix="/api/v1", tags=["n8n-workflows"])
+    application.include_router(custom_tools_router, prefix="/api/v1", tags=["custom-tools"])
+
+    # Phase 4: RBAC, GDPR compliance, SSO/OIDC
+    application.include_router(rbac_router, prefix="/api/v1", tags=["rbac"])
+    application.include_router(gdpr_compliance_router, prefix="/api/v1", tags=["gdpr-compliance"])
+    application.include_router(sso_router, prefix="/api/v1", tags=["sso"])
 
     # OSINT ↔ Pentest integration bridge
     # POST /api/v1/investigations/{id}/to-pentest

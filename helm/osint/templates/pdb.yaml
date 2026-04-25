@@ -1,0 +1,35 @@
+{{- /* (#40) PodDisruptionBudgets — prevent all replicas going down during rolling updates */ -}}
+
+{{- if .Values.api.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "osint.fullname" . }}-api
+  labels:
+    {{- include "osint.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.api.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "osint.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: api
+{{- end }}
+
+---
+
+{{- if .Values.worker.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "osint.fullname" . }}-worker
+  labels:
+    {{- include "osint.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.worker.pdb.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "osint.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+{{- end }}

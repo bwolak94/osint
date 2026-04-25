@@ -2,9 +2,16 @@
 
 Prevents pentest tools from targeting out-of-scope hosts, private networks,
 cloud metadata endpoints, and any explicitly excluded targets.
+
+Geofencing (EU Dual-Use Regulation 2021/821):
+  When GEOFENCE_ALLOWED_COUNTRIES env var is set (comma-separated ISO-3166-1
+  alpha-2 codes, e.g. "PL,DE,FR"), any target IP whose country is NOT in that
+  list raises a ScopeViolation.  Uses ip-api.com (free, no API key required).
+  Set to empty string to disable geofencing.
 """
 
 import ipaddress
+import os
 import socket
 from dataclasses import dataclass, field
 from typing import List
@@ -72,6 +79,57 @@ def _resolve_to_ips(host: str) -> List[ipaddress.IPv4Address | ipaddress.IPv6Add
         return ips
     except (socket.gaierror, OSError):
         return []
+
+
+def _get_allowed_countries() -> frozenset[str]:
+    """Return the set of ISO-3166-1 alpha-2 country codes allowed by geofence.
+
+    Returns an empty frozenset if geofencing is disabled (env var not set or empty).
+    """
+    raw = os.environ.get("GEOFENCE_ALLOWED_COUNTRIES", "").strip()
+    if not raw:
+        return frozenset()
+    return frozenset(c.strip().upper() for c in raw.split(",") if c.strip())
+
+
+async def check_geofence(ip_str: str) -> None:
+    """Raise ScopeViolation if the IP's country is outside the allowed geofence.
+
+    No-ops if GEOFENCE_ALLOWED_COUNTRIES is not configured.
+    Skips RFC1918 / loopback addresses (they have no country).
+    """
+    allowed = _get_allowed_countries()
+    if not allowed:
+        return  # Geofencing disabled
+
+    try:
+        addr = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return  # Not a bare IP — let domain validation handle it
+
+    # Skip private / loopback addresses
+    if addr.is_private or addr.is_loopback or addr.is_link_local:
+        return
+
+    try:
+        import httpx  # noqa: PLC0415
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"http://ip-api.com/json/{ip_str}?fields=countryCode,status")
+            data = resp.json()
+    except Exception:
+        # Network error — fail open (do not block if geo check unavailable)
+        return
+
+    if data.get("status") != "success":
+        return  # Unknown IP — fail open
+
+    country = (data.get("countryCode") or "").upper()
+    if country and country not in allowed:
+        raise ScopeViolation(
+            f"Target IP {ip_str} is located in {country!r}, which is outside the "
+            f"allowed geofence ({', '.join(sorted(allowed))}). "
+            "EU Dual-Use Regulation 2021/821 compliance check failed."
+        )
 
 
 class ScopeValidator:

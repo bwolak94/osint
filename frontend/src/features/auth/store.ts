@@ -8,6 +8,7 @@ interface User {
   subscription_tier: string;
   is_active: boolean;
   is_email_verified: boolean;
+  tos_accepted_at?: string | null;
 }
 
 interface AuthState {

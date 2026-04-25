@@ -60,6 +60,17 @@ async def readiness(request: Request) -> JSONResponse:
     except Exception as e:
         checks["neo4j"] = f"error: {type(e).__name__}"
 
+    # n8n connectivity (#39)
+    try:
+        import httpx as _httpx
+        import os as _os
+        n8n_url = _os.getenv("N8N_BASE_URL", "http://n8n:5678")
+        async with _httpx.AsyncClient(timeout=3) as _client:
+            r = await _client.get(f"{n8n_url}/healthz")
+            checks["n8n"] = "ok" if r.status_code < 500 else f"http_{r.status_code}"
+    except Exception as e:
+        checks["n8n"] = f"unreachable: {type(e).__name__}"
+
     all_ok = all(v == "ok" for v in checks.values())
     return JSONResponse(
         content={"status": "ready" if all_ok else "degraded", "checks": checks},

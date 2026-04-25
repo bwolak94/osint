@@ -17,9 +17,12 @@
     "@hookform/resolvers": "^3.9",
     "@tanstack/react-query": "^5.65",
     "@testing-library/dom": "^10.4.1",
+    "@types/dagre": "^0.7.54",
     "axios": "^1.7",
+    "dagre": "^0.8.5",
     "date-fns": "^4.1",
     "framer-motion": "^12.0",
+    "html-to-image": "^1.11.13",
     "i18next": "^26.0.6",
     "i18next-browser-languagedetector": "^8.2.1",
     "i18next-http-backend": "^3.0.5",
@@ -36,7 +39,6 @@
     "zustand": "^5.0"
   },
   "devDependencies": {
-    "openapi-typescript": "^7.4",
     "@testing-library/jest-dom": "^6.6",
     "@testing-library/react": "^16.1",
     "@testing-library/user-event": "^14.5",
@@ -50,6 +52,7 @@
     "autoprefixer": "^10.4",
     "eslint": "^9.17",
     "msw": "^2.7",
+    "openapi-typescript": "^7.4",
     "postcss": "^8.4",
     "tailwindcss": "^3.4",
     "typescript": "^5.7",

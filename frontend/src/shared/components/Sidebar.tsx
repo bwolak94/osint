@@ -61,6 +61,7 @@ import {
   Zap,
   PackageCheck,
   FlaskConical,
+  ShoppingBag,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -185,6 +186,7 @@ const mainNav: NavEntry[] = [
       { to: "/pentest/bas", label: "Attack Simulation", icon: Swords },
       { to: "/pentest/finding-library", label: "Finding Library", icon: Library },
       { to: "/pentest/attack-planner", label: "Attack Planner", icon: Brain },
+      { to: "/pentest/marketplace", label: "Scenario Marketplace", icon: ShoppingBag },
       { to: "/report-builder", label: "Report Builder", icon: FileOutput },
       { to: "/vuln-management", label: "Vuln Management", icon: ShieldAlert },
       { to: "/phishing", label: "Phishing Sim", icon: Mail },

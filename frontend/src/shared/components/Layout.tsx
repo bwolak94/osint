@@ -9,6 +9,7 @@ import { useScanNotificationMonitor } from "@/features/pentesting/hooks/useScanN
 import { ChatPanel } from "@/features/chat/ChatPanel";
 import { useChatPanel } from "@/features/chat/hooks";
 import { MessageSquare } from "lucide-react";
+import { LegalAcceptanceModal } from "@/features/legal/LegalAcceptanceModal";
 
 export function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -26,6 +27,8 @@ export function Layout() {
     })
   };
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
+  const [tosAccepted, setTosAccepted] = useState(false);
   const { isOpen, toggle, close } = useChatPanel();
   useScanNotificationMonitor();
 
@@ -33,8 +36,11 @@ export function Layout() {
     return <Navigate to="/login" replace />;
   }
 
+  const needsToS = !tosAccepted && !user?.tos_accepted_at;
+
   return (
     <>
+      {needsToS && <LegalAcceptanceModal onAccepted={() => setTosAccepted(true)} />}
       <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
         <Sidebar
           collapsed={sidebarCollapsed}
