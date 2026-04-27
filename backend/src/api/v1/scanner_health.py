@@ -1,9 +1,13 @@
 """Scanner registry health endpoint — reports which scanners are available based on configured API keys."""
 
 import os
+from typing import Annotated
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from src.api.v1.auth.dependencies import get_current_user
+from src.core.domain.entities.user import User
 
 router = APIRouter(prefix="/scanners/health", tags=["scanners"])
 
@@ -49,7 +53,9 @@ class ScannerStatus(BaseModel):
 
 
 @router.get("", response_model=list[ScannerStatus])
-async def get_scanner_health() -> list[ScannerStatus]:
+async def get_scanner_health(
+    _: Annotated[User, Depends(get_current_user)],
+) -> list[ScannerStatus]:
     """Return availability status for all registered scanners."""
     results: list[ScannerStatus] = []
 

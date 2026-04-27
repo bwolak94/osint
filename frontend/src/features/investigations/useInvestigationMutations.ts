@@ -48,13 +48,23 @@ export function useStartInvestigation() {
     mutationFn: async (id: string) => {
       await apiClient.post(`/investigations/${id}/start/`);
     },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["investigation", id] });
+      const prev = qc.getQueryData(["investigation", id]);
+      qc.setQueryData(["investigation", id], (old: unknown) =>
+        old && typeof old === "object" ? { ...old, status: "running" } : old
+      );
+      return { prev };
+    },
     onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ["investigation", id] });
       qc.invalidateQueries({ queryKey: ["investigation-results", id] });
       qc.invalidateQueries({ queryKey: ["investigations"] });
+      void qc.invalidateQueries({ queryKey: ["investigations-infinite"] });
       toast.success("Scan started");
     },
-    onError: () => {
+    onError: (_err, id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["investigation", id], ctx.prev);
       toast.error("Failed to start scan");
     },
   });
@@ -66,8 +76,19 @@ export function usePauseInvestigation() {
     mutationFn: async (id: string) => {
       await apiClient.post(`/investigations/${id}/pause/`);
     },
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["investigation", id] });
+      const prev = qc.getQueryData(["investigation", id]);
+      qc.setQueryData(["investigation", id], (old: unknown) =>
+        old && typeof old === "object" ? { ...old, status: "paused" } : old
+      );
+      return { prev };
+    },
     onSuccess: (_, id) => {
       qc.invalidateQueries({ queryKey: ["investigation", id] });
+    },
+    onError: (_err, id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["investigation", id], ctx.prev);
     },
   });
 }

@@ -9,6 +9,20 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "@tanstack/react-query",
+      "zustand",
+      "axios",
+      "react-hook-form",
+      "zod",
+      "lucide-react",
+      "reactflow",
+    ],
+  },
   server: {
     proxy: {
       "/api": {

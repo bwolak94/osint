@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { X, Expand, Scan, MessageSquare, Play, Network, Database } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
@@ -78,15 +77,15 @@ export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode, o
   const transforms = node ? getAvailableTransforms(node.type) : [];
 
   return (
-    <AnimatePresence>
+    <>
       {node && (
-        <motion.div
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="absolute right-0 top-0 bottom-0 z-10 flex w-[380px] flex-col border-l overflow-hidden"
-          style={{ background: "var(--bg-surface)", borderColor: "var(--border-subtle)" }}
+        <div
+          className="absolute right-0 top-0 bottom-0 z-10 flex w-[380px] flex-col border-l overflow-hidden transition-transform duration-200"
+          style={{
+            background: "var(--bg-surface)",
+            borderColor: "var(--border-subtle)",
+            transform: node ? "translateX(0)" : "translateX(100%)",
+          }}
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border-subtle)" }}>
@@ -269,8 +268,8 @@ export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode, o
               </Button>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

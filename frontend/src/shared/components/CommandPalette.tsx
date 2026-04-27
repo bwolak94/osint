@@ -7,7 +7,6 @@ import {
   Network, MapPin, BarChart3, ShieldAlert, ClipboardCheck, FileOutput, Scale,
   Plug, ShieldCheck, Clock, X,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from "@/shared/api/client";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -302,18 +301,14 @@ export function CommandPalette() {
   let runningIndex = 0;
 
   return (
-    <AnimatePresence>
+    <>
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center pt-[20vh]"
           onClick={closePalette}
         >
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            transition={{ duration: 0.15 }}
+          <div
             className="relative z-10 w-full max-w-lg overflow-hidden rounded-xl border shadow-2xl"
             style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
             onClick={(e) => e.stopPropagation()}
@@ -457,9 +452,9 @@ export function CommandPalette() {
                 close
               </span>
             </div>
-          </motion.div>
+          </div>
         </div>
       )}
-    </AnimatePresence>
+    </>
   );
 }

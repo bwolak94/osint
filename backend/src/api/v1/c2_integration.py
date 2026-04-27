@@ -1,7 +1,12 @@
 """C2 Framework Integration — reference and tracking for authorized pentest engagements."""
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+
+from src.api.v1.auth.dependencies import get_current_user, require_role
+from src.core.domain.entities.user import User
 
 router = APIRouter(prefix="/api/v1/c2", tags=["c2-integration"])
 
@@ -68,19 +73,25 @@ C2_FRAMEWORKS: list[C2Framework] = [
 
 
 @router.get("/frameworks", response_model=list[C2Framework])
-async def list_frameworks() -> list[C2Framework]:
+async def list_frameworks(
+    _: Annotated[User, Depends(get_current_user)],
+) -> list[C2Framework]:
     """List supported C2 frameworks for authorized engagements."""
     return C2_FRAMEWORKS
 
 
 @router.get("/listeners", response_model=list[C2Listener])
-async def list_listeners() -> list[C2Listener]:
+async def list_listeners(
+    _: Annotated[User, Depends(get_current_user)],
+) -> list[C2Listener]:
     """List active C2 listeners (tracking only — not creating actual listeners)."""
     return []
 
 
 @router.get("/status")
-async def c2_status() -> dict:
+async def c2_status(
+    _: Annotated[User, Depends(get_current_user)],
+) -> dict:
     return {
         "connected_frameworks": 0,
         "active_listeners": 0,

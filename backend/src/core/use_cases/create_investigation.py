@@ -17,7 +17,7 @@ EventPublisher = Callable[[DomainEvent], Coroutine[Any, Any, None]]
 @dataclass
 class CreateInvestigationInput:
     title: str
-    description: str
+    description: str | None
     owner_id: UUID
     seed_inputs: list[SeedInput] | None = None
     tags: frozenset[str] | None = None

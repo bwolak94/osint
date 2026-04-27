@@ -8,6 +8,7 @@ import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from fastapi import Query as QueryParam
 from fastapi.responses import JSONResponse
+from starlette.requests import Request
 from starlette.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -327,6 +328,20 @@ async def _run_scans_background(
     log.info("Background scan completed", investigation_id=str(investigation_id), scans=completed)
 
 
+async def _mark_investigation_failed(investigation_id: UUID) -> None:
+    """Set status=failed and completed_at when the scan pipeline errors out."""
+    from src.adapters.db.database import async_session_factory
+    from src.adapters.db.models import InvestigationModel
+    from src.utils.time import utcnow
+
+    async with async_session_factory() as session:
+        model = await session.get(InvestigationModel, investigation_id)
+        if model and model.status == "running":
+            model.status = "failed"
+            model.completed_at = utcnow()
+            await session.commit()
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -338,12 +353,16 @@ async def _run_scans_background(
 )
 async def create_investigation(
     body: CreateInvestigationRequest,
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InvestigationResponse:
     """Create a new investigation with seed inputs."""
+    from src.adapters.events.redis_publisher import RedisEventPublisher
     repo = SqlAlchemyInvestigationRepository(db)
-    use_case = CreateInvestigation(repo=repo, publish=_noop_publish)
+    redis = getattr(request.app.state, "redis", None)
+    publisher = RedisEventPublisher(redis) if redis else _NoopEventPublisher()
+    use_case = CreateInvestigation(repo=repo, publish=publisher.publish)
 
     seeds = [_seed_schema_to_domain(s) for s in body.seed_inputs]
 
@@ -490,10 +509,26 @@ async def start_investigation(
     # Extract enabled scanners from internal tags (set during create)
     enabled_scanners = _extract_enabled_scanners(investigation)
 
-    # Run scans in background (inline, no Celery needed)
-    background_tasks.add_task(
-        _run_scans_background, investigation_id, saved.seed_inputs, enabled_scanners
-    )
+    # Prefer Celery for scan orchestration; fall back to FastAPI background task
+    # when the broker is unavailable (e.g. local dev without Redis).
+    dispatched_celery = False
+    try:
+        from src.workers.tasks.investigation_tasks import run_osint_investigation
+        seed_inputs_data = [
+            {"value": s.value, "input_type": s.input_type.value}
+            for s in saved.seed_inputs
+        ]
+        run_osint_investigation.apply_async(
+            args=[str(investigation_id), seed_inputs_data, enabled_scanners],
+        )
+        dispatched_celery = True
+    except Exception as celery_exc:
+        log.warning("Celery unavailable, falling back to background task", error=str(celery_exc))
+
+    if not dispatched_celery:
+        background_tasks.add_task(
+            _run_scans_background, investigation_id, saved.seed_inputs, enabled_scanners
+        )
 
     return _build_response(saved)
 
@@ -574,13 +609,15 @@ async def get_investigation_results(
     investigation_id: UUID,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = QueryParam(default=100, ge=1, le=500),
+    offset: int = QueryParam(default=0, ge=0),
 ) -> InvestigationResultsResponse:
-    """Retrieve scan results for an investigation."""
+    """Retrieve scan results for an investigation (paginated)."""
     inv_repo = SqlAlchemyInvestigationRepository(db)
     await _get_owned_investigation(investigation_id, current_user, inv_repo)
 
     scan_repo = SqlAlchemyScanResultRepository(db)
-    results = await scan_repo.get_by_investigation(investigation_id)
+    results = await scan_repo.get_by_investigation(investigation_id, limit=limit, offset=offset)
 
     scan_responses = [
         ScanResultResponse(

@@ -45,6 +45,8 @@ COPY --from=builder /app/src src
 COPY --from=builder /app/alembic alembic
 COPY --from=builder /app/alembic.ini alembic.ini
 COPY --from=builder /app/modules modules
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
@@ -54,4 +56,5 @@ USER appuser
 
 EXPOSE 8000
 
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

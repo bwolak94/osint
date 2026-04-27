@@ -1,4 +1,4 @@
-.PHONY: dev prod test test-backend test-frontend lint migrate shell logs clean
+.PHONY: dev prod test test-backend test-frontend lint migrate seed reset-dev gen-types shell logs clean
 
 dev:
 	docker compose --profile dev up --build
@@ -19,7 +19,21 @@ lint:
 	docker compose exec frontend npm run lint
 
 migrate:
-	docker compose exec -e DATABASE_URL=postgresql+asyncpg://osint:changeme@postgres:5432/osint api bash -c "cd /app && PYTHONPATH=/app alembic upgrade head"
+	docker compose exec api alembic upgrade head
+
+seed:
+	docker compose exec api python -m src.scripts.seed_admin
+
+gen-types:
+	docker compose exec frontend npm run gen:api-types
+
+reset-dev:
+	@echo "This will stop all containers and wipe all volumes (DB, Redis, Neo4j, MinIO)."
+	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
+	docker compose down -v --remove-orphans
+	docker compose --profile dev up --build -d
+	sleep 5
+	docker compose exec api python -m src.scripts.seed_admin
 
 shell:
 	docker compose exec api /bin/bash

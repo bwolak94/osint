@@ -279,6 +279,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     from src.adapters.db.audit_models import AuditLogModel  # noqa: F401
 
+    # Auto-create MinIO bucket on startup so workers don't fail on first upload
+    try:
+        import asyncio
+        from minio import Minio
+        _minio = Minio(
+            settings.minio_endpoint,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            secure=settings.minio_secure,
+        )
+        loop = asyncio.get_event_loop()
+        found = await loop.run_in_executor(None, _minio.bucket_exists, settings.minio_bucket)
+        if not found:
+            await loop.run_in_executor(None, _minio.make_bucket, settings.minio_bucket)
+            await log.ainfo("MinIO bucket created", bucket=settings.minio_bucket)
+        else:
+            await log.ainfo("MinIO bucket already exists", bucket=settings.minio_bucket)
+    except Exception as exc:
+        await log.awarn("MinIO not available", error=str(exc))
+
     if not settings.debug and settings.proxy_mode == "direct":
         await log.awarn(
             "opsec_warning",

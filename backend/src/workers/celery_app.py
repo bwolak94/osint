@@ -61,6 +61,7 @@ celery_app.conf.update(
         "news.scrape_all": {"queue": "light"},
         "src.workers.tasks.graph_tasks.*": {"queue": "graph"},
         "src.workers.tasks.investigation_tasks.*": {"queue": "light"},
+        "src.workers.tasks.investigation_tasks.run_osint_investigation": {"queue": "light"},
         "src.workers.tasks.scheduled_scan_tasks.*": {"queue": "light"},
         "src.workers.tasks.retention_tasks.*": {"queue": "light"},
         "src.workers.tasks.ioc_enrichment_tasks.*": {"queue": "light"},
@@ -144,6 +145,12 @@ import src.workers.notification_tasks  # noqa: E402, F401
 
 # Explicitly import RAG ingestion so its tasks are registered
 import src.workers.rag_ingestion  # noqa: E402, F401
+
+# Register signal handlers for structured logging and failure alerting
+import src.workers.celery_signals  # noqa: E402, F401
+
+# Register scheduled/maintenance tasks
+import src.workers.scheduled_tasks  # noqa: E402, F401
 
 # Explicitly import OSINT enrichment consumer so its tasks are registered
 import src.workers.osint_enrichment_consumer  # noqa: E402, F401

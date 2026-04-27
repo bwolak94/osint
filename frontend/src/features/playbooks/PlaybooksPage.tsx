@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardBody } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
@@ -294,17 +293,13 @@ export function PlaybooksPage() {
       )}
 
       {/* Create Playbook Modal */}
-      <AnimatePresence>
-        {showCreate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg rounded-xl border shadow-lg"
-              style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
-              onClick={(e) => e.stopPropagation()}
-            >
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
+          <div
+            className="w-full max-w-lg rounded-xl border shadow-lg"
+            style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
               <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: "var(--border-subtle)" }}>
                 <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Create Custom Playbook</h2>
                 <button onClick={() => { setShowCreate(false); resetCreateForm(); }} className="rounded-md p-1 hover:bg-bg-overlay">
@@ -406,10 +401,9 @@ export function PlaybooksPage() {
                   Save Playbook
                 </Button>
               </div>
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
       {/* Playbook grid */}
       <div className="grid gap-4 sm:grid-cols-2">

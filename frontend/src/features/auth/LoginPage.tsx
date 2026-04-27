@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Shield, Mail, Lock, Eye, EyeOff, Network, Search, Globe } from "lucide-react";
-import { motion } from "framer-motion";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { useAuthStore } from "@/features/auth/store";
@@ -110,10 +109,9 @@ export function LoginPage() {
 
       {/* Right: Login form */}
       <div className="flex flex-1 items-center justify-center px-6">
-        <motion.div
+        <div
           className="w-full max-w-sm space-y-8"
-          animate={shake ? { x: [0, -10, 10, -10, 10, 0] } : {}}
-          transition={{ duration: 0.4 }}
+          style={shake ? { animation: "shake 0.4s ease-in-out" } : undefined}
         >
           {/* Mobile logo */}
           <div className="text-center lg:hidden">
@@ -196,8 +194,17 @@ export function LoginPage() {
               Create one
             </Link>
           </p>
-        </motion.div>
+        </div>
       </div>
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-10px); }
+          40% { transform: translateX(10px); }
+          60% { transform: translateX(-10px); }
+          80% { transform: translateX(10px); }
+        }
+      `}</style>
     </div>
   );
 }

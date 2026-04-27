@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Shield, Mail, Lock, User, Building2, ArrowRight, ArrowLeft, Check } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 
@@ -93,13 +92,9 @@ export function RegisterPage() {
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
+        <>
           {step === 1 ? (
-            <motion.form
-              key="step1"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+            <form
               onSubmit={form1.handleSubmit(onStep1)}
               className="space-y-4"
             >
@@ -127,13 +122,9 @@ export function RegisterPage() {
               </div>
               <Input label="Confirm Password" type="password" placeholder="Repeat your password" prefixIcon={<Lock className="h-4 w-4" />} {...(form1.formState.errors.confirmPassword?.message ? { error: form1.formState.errors.confirmPassword.message } : {})} {...form1.register("confirmPassword")} />
               <Button type="submit" className="w-full" rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
-            </motion.form>
+            </form>
           ) : (
-            <motion.form
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
+            <form
               onSubmit={form2.handleSubmit(onStep2)}
               className="space-y-4"
             >
@@ -160,9 +151,9 @@ export function RegisterPage() {
                 <Button type="button" variant="secondary" onClick={() => setStep(1)} leftIcon={<ArrowLeft className="h-4 w-4" />}>Back</Button>
                 <Button type="submit" loading={loading} className="flex-1">Create Account</Button>
               </div>
-            </motion.form>
+            </form>
           )}
-        </AnimatePresence>
+        </>
 
         <p className="text-center text-sm" style={{ color: "var(--text-secondary)" }}>
           Already have an account?{" "}

@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
-import axios from "axios";
-import { apiClient } from "@/shared/api/client";
+import { apiClient, _refreshClient } from "@/shared/api/client";
 import { useAuthStore } from "./store";
 
 // 25 minutes — refresh proactively 5 min before the 30-min access token expires
@@ -21,10 +20,9 @@ export function useAuthInit(): void {
 
   const silentRefresh = async (): Promise<void> => {
     try {
-      const { data } = await axios.post<{ access_token: string }>(
+      const { data } = await _refreshClient.post<{ access_token: string }>(
         "/api/v1/auth/refresh",
         null,
-        { withCredentials: true },
       );
       setAccessToken(data.access_token);
     } catch {

@@ -152,5 +152,5 @@ apiClient.interceptors.response.use(
   },
 );
 
-export { apiClient };
+export { apiClient, _refreshClient };
 export default apiClient;

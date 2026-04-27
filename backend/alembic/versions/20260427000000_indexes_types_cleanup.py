@@ -39,6 +39,13 @@ def upgrade() -> None:
         "ON identities USING gin (emails)"
     )
 
+    # ── 2b. GIN index on investigations.tags (ARRAY column) ──────────────────
+    # Enables fast tag-based filtering: WHERE tags @> ARRAY['phishing']
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_investigations_tags_gin "
+        "ON investigations USING gin (tags)"
+    )
+
     # ── 3. Shrink users.hashed_password column ────────────────────────────────
     # All current hashes (bcrypt) are 60 chars. varchar(128) gives plenty of
     # headroom for Argon2id (~100 chars) if the hashing algorithm is migrated.

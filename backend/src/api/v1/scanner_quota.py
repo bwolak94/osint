@@ -10,10 +10,10 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.adapters.db.database import async_session_factory
 from src.adapters.db.models import ScannerQuotaModel
 from src.api.v1.auth.dependencies import get_current_user
 from src.core.domain.entities.user import User
+from src.dependencies import get_db
 from src.utils.time import utcnow
 
 router = APIRouter()
@@ -59,7 +59,7 @@ class SetQuotaRequest(BaseModel):
 async def list_quotas(
     workspace_id: str | None = None,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(lambda: async_session_factory()),
+    db: AsyncSession = Depends(get_db),
 ) -> QuotaListResponse:
     """List quota status for all scanners in a workspace."""
     ws_id = workspace_id or str(current_user.id)
@@ -100,7 +100,7 @@ async def list_quotas(
 async def set_quota(
     body: SetQuotaRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(lambda: async_session_factory()),
+    db: AsyncSession = Depends(get_db),
 ) -> QuotaStatus:
     """Create or update the quota limit for a scanner in a workspace."""
     # Enforce workspace isolation: only allow the user's own workspace

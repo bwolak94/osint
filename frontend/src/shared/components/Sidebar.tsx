@@ -68,7 +68,6 @@ import {
   Layers,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -330,31 +329,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             style={{ color: "var(--text-tertiary)" }}
           />
         </button>
-        <AnimatePresence initial={false}>
-          {isOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              className="overflow-hidden"
-            >
-              <div className="mt-0.5 space-y-0.5 border-l ml-5 pl-1" style={{ borderColor: "var(--border-subtle)" }}>
-                {group.children.map((child) => renderItem(child, true))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isOpen && (
+          <div className="overflow-hidden mt-0.5 space-y-0.5 border-l ml-5 pl-1" style={{ borderColor: "var(--border-subtle)" }}>
+            {group.children.map((child) => renderItem(child, true))}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <motion.aside
-      animate={{ width: collapsed ? 64 : 240 }}
-      transition={{ duration: 0.2 }}
-      className="flex flex-col border-r overflow-hidden"
+    <aside
+      className="flex flex-col border-r overflow-hidden transition-[width] duration-200"
       style={{
+        width: collapsed ? 64 : 240,
         background: "var(--bg-surface)",
         borderColor: "var(--border-subtle)",
       }}
@@ -418,6 +406,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           {!collapsed && <span>Sign Out</span>}
         </button>
       </div>
-    </motion.aside>
+    </aside>
   );
 }

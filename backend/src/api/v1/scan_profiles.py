@@ -90,7 +90,7 @@ def _make_profile(body: ScanProfileCreate, user_id: str) -> ScanProfileResponse:
 # ---------------------------------------------------------------------------
 
 
-@router.get("/scan-profiles/available-scanners", response_model=AvailableScannersResponse)
+@router.get("/available-scanners", response_model=AvailableScannersResponse)
 async def list_available_scanners(
     current_user: Any = Depends(get_current_user),
 ) -> AvailableScannersResponse:
@@ -100,7 +100,7 @@ async def list_available_scanners(
     return AvailableScannersResponse(scanners=names, total=len(names))
 
 
-@router.post("/scan-profiles", response_model=ScanProfileResponse, status_code=201)
+@router.post("/", response_model=ScanProfileResponse, status_code=201)
 async def create_scan_profile(
     body: ScanProfileCreate,
     current_user: Any = Depends(get_current_user),
@@ -111,7 +111,7 @@ async def create_scan_profile(
     return _make_profile(body, user_id)
 
 
-@router.get("/scan-profiles", response_model=ScanProfileListResponse)
+@router.get("/", response_model=ScanProfileListResponse)
 async def list_scan_profiles(
     current_user: Any = Depends(get_current_user),
 ) -> ScanProfileListResponse:
@@ -119,7 +119,7 @@ async def list_scan_profiles(
     return ScanProfileListResponse(profiles=[], total=0)
 
 
-@router.get("/scan-profiles/{profile_id}", response_model=ScanProfileResponse)
+@router.get("/{profile_id}", response_model=ScanProfileResponse)
 async def get_scan_profile(
     profile_id: str,
     current_user: Any = Depends(get_current_user),
@@ -142,7 +142,7 @@ async def get_scan_profile(
     )
 
 
-@router.patch("/scan-profiles/{profile_id}", response_model=ScanProfileResponse)
+@router.patch("/{profile_id}", response_model=ScanProfileResponse)
 async def update_scan_profile(
     profile_id: str,
     body: ScanProfileUpdate,
@@ -167,7 +167,7 @@ async def update_scan_profile(
     )
 
 
-@router.delete("/scan-profiles/{profile_id}", status_code=204, response_model=None)
+@router.delete("/{profile_id}", status_code=204, response_model=None)
 async def delete_scan_profile(
     profile_id: str,
     current_user: Any = Depends(get_current_user),
@@ -176,7 +176,7 @@ async def delete_scan_profile(
     log.info("Scan profile deleted", profile_id=profile_id)
 
 
-@router.post("/scan-profiles/{profile_id}/set-default")
+@router.post("/{profile_id}/set-default")
 async def set_default_scan_profile(
     profile_id: str,
     current_user: Any = Depends(get_current_user),

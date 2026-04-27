@@ -23,7 +23,7 @@ export function LegalAcceptanceModal({ onAccepted }: LegalAcceptanceModalProps) 
     const acceptedAt = new Date().toISOString()
 
     try {
-      await apiClient.post('/api/v1/auth/accept-tos')
+      await apiClient.post('/auth/accept-tos')
     } catch (err) {
       // If server call fails, log but don't block the user — acceptance is
       // recorded locally. This handles dev environments where the DB column
