@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import {
   Users, Activity, Search, Shield, BarChart3,
   ShoppingBag, Wrench, GitBranch, Zap, Scale,
-  Play, Trash2, Plus, Loader2, CheckCircle2,
-  XCircle, ChevronRight, Bell, History, RefreshCw,
+  Play, Trash2, Plus, Loader2,
+  ChevronRight, History, RefreshCw, Network, Terminal, ArrowUpRight,
 } from 'lucide-react'
 import { Card, CardBody, CardHeader } from '@/shared/components/Card'
 import { Badge } from '@/shared/components/Badge'
@@ -82,10 +82,12 @@ interface WorkflowInfo {
 // Tab definitions
 // ---------------------------------------------------------------------------
 
-type Tab = 'overview' | 'rbac' | 'scenarios' | 'tools' | 'workflows' | 'gdpr'
+type Tab = 'overview' | 'investigations' | 'attack-runner' | 'rbac' | 'scenarios' | 'tools' | 'workflows' | 'gdpr'
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
+  { id: 'investigations', label: 'Investigations', icon: Search },
+  { id: 'attack-runner', label: 'Attack Runner', icon: Terminal },
   { id: 'rbac', label: 'Roles & Users', icon: Shield },
   { id: 'scenarios', label: 'Attack Scenarios', icon: ShoppingBag },
   { id: 'tools', label: 'Custom Tools', icon: Wrench },
@@ -95,6 +97,446 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 
 const DIFFICULTY_VARIANT: Record<string, 'neutral' | 'info' | 'warning' | 'danger'> = {
   easy: 'info', medium: 'warning', hard: 'danger', expert: 'danger',
+}
+
+// ---------------------------------------------------------------------------
+// Investigations tab
+// ---------------------------------------------------------------------------
+
+interface InvestigationItem {
+  id: string
+  title: string
+  status: string
+  owner_id: string
+  seed_inputs: { type: string; value: string }[]
+  created_at: string
+  updated_at: string
+}
+
+const STATUS_VARIANT: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'danger'> = {
+  draft: 'neutral', running: 'info', completed: 'success', paused: 'warning', failed: 'danger',
+}
+
+function InvestigationsTab() {
+  const navigate = useNavigate()
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [search, setSearch] = useState('')
+
+  const { data, isLoading, refetch } = useQuery<{ items: InvestigationItem[]; total: number }>({
+    queryKey: ['admin', 'investigations', statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '100' })
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      return (await apiClient.get(`/investigations/?${params}`)).data
+    },
+    refetchInterval: 10_000,
+  })
+
+  const items = (data?.items ?? []).filter((i) =>
+    !search || i.title.toLowerCase().includes(search.toLowerCase()) ||
+    i.seed_inputs?.some((s) => s.value.toLowerCase().includes(search.toLowerCase()))
+  )
+
+  const byStatus = (data?.items ?? []).reduce<Record<string, number>>((acc, i) => {
+    acc[i.status] = (acc[i.status] ?? 0) + 1; return acc
+  }, {})
+
+  return (
+    <div className="space-y-4">
+      {/* Status summary chips */}
+      <div className="flex flex-wrap gap-2">
+        {['all', 'running', 'completed', 'draft', 'paused', 'failed'].map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className="rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+            style={{
+              borderColor: statusFilter === s ? 'var(--brand-500)' : 'var(--border-subtle)',
+              background: statusFilter === s ? 'var(--brand-900)' : 'var(--bg-surface)',
+              color: statusFilter === s ? 'var(--brand-400)' : 'var(--text-secondary)',
+            }}
+          >
+            {s === 'all' ? `All (${data?.total ?? 0})` : `${s} (${byStatus[s] ?? 0})`}
+          </button>
+        ))}
+        <button onClick={() => refetch()} className="ml-auto hover:opacity-70" title="Refresh">
+          <RefreshCw className="h-3.5 w-3.5" style={{ color: 'var(--text-tertiary)' }} />
+        </button>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--text-tertiary)' }} />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by title or seed value…"
+          className="w-full rounded-lg border pl-9 pr-4 py-2 text-sm"
+          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+        />
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardBody className="p-0">
+          {isLoading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--brand-500)' }} />
+            </div>
+          ) : items.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm" style={{ color: 'var(--text-tertiary)' }}>No investigations found.</p>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="border-b text-left text-xs font-medium"
+                  style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-tertiary)' }}>
+                  <th className="px-5 py-3">Title</th>
+                  <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Seeds</th>
+                  <th className="px-5 py-3">Updated</th>
+                  <th className="px-5 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((inv) => (
+                  <tr
+                    key={inv.id}
+                    className="border-b hover:bg-bg-overlay transition-colors cursor-pointer"
+                    style={{ borderColor: 'var(--border-subtle)' }}
+                    onClick={() => navigate(`/investigations/${inv.id}`)}
+                  >
+                    <td className="px-5 py-3">
+                      <p className="text-sm font-medium truncate max-w-xs" style={{ color: 'var(--text-primary)' }}>{inv.title}</p>
+                      <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{inv.id.slice(0, 8)}</p>
+                    </td>
+                    <td className="px-5 py-3">
+                      <Badge variant={STATUS_VARIANT[inv.status] ?? 'neutral'} size="sm" dot>{inv.status}</Badge>
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(inv.seed_inputs ?? []).slice(0, 3).map((s, i) => (
+                          <span key={i} className="text-[10px] rounded px-1.5 py-0.5 font-mono"
+                            style={{ background: 'var(--bg-overlay)', color: 'var(--text-secondary)' }}>
+                            {s.type}:{s.value.slice(0, 20)}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                      {inv.updated_at ? new Date(inv.updated_at).toLocaleString() : '—'}
+                    </td>
+                    <td className="px-5 py-3">
+                      <ArrowUpRight className="h-4 w-4" style={{ color: 'var(--brand-400)' }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Attack Runner tab
+// ---------------------------------------------------------------------------
+
+interface PortResult {
+  port: number
+  protocol: string
+  service: string
+  version: string
+  state: string
+  severity: string
+  cve: string[]
+}
+
+interface AttackOption {
+  id: string
+  title: string
+  tactic: string
+  technique_id: string
+  technique_name: string
+  tools: string[]
+  severity: string
+  llm_risk_score: number
+  steps: string[]
+}
+
+const SEV_COLOR: Record<string, string> = {
+  critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#3b82f6', info: '#94a3b8',
+}
+
+function AttackRunnerTab() {
+  const [target, setTarget] = useState('')
+  const [scanId, setScanId] = useState<string | null>(null)
+  const [ports, setPorts] = useState<PortResult[]>([])
+  const [attacks, setAttacks] = useState<Record<string, AttackOption[]>>({})
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [runId, setRunId] = useState<string | null>(null)
+  const [logs, setLogs] = useState<string[]>([])
+  const [step, setStep] = useState<'target' | 'ports' | 'attacks' | 'executing'>('target')
+
+  const scanMutation = useMutation({
+    mutationFn: async () => {
+      const r = await apiClient.post<{ scan_id: string; ports: PortResult[] }>('/attack-flow/scan', { target })
+      return r.data
+    },
+    onSuccess: (data) => {
+      setScanId(data.scan_id)
+      setPorts(data.ports)
+      setStep('ports')
+    },
+    onError: () => toast.error('Port scan failed'),
+  })
+
+  const attacksMutation = useMutation({
+    mutationFn: async () => {
+      const r = await apiClient.post<{ attacks_by_port: Record<string, AttackOption[]> }>(
+        '/attack-flow/attacks', { target, ports }
+      )
+      return r.data
+    },
+    onSuccess: (data) => {
+      setAttacks(data.attacks_by_port)
+      setStep('attacks')
+    },
+    onError: () => toast.error('Failed to load attacks'),
+  })
+
+  const executeMutation = useMutation({
+    mutationFn: async () => {
+      const selectedAttacks = Object.values(attacks).flat().filter((a) => selected.has(a.id))
+      const r = await apiClient.post<{ run_id: string }>('/attack-flow/execute', {
+        target, scan_id: scanId, selected_attacks: selectedAttacks,
+      })
+      return r.data
+    },
+    onSuccess: (data) => {
+      setRunId(data.run_id)
+      setStep('executing')
+      setLogs([`[${new Date().toISOString()}] Execution started — run_id: ${data.run_id}`])
+    },
+    onError: () => toast.error('Execution failed'),
+  })
+
+  // Poll logs while executing
+  useQuery({
+    queryKey: ['attack-logs', runId],
+    queryFn: async () => {
+      const r = await apiClient.get<{ logs: string[] }>(`/attack-flow/${runId}/logs`)
+      setLogs(r.data.logs ?? [])
+      return r.data
+    },
+    enabled: !!runId && step === 'executing',
+    refetchInterval: 2_000,
+  })
+
+  const toggleAttack = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const selectAll = () => {
+    const allIds = Object.values(attacks).flat().map((a) => a.id)
+    setSelected(new Set(allIds))
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Step indicator */}
+      <div className="flex items-center gap-2 text-xs">
+        {(['target', 'ports', 'attacks', 'executing'] as const).map((s, i) => (
+          <div key={s} className="flex items-center gap-2">
+            {i > 0 && <div className="h-px w-6" style={{ background: 'var(--border-subtle)' }} />}
+            <span
+              className="rounded-full px-3 py-1 font-medium"
+              style={{
+                background: step === s ? 'var(--brand-900)' : 'var(--bg-surface)',
+                color: step === s ? 'var(--brand-400)' : 'var(--text-tertiary)',
+                border: `1px solid ${step === s ? 'var(--brand-700)' : 'var(--border-subtle)'}`,
+              }}
+            >
+              {i + 1}. {s.charAt(0).toUpperCase() + s.slice(1)}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Step: Target */}
+      {step === 'target' && (
+        <Card>
+          <CardBody className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Network className="h-5 w-5" style={{ color: 'var(--brand-400)' }} />
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Enter Target</h3>
+            </div>
+            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+              Domain or IP address to scan for open ports and applicable attack vectors.
+            </p>
+            <input
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && target.trim() && scanMutation.mutate()}
+              placeholder="example.com or 192.168.1.1"
+              className="w-full rounded-lg border px-4 py-2.5 text-sm font-mono"
+              style={{ background: 'var(--bg-overlay)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+            />
+            <button
+              onClick={() => scanMutation.mutate()}
+              disabled={!target.trim() || scanMutation.isPending}
+              className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold disabled:opacity-40"
+              style={{ background: 'var(--brand-500)', color: '#fff' }}
+            >
+              {scanMutation.isPending
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Scanning…</>
+                : <><Network className="h-4 w-4" /> Scan Ports</>}
+            </button>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Step: Ports */}
+      {step === 'ports' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Open Ports on <span style={{ color: 'var(--brand-400)' }}>{target}</span>
+            </h3>
+            <div className="flex gap-2">
+              <button onClick={() => { setStep('target'); setPorts([]) }}
+                className="text-xs px-3 py-1.5 rounded border"
+                style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                ← Back
+              </button>
+              <button
+                onClick={() => attacksMutation.mutate()}
+                disabled={attacksMutation.isPending}
+                className="flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold disabled:opacity-40"
+                style={{ background: 'var(--brand-500)', color: '#fff' }}
+              >
+                {attacksMutation.isPending
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading attacks…</>
+                  : <><Zap className="h-3.5 w-3.5" /> Load Attacks</>}
+              </button>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {ports.map((p) => (
+              <div key={p.port} className="rounded-xl border p-3 space-y-1"
+                style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-surface)', borderLeftColor: SEV_COLOR[p.severity] ?? 'var(--border-subtle)', borderLeftWidth: 3 }}>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-primary)' }}>:{p.port}</span>
+                  <Badge variant={p.severity === 'critical' ? 'danger' : p.severity === 'high' ? 'warning' : p.severity === 'medium' ? 'warning' : 'neutral'} size="sm">
+                    {p.severity}
+                  </Badge>
+                </div>
+                <p className="text-xs font-medium" style={{ color: 'var(--brand-400)' }}>{p.service}</p>
+                {p.version && <p className="text-[10px] font-mono" style={{ color: 'var(--text-tertiary)' }}>{p.version}</p>}
+                {p.cve.length > 0 && (
+                  <p className="text-[10px]" style={{ color: '#ef4444' }}>{p.cve.slice(0, 2).join(', ')}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Step: Select Attacks */}
+      {step === 'attacks' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Select Attacks — <span style={{ color: 'var(--text-tertiary)' }}>{selected.size} selected</span>
+            </h3>
+            <div className="flex gap-2">
+              <button onClick={() => setStep('ports')}
+                className="text-xs px-3 py-1.5 rounded border"
+                style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                ← Back
+              </button>
+              <button onClick={selectAll}
+                className="text-xs px-3 py-1.5 rounded border"
+                style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                Select All
+              </button>
+              <button
+                onClick={() => executeMutation.mutate()}
+                disabled={selected.size === 0 || executeMutation.isPending}
+                className="flex items-center gap-2 rounded-lg px-4 py-1.5 text-xs font-semibold disabled:opacity-40"
+                style={{ background: '#ef4444', color: '#fff' }}
+              >
+                {executeMutation.isPending
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Launching…</>
+                  : <><Play className="h-3.5 w-3.5" /> Execute ({selected.size})</>}
+              </button>
+            </div>
+          </div>
+          {Object.entries(attacks).map(([port, portAttacks]) => (
+            <div key={port} className="space-y-2">
+              <h4 className="text-xs font-semibold font-mono" style={{ color: 'var(--text-tertiary)' }}>Port {port}</h4>
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {portAttacks.map((a) => (
+                  <div
+                    key={a.id}
+                    onClick={() => toggleAttack(a.id)}
+                    className="rounded-xl border p-3 cursor-pointer transition-all space-y-1.5"
+                    style={{
+                      borderColor: selected.has(a.id) ? 'var(--brand-500)' : 'var(--border-subtle)',
+                      background: selected.has(a.id) ? 'var(--brand-900)' : 'var(--bg-surface)',
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="text-xs font-semibold leading-tight" style={{ color: 'var(--text-primary)' }}>{a.title}</p>
+                      <Badge variant={a.severity === 'critical' ? 'danger' : a.severity === 'high' ? 'warning' : 'neutral'} size="sm">
+                        {a.severity}
+                      </Badge>
+                    </div>
+                    <p className="text-[10px] font-mono" style={{ color: 'var(--brand-400)' }}>{a.technique_id} · {a.tactic}</p>
+                    <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
+                      Risk: <strong>{a.llm_risk_score}/100</strong> · {a.tools.slice(0, 2).join(', ')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Step: Executing */}
+      {step === 'executing' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded-full animate-pulse" style={{ background: '#ef4444' }} />
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                Executing against <span style={{ color: 'var(--brand-400)' }}>{target}</span>
+              </h3>
+            </div>
+            <button
+              onClick={() => { setStep('target'); setRunId(null); setLogs([]); setSelected(new Set()); setPorts([]); setAttacks({}) }}
+              className="text-xs px-3 py-1.5 rounded border"
+              style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}
+            >
+              New Scan
+            </button>
+          </div>
+          <div className="rounded-xl border p-4 font-mono text-xs space-y-1 max-h-96 overflow-auto"
+            style={{ background: '#0a0a0a', borderColor: 'var(--border-subtle)', color: '#22c55e' }}>
+            {logs.length === 0
+              ? <span style={{ color: '#94a3b8' }}>Waiting for output…</span>
+              : logs.map((line, i) => <div key={i}>{line}</div>)}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -935,6 +1377,8 @@ export function AdminPage() {
 
       {/* Tab content */}
       {activeTab === 'overview' && <OverviewTab />}
+      {activeTab === 'investigations' && <InvestigationsTab />}
+      {activeTab === 'attack-runner' && <AttackRunnerTab />}
       {activeTab === 'rbac' && <RbacTab />}
       {activeTab === 'scenarios' && <ScenariosTab />}
       {activeTab === 'tools' && <ToolsTab />}

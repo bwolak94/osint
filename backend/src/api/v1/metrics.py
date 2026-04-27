@@ -50,4 +50,12 @@ async def metrics(request: Request) -> str:
     else:
         lines.append("osint_redis_up 0")
 
+    # Scanner duration histogram
+    try:
+        from src.adapters.scanners.metrics import prometheus_histogram_text
+        lines.append("")
+        lines.append(prometheus_histogram_text())
+    except Exception:
+        pass
+
     return "\n".join(lines) + "\n"

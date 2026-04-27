@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from fastapi.responses import Response
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
@@ -150,7 +151,7 @@ async def update_tlp_marking(
     )
 
 
-@router.delete("/tlp-markings/{marking_id}", status_code=204)
+@router.delete("/tlp-markings/{marking_id}", status_code=204, response_model=None)
 async def delete_tlp_marking(
     marking_id: str,
     current_user: Any = Depends(get_current_user),

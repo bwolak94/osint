@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from fastapi.responses import Response
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
@@ -146,7 +147,7 @@ async def update_retention_policy(
     )
 
 
-@router.delete("/retention/policies/{policy_id}", status_code=204)
+@router.delete("/retention/policies/{policy_id}", status_code=204, response_model=None)
 async def delete_retention_policy(
     policy_id: str,
     current_user: Any = Depends(get_current_user),
@@ -157,15 +158,68 @@ async def delete_retention_policy(
 
 @router.post("/retention/dry-run", response_model=DryRunResponse)
 async def retention_dry_run(
+    max_age_days: int = 90,
+    entity_type: str = "investigation",
     current_user: Any = Depends(get_current_user),
 ) -> DryRunResponse:
+    """Preview which records would be affected by executing retention policies.
+
+    Queries the database for records older than `max_age_days` for the given
+    `entity_type` (investigation | scan_result) and returns a summary without
+    modifying any data.
+
+    This endpoint is safe to call repeatedly — it never commits changes.
     """
-    Preview which records would be affected by executing all active policies,
-    without actually archiving or deleting anything.
-    """
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import func, select
+
+    from src.adapters.db.database import async_session_factory
+    from src.adapters.db.models import InvestigationModel, ScanResultModel
+
     user_id = str(getattr(current_user, "id", "unknown"))
-    log.info("Retention dry run executed", user=user_id)
-    return DryRunResponse(total_affected=0, affected_entities=[], estimated_mb_freed=0.0)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    affected: list[AffectedEntityPreview] = []
+
+    async with async_session_factory() as db:
+        if entity_type == "investigation":
+            stmt = select(InvestigationModel).where(
+                InvestigationModel.created_at < cutoff,
+                InvestigationModel.status.in_(["completed", "archived"]),
+            ).limit(200)
+            rows = (await db.execute(stmt)).scalars().all()
+            for row in rows:
+                age = (datetime.now(timezone.utc) - row.created_at.replace(tzinfo=timezone.utc)).days
+                affected.append(AffectedEntityPreview(
+                    entity_type="investigation",
+                    entity_id=str(row.id),
+                    age_days=age,
+                    action="delete",
+                ))
+        elif entity_type == "scan_result":
+            stmt = select(ScanResultModel).where(
+                ScanResultModel.created_at < cutoff,
+            ).limit(200)
+            rows = (await db.execute(stmt)).scalars().all()
+            for row in rows:
+                age = (datetime.now(timezone.utc) - row.created_at.replace(tzinfo=timezone.utc)).days
+                affected.append(AffectedEntityPreview(
+                    entity_type="scan_result",
+                    entity_id=str(row.id),
+                    age_days=age,
+                    action="delete",
+                ))
+
+    # Rough size estimate: 50 KB per investigation, 10 KB per scan result
+    size_kb_per = 50 if entity_type == "investigation" else 10
+    estimated_mb = len(affected) * size_kb_per / 1024
+
+    log.info("Retention dry run executed", user=user_id, entity_type=entity_type, total=len(affected))
+    return DryRunResponse(
+        total_affected=len(affected),
+        affected_entities=affected[:50],  # return first 50 as preview
+        estimated_mb_freed=round(estimated_mb, 2),
+    )
 
 
 @router.post("/retention/execute", response_model=RetentionExecutionResponse)

@@ -1,10 +1,11 @@
 """SQLAlchemy ORM models."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
+from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import ARRAY, JSON, UUID
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from src.core.domain.entities.types import (
@@ -15,6 +16,14 @@ from src.core.domain.entities.types import (
     SubscriptionTier,
     UserRole,
 )
+from src.utils.time import utcnow
+
+
+class ACLPermission(str, PyEnum):
+    """Permission levels for investigation ACL entries."""
+    VIEW = "view"
+    EDIT = "edit"
+    ADMIN = "admin"
 
 
 class Base(DeclarativeBase):
@@ -23,8 +32,8 @@ class Base(DeclarativeBase):
     pass
 
 
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+def _utcnow():
+    return utcnow()
 
 
 class UserModel(Base):
@@ -32,7 +41,7 @@ class UserModel(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
-    hashed_password: Mapped[str] = mapped_column(String(1024), nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(128), nullable=False)
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"), default=UserRole.ANALYST, nullable=False
     )
@@ -57,6 +66,14 @@ class UserModel(Base):
     )
     refresh_tokens: Mapped[list["RefreshTokenModel"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_users_active_email",
+            "email",
+            postgresql_where=text("is_active = true"),
+        ),
     )
 
     def __repr__(self) -> str:
@@ -101,7 +118,7 @@ class InvestigationModel(Base):
     owner_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
     )
-    seed_inputs: Mapped[dict] = mapped_column(JSON, default=list, nullable=False)
+    seed_inputs: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     shared_with: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -141,9 +158,14 @@ class IdentityModel(Base):
     nip: Mapped[str | None] = mapped_column(String(10), nullable=True)
     confidence_score: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     sources: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSON, default=dict, nullable=False)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+    __table_args__ = (
+        CheckConstraint("confidence_score BETWEEN 0.0 AND 1.0", name="ck_identities_confidence_range"),
+        Index("ix_identities_emails_gin", "emails", postgresql_using="gin"),
     )
 
     investigation: Mapped["InvestigationModel"] = relationship(back_populates="identities")
@@ -164,19 +186,97 @@ class ScanResultModel(Base):
     status: Mapped[ScanStatus] = mapped_column(
         Enum(ScanStatus, name="scan_status"), default=ScanStatus.PENDING, nullable=False
     )
-    raw_data: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    raw_data: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
     extracted_identifiers: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     duration_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
+    updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=True
+    )
 
     investigation: Mapped["InvestigationModel"] = relationship(back_populates="scan_results")
 
     __table_args__ = (
         Index("ix_scan_results_inv_scanner", "investigation_id", "scanner_name"),
+        Index("ix_scan_results_inv_status", "investigation_id", "status"),
     )
 
     def __repr__(self) -> str:
         return f"<ScanResultModel id={self.id} scanner={self.scanner_name}>"
+
+
+class InvestigationACLModel(Base):
+    """Fine-grained access control for investigations (view / edit / admin)."""
+
+    __tablename__ = "investigation_acl"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    investigation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    permission: Mapped[ACLPermission] = mapped_column(
+        Enum(ACLPermission, native_enum=False, length=16),
+        nullable=False,
+    )
+    granted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    __table_args__ = (
+        Index("ix_acl_inv_user", "investigation_id", "user_id", unique=True),
+        CheckConstraint("permission IN ('view', 'edit', 'admin')", name="ck_acl_permission_values"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<InvestigationACLModel inv={self.investigation_id} user={self.user_id} perm={self.permission}>"
+
+
+class InvestigationRiskScoreModel(Base):
+    """Cached risk score for an investigation, recomputed after each scan batch."""
+
+    __tablename__ = "investigation_risk_scores"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    investigation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    score: Mapped[float] = mapped_column(Float, nullable=False)
+    breach_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    exposed_services: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    avg_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    factors: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("score BETWEEN 0.0 AND 100.0", name="ck_risk_score_range"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<InvestigationRiskScoreModel inv={self.investigation_id} score={self.score}>"
+
+
+class ScannerQuotaModel(Base):
+    """Per-workspace API quota tracking for each external scanner."""
+
+    __tablename__ = "scanner_quotas"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    scanner_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    requests_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    requests_limit: Mapped[int] = mapped_column(Integer, default=1000, nullable=False)
+    last_request_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index("ix_scanner_quotas_ws_scanner", "workspace_id", "scanner_name"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ScannerQuotaModel ws={self.workspace_id} scanner={self.scanner_name} used={self.requests_used}>"

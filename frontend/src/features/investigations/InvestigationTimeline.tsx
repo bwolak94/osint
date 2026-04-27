@@ -42,30 +42,44 @@ const ROW_GAP = 4;
 const LABEL_WIDTH = 120;
 const MIN_BAR_WIDTH = 6;
 
+const STATUS_FILTER_OPTIONS: { value: TimelineEvent["status"] | "all"; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "success", label: "Success" },
+  { value: "failed", label: "Failed" },
+  { value: "rate_limited", label: "Rate Limited" },
+];
+
 export function InvestigationTimeline({
   events,
 }: InvestigationTimelineProps) {
   const [zoomLevel, setZoomLevel] = useState(1);
   const [selectedEvent, setSelectedEvent] = useState<TimelineEvent | null>(null);
   const [popoverPos, setPopoverPos] = useState({ x: 0, y: 0 });
+  const [statusFilter, setStatusFilter] = useState<TimelineEvent["status"] | "all">("all");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Apply status filter
+  const filteredEvents = useMemo(
+    () => (statusFilter === "all" ? events : events.filter((e) => e.status === statusFilter)),
+    [events, statusFilter],
+  );
 
   const scanners = useMemo(() => {
     const order = new Map<string, number>();
-    for (const e of events) {
+    for (const e of filteredEvents) {
       if (!order.has(e.scanner)) order.set(e.scanner, order.size);
     }
     return Array.from(order.keys());
-  }, [events]);
+  }, [filteredEvents]);
 
   const { minTime, maxTime } = useMemo(() => {
-    if (events.length === 0) {
+    if (filteredEvents.length === 0) {
       const now = Date.now();
       return { minTime: now, maxTime: now + 1 };
     }
     let min = Infinity;
     let max = -Infinity;
-    for (const e of events) {
+    for (const e of filteredEvents) {
       const t = parseISO(e.created_at).getTime();
       min = Math.min(min, t);
       max = Math.max(max, t + e.duration_ms);
@@ -101,13 +115,36 @@ export function InvestigationTimeline({
   return (
     <div className="flex flex-col gap-2">
       {/* Controls */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <span
           className="text-xs font-medium"
           style={{ color: "var(--text-tertiary)" }}
         >
           Timeline
         </span>
+
+        {/* Status filter chips */}
+        <div className="flex items-center gap-1" role="group" aria-label="Filter by status">
+          {STATUS_FILTER_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setStatusFilter(opt.value)}
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors border ${
+                statusFilter === opt.value
+                  ? "border-brand-500 text-brand-400 bg-brand-950"
+                  : "border-transparent text-text-secondary hover:bg-bg-overlay"
+              }`}
+            >
+              {opt.label}
+              {opt.value !== "all" && (
+                <span className="ml-1 opacity-60">
+                  ({events.filter((e) => e.status === opt.value).length})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
         <div className="ml-auto flex items-center gap-1">
           <Button
             variant="ghost"
@@ -153,7 +190,7 @@ export function InvestigationTimeline({
           {/* Scanner rows */}
           {scanners.map((scanner, rowIdx) => {
             const y = 16 + rowIdx * (ROW_HEIGHT + ROW_GAP);
-            const rowEvents = events.filter((e) => e.scanner === scanner);
+            const rowEvents = filteredEvents.filter((e) => e.scanner === scanner);
 
             return (
               <div key={scanner}>

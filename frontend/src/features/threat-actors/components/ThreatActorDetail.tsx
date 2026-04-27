@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { X, ExternalLink, Shield, Globe, Target, AlertTriangle, Activity } from 'lucide-react'
 import { Badge } from '@/shared/components/Badge'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
 import type { ThreatActor, ThreatActorMotivation, ThreatActorSophistication } from '../types'
+import { ThreatActorProfileTab } from './ThreatActorProfileTab'
 
 const COUNTRY_FLAG: Record<string, string> = {
   RU: '🇷🇺',
@@ -52,9 +54,12 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   )
 }
 
+type DetailTab = 'details' | 'profile'
+
 export function ThreatActorDetail({ actor, onClose }: Props) {
   const flag = actor.origin_country ? (COUNTRY_FLAG[actor.origin_country] ?? '🌐') : '🌐'
   const confidencePct = Math.round(actor.confidence * 100)
+  const [activeTab, setActiveTab] = useState<DetailTab>('details')
 
   return (
     <Card className="flex h-full flex-col overflow-hidden">
@@ -90,9 +95,28 @@ export function ThreatActorDetail({ actor, onClose }: Props) {
             <X className="h-4 w-4" style={{ color: 'var(--text-tertiary)' }} />
           </button>
         </div>
+
+        {/* Tab switcher */}
+        <div className="mt-3 flex gap-1 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          {(['details', 'profile'] as DetailTab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setActiveTab(t)}
+              className="px-3 pb-2 text-xs font-medium capitalize transition-colors"
+              style={{
+                color: activeTab === t ? 'var(--brand-400)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === t ? '2px solid var(--brand-400)' : '2px solid transparent',
+              }}
+            >
+              {t === 'profile' ? 'Profile Builder' : 'Details'}
+            </button>
+          ))}
+        </div>
       </CardHeader>
 
       <CardBody className="flex-1 space-y-5 overflow-y-auto">
+        {activeTab === 'profile' && <ThreatActorProfileTab actorId={actor.id} />}
+        {activeTab === 'details' && (<>
         {/* Description */}
         <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {actor.description}
@@ -314,6 +338,7 @@ export function ThreatActorDetail({ actor, onClose }: Props) {
           </span>{' '}
           &mdash; data may be incomplete or reflect historical state.
         </div>
+        </>)}
       </CardBody>
     </Card>
   )

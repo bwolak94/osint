@@ -216,21 +216,37 @@ function TacticColumn({
     [techniques, executedSet],
   )
 
+  const coveragePct = techniques.length > 0 ? Math.round((executedCount / techniques.length) * 100) : 0
+  const gapColor = executedCount === 0 ? 'var(--danger-500)' : coveragePct < 30 ? 'var(--warning-500)' : 'var(--success-500)'
+
   return (
     <div className="flex min-w-[140px] flex-col" style={{ flex: '0 0 140px' }}>
       {/* Tactic header */}
       <div
         className="mb-2 rounded-md px-2 py-2 text-center"
-        style={{ background: 'var(--bg-overlay)' }}
+        style={{
+          background: executedCount === 0 ? 'rgba(239,68,68,0.08)' : 'var(--bg-overlay)',
+          border: executedCount === 0 ? '1px solid rgba(239,68,68,0.25)' : '1px solid transparent',
+        }}
       >
         <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--text-primary)' }}>
           {tactic.shortName}
         </p>
         <p className="mt-0.5 text-[10px]" style={{ color: 'var(--text-tertiary)' }}>
-          {executedCount > 0 && (
-            <span style={{ color: 'var(--brand-400)' }}>{executedCount}/</span>
-          )}
+          <span style={{ color: executedCount > 0 ? 'var(--brand-400)' : 'var(--danger-500)' }}>
+            {executedCount}/
+          </span>
           {techniques.length}
+        </p>
+        {/* Coverage mini bar */}
+        <div className="mt-1.5 h-1 w-full rounded-full overflow-hidden" style={{ background: 'var(--bg-base)' }}>
+          <div
+            className="h-1 rounded-full transition-all"
+            style={{ width: `${coveragePct}%`, background: gapColor }}
+          />
+        </div>
+        <p className="mt-0.5 text-[9px] font-mono" style={{ color: gapColor }}>
+          {coveragePct}%
         </p>
       </div>
 
@@ -321,6 +337,18 @@ export function MitreAttackMatrix({ executedTechniques = [], onTechniqueClick, i
 
   const totalExecuted = executedSet.size
   const totalTechniques = MITRE_TECHNIQUES.length
+  const overallCoveragePct = totalTechniques > 0 ? Math.round((totalExecuted / totalTechniques) * 100) : 0
+
+  // Per-tactic coverage for gap summary
+  const tacticGaps = useMemo(() => {
+    return columnData
+      .map(({ tactic, techniques }) => {
+        const executed = techniques.filter((t) => executedSet.has(t.id)).length
+        const pct = techniques.length > 0 ? Math.round((executed / techniques.length) * 100) : 0
+        return { tactic, executed, total: techniques.length, pct }
+      })
+      .filter((t) => t.pct === 0 && totalExecuted > 0)
+  }, [columnData, executedSet, totalExecuted])
 
   return (
     <div className="space-y-4">
@@ -381,6 +409,42 @@ export function MitreAttackMatrix({ executedTechniques = [], onTechniqueClick, i
           </Button>
         </div>
       </div>
+
+      {/* Coverage summary */}
+      {totalExecuted > 0 && (
+        <div
+          className="rounded-lg border p-3 space-y-2"
+          style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+              Overall Coverage
+            </span>
+            <span
+              className="text-sm font-bold font-mono"
+              style={{ color: overallCoveragePct >= 50 ? 'var(--success-500)' : overallCoveragePct >= 20 ? 'var(--warning-500)' : 'var(--danger-500)' }}
+            >
+              {overallCoveragePct}%
+            </span>
+          </div>
+          <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: 'var(--bg-base)' }}>
+            <div
+              className="h-2 rounded-full transition-all"
+              style={{
+                width: `${overallCoveragePct}%`,
+                background: overallCoveragePct >= 50 ? 'var(--success-500)' : overallCoveragePct >= 20 ? 'var(--warning-500)' : 'var(--danger-500)',
+              }}
+            />
+          </div>
+          {tacticGaps.length > 0 && (
+            <p className="text-[11px]" style={{ color: 'var(--text-tertiary)' }}>
+              <span style={{ color: 'var(--danger-500)' }}>Coverage gaps</span>{' '}
+              in {tacticGaps.length} tactic{tacticGaps.length !== 1 ? 's' : ''}:{' '}
+              {tacticGaps.map((t) => t.tactic.shortName).join(', ')}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Colour legend */}
       <div className="flex flex-wrap items-center gap-4" aria-label="Colour legend">

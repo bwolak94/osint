@@ -138,7 +138,6 @@ async def _run_scans_background(
 ) -> None:
     """Run scanners for each seed input directly (no Celery required)."""
     import json
-    from datetime import datetime, timezone
     from uuid import uuid4
 
     import redis.asyncio as aioredis
@@ -148,6 +147,7 @@ async def _run_scans_background(
     from src.adapters.scanners.registry import get_default_registry
     from src.config import get_settings
     from src.core.domain.entities.types import ScanInputType
+    from src.utils.time import utcnow
 
     settings = get_settings()
     registry = get_default_registry()
@@ -190,7 +190,7 @@ async def _run_scans_background(
                     "total": total * scanner_count,
                     "percentage": round(completed / max(total * scanner_count, 1) * 100, 1),
                     "current_scanner": ",".join(s.scanner_name for s in scanners),
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "timestamp": utcnow().isoformat(),
                 }))
             except Exception:
                 pass
@@ -232,7 +232,7 @@ async def _run_scans_background(
                             "type": "scan_complete",
                             "scanner": scanner.scanner_name,
                             "findings_count": len(result.extracted_identifiers),
-                            "timestamp": datetime.now(timezone.utc).isoformat(),
+                            "timestamp": utcnow().isoformat(),
                         }))
                     except Exception:
                         pass
@@ -305,7 +305,7 @@ async def _run_scans_background(
         model = await session.get(InvestigationModel, investigation_id)
         if model and model.status == "running":
             model.status = "completed"
-            model.completed_at = datetime.now(timezone.utc)
+            model.completed_at = utcnow()
             await session.commit()
 
     # TODO: Send email notification to user when investigation completes
@@ -318,7 +318,7 @@ async def _run_scans_background(
             await redis.publish(channel, json.dumps({
                 "type": "investigation_complete",
                 "summary": {"total_scans": completed},
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": utcnow().isoformat(),
             }))
         except Exception:
             pass

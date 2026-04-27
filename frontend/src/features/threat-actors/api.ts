@@ -1,5 +1,5 @@
 import { apiClient } from '@/shared/api/client'
-import type { ThreatActor, ThreatActorFilters } from './types'
+import type { ThreatActor, ThreatActorFilters, ThreatActorProfile, CampaignSummary } from './types'
 
 export const threatActorsApi = {
   list: (filters: ThreatActorFilters = {}): Promise<ThreatActor[]> => {
@@ -15,4 +15,10 @@ export const threatActorsApi = {
 
   get: (id: string): Promise<ThreatActor> =>
     apiClient.get<ThreatActor>(`/threat-actors/${id}`).then((r) => r.data),
+
+  getProfile: (id: string): Promise<ThreatActorProfile> =>
+    apiClient.get<ThreatActorProfile>(`/threat-actors/${id}/profile`).then((r) => r.data),
+
+  getCampaigns: (id: string): Promise<CampaignSummary[]> =>
+    apiClient.get<CampaignSummary[]>(`/threat-actors/${id}/campaigns`).then((r) => r.data),
 }

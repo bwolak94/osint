@@ -1,6 +1,11 @@
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.dependencies import get_db as get_db_dep
 
 from src.adapters.auth.token_service import JWTTokenService
 from src.adapters.cache.token_blacklist import RedisTokenBlacklist
@@ -60,12 +65,15 @@ def _user_response(user: User) -> UserResponse:
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
+    from src.config import get_settings
+    settings = get_settings()
+    # In dev (debug=True) skip secure flag so the cookie works over plain HTTP
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,
-        samesite="strict",
+        secure=not settings.debug,
+        samesite="lax",  # "lax" allows cookie on top-level navigations; "strict" can block it
         max_age=7 * 24 * 60 * 60,
         path="/api/v1/auth",
     )
@@ -109,6 +117,7 @@ async def login(
     user_repo: Annotated[SqlAlchemyUserRepository, Depends(get_user_repo)],
     token_service: Annotated[JWTTokenService, Depends(get_token_service)],
     refresh_repo: Annotated[SqlAlchemyRefreshTokenRepository, Depends(get_refresh_token_repo)],
+    db: Annotated["AsyncSession", Depends(get_db_dep)],
     password_hasher=Depends(get_password_hasher),
 ):
     use_case = LoginUseCase(
@@ -132,10 +141,16 @@ async def login(
     except AccountLockedError:
         raise HTTPException(status_code=status.HTTP_423_LOCKED, detail="Account temporarily locked")
 
+    from sqlalchemy import select as _select
+    from src.adapters.db.models import UserModel as _UserModel
+    tos_at = await db.scalar(_select(_UserModel.tos_accepted_at).where(_UserModel.id == result.user.id))
+
     _set_refresh_cookie(response, result.tokens.refresh_token)
+    user_resp = _user_response(result.user)
+    user_resp.tos_accepted_at = tos_at
     return LoginResponse(
         access_token=result.tokens.access_token,
-        user=_user_response(result.user),
+        user=user_resp,
     )
 
 
@@ -203,8 +218,16 @@ async def logout(
 
 
 @router.get("/me", response_model=UserResponse)
-async def me(current_user: Annotated[User, Depends(get_current_user)]):
-    return _user_response(current_user)
+async def me(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated["AsyncSession", Depends(get_db_dep)],
+):
+    from sqlalchemy import select as _select
+    from src.adapters.db.models import UserModel as _UserModel
+    row = await db.scalar(_select(_UserModel.tos_accepted_at).where(_UserModel.id == current_user.id))
+    resp = _user_response(current_user)
+    resp.tos_accepted_at = row
+    return resp
 
 
 @router.post("/change-password", response_model=MessageResponse)

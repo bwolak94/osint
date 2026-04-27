@@ -1,8 +1,9 @@
 """Application configuration loaded from environment variables."""
 
 from functools import lru_cache
+from urllib.parse import urlparse
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -95,6 +96,30 @@ class Settings(BaseSettings):
 
     # CORS
     cors_origins: list[str] = ["http://localhost:8080", "http://localhost:5173", "http://localhost:3000"]
+    cors_allow_methods: list[str] = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    cors_allow_headers: list[str] = [
+        "Authorization",
+        "Content-Type",
+        "X-Correlation-ID",
+        "X-Request-ID",
+        "Accept",
+        "Origin",
+    ]
+
+    # HITL (Human-in-the-loop) gate
+    hitl_timeout_minutes: int = 30
+    hitl_poll_interval_seconds: int = 5
+
+    # Scanner settings
+    scanner_default_timeout_seconds: int = 120
+    scanner_rate_limit_counts_as_failure: bool = False  # don't trip CB on rate limits
+
+    # Circuit breaker (Redis-backed)
+    circuit_breaker_failure_threshold: int = 5
+    circuit_breaker_recovery_timeout_seconds: int = 300
+
+    # Anomaly detection
+    anomaly_result_threshold: int = 50  # flag scanners returning more than this many results
 
     # Notification webhooks
     slack_webhook_url: str = ""
@@ -128,6 +153,10 @@ class Settings(BaseSettings):
     jira_email: str = ""
     jira_api_token: str = ""
     jira_project_key: str = ""
+
+    # Database connection pool (passed to SQLAlchemy create_async_engine)
+    db_pool_size: int = 20
+    db_pool_max_overflow: int = 10
 
     # Security
     pii_encryption_key: str = ""
@@ -227,6 +256,34 @@ class Settings(BaseSettings):
     google_calendar_mcp_url: str = "https://mcp.googleapis.com/calendar/sse"
     google_calendar_oauth_token: str = ""
 
+    @field_validator("redis_url")
+    @classmethod
+    def _validate_redis_url(cls, v: str) -> str:
+        if not v.startswith(("redis://", "rediss://", "unix://")):
+            raise ValueError("REDIS_URL must start with redis://, rediss://, or unix://")
+        return v
+
+    @field_validator("neo4j_uri")
+    @classmethod
+    def _validate_neo4j_uri(cls, v: str) -> str:
+        if not v.startswith(("bolt://", "bolt+s://", "neo4j://", "neo4j+s://")):
+            raise ValueError("NEO4J_URI must start with bolt:// or neo4j://")
+        return v
+
+    @field_validator("postgres_host")
+    @classmethod
+    def _validate_postgres_host(cls, v: str) -> str:
+        if not v:
+            raise ValueError("POSTGRES_HOST must not be empty")
+        return v
+
+    @model_validator(mode="after")
+    def _validate_postgres_dsn_format(self) -> "Settings":
+        parsed = urlparse(self.postgres_dsn)
+        if not parsed.hostname:
+            raise ValueError(f"Invalid PostgreSQL DSN: hostname missing in '{self.postgres_dsn}'")
+        return self
+
     @model_validator(mode="after")
     def _check_secrets(self) -> "Settings":
         if not self.debug and self.jwt_secret_key == "change-me-in-production":
@@ -234,10 +291,56 @@ class Settings(BaseSettings):
                 "SECURITY ERROR: JWT_SECRET_KEY is using the default value. "
                 "Set a unique JWT_SECRET_KEY environment variable for production."
             )
+        if not self.debug and len(self.jwt_secret_key) < 32:
+            raise ValueError(
+                "SECURITY ERROR: JWT_SECRET_KEY is too short. "
+                "Use at least 32 characters for adequate security."
+            )
+        if not self.debug and self.pii_encryption_key and len(self.pii_encryption_key) < 32:
+            raise ValueError(
+                "SECURITY ERROR: PII_ENCRYPTION_KEY is too short. "
+                "Use at least 32 bytes for adequate security."
+            )
+        if not self.debug and self.neo4j_password == "neo4j":
+            raise ValueError(
+                "SECURITY ERROR: NEO4J_PASSWORD is using the default value. "
+                "Set a strong NEO4J_PASSWORD in production."
+            )
+        if not self.debug and self.minio_access_key == "minioadmin":
+            raise ValueError(
+                "SECURITY ERROR: MINIO_ACCESS_KEY is using the default value. "
+                "Set a strong MINIO_ACCESS_KEY in production."
+            )
+        if not self.debug and self.minio_secret_key == "minioadmin":
+            raise ValueError(
+                "SECURITY ERROR: MINIO_SECRET_KEY is using the default value. "
+                "Set a strong MINIO_SECRET_KEY in production."
+            )
+        if not self.debug:
+            localhost_origins = [
+                o for o in self.cors_origins
+                if "localhost" in o or "127.0.0.1" in o
+            ]
+            if localhost_origins:
+                raise ValueError(
+                    f"SECURITY ERROR: CORS_ORIGINS contains localhost entries in production: "
+                    f"{localhost_origins}. Remove them or set DEBUG=true."
+                )
         return self
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Return a cached Settings instance."""
     return Settings()
+
+
+def reset_settings() -> None:
+    """Clear the cached Settings instance.
+
+    Useful in tests that patch environment variables after module import:
+        monkeypatch.setenv("DEBUG", "true")
+        reset_settings()
+        settings = get_settings()  # picks up the patched env
+    """
+    get_settings.cache_clear()

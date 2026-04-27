@@ -7,6 +7,15 @@ from src.config import get_settings
 
 settings = get_settings()
 
+# ── Beat schedule intervals ───────────────────────────────────────────────────
+# Named constants make the schedule table readable and allow env-var overrides.
+_WATCHLIST_INTERVAL_S: float = 300.0        # 5 min
+_SCHEDULED_RESCAN_INTERVAL_S: float = 600.0  # 10 min
+_RETENTION_INTERVAL_S: float = 3600.0        # 1 h
+_SLA_CHECK_INTERVAL_S: float = 3600.0        # 1 h
+_HITL_EXPIRE_INTERVAL_S: float = 300.0       # 5 min
+_NEWS_SCRAPE_INTERVAL_S: float = 1800.0      # 30 min
+
 celery_app = Celery("osint_workers", broker=settings.redis_url, backend=settings.redis_url)
 
 celery_app.conf.update(
@@ -81,27 +90,27 @@ celery_app.conf.update(
     beat_schedule={
         "process-watchlist-items": {
             "task": "src.workers.tasks.watchlist_tasks.process_watchlist",
-            "schedule": 300.0,  # every 5 minutes
+            "schedule": _WATCHLIST_INTERVAL_S,
         },
         "run-scheduled-rescans": {
             "task": "src.workers.tasks.scheduled_scan_tasks.process_scheduled_rescans",
-            "schedule": 600.0,  # every 10 minutes
+            "schedule": _SCHEDULED_RESCAN_INTERVAL_S,
         },
         "enforce-retention-policies": {
             "task": "src.workers.tasks.retention_tasks.enforce_retention_policies",
-            "schedule": 3600.0,  # every hour
+            "schedule": _RETENTION_INTERVAL_S,
         },
         "pentest-check-sla-breaches": {
             "task": "src.workers.pentest_orchestrator.check_sla_breaches",
-            "schedule": 3600.0,  # every hour
+            "schedule": _SLA_CHECK_INTERVAL_S,
         },
         "pentest-verify-audit-chains": {
             "task": "src.workers.pentest_orchestrator.verify_audit_chains",
-            "schedule": 86400.0,  # daily
+            "schedule": crontab(hour=1, minute=0),  # 01:00 UTC daily
         },
         "pentest-expire-stale-hitl": {
             "task": "src.workers.pentest_orchestrator.expire_stale_hitl_requests",
-            "schedule": 300.0,   # every 5 minutes — catches any request past 30-min limit
+            "schedule": _HITL_EXPIRE_INTERVAL_S,
         },
         "rag-nightly-ingest": {
             "task": "rag.ingest_all_sources",
@@ -109,7 +118,15 @@ celery_app.conf.update(
         },
         "news-scrape-feeds": {
             "task": "news.scrape_all",
-            "schedule": 1800.0,  # every 30 minutes
+            "schedule": _NEWS_SCRAPE_INTERVAL_S,
+        },
+        "purge-celery-results": {
+            "task": "src.workers.scheduled_tasks.purge_celery_results",
+            "schedule": crontab(hour=3, minute=0),  # 03:00 UTC daily
+        },
+        "reset-monthly-scanner-quotas": {
+            "task": "src.workers.scheduled_tasks.reset_monthly_quotas",
+            "schedule": crontab(day_of_month=1, hour=0, minute=5),  # 1st of month 00:05 UTC
         },
     },
 )
@@ -136,3 +153,6 @@ import src.workers.tasks.hub_tasks  # noqa: E402, F401
 
 # Explicitly import news scraper task so it is registered with Celery beat
 import src.workers.tasks.news_scraper_task  # noqa: E402, F401
+
+# Register observability signal handlers (failure pub/sub, arg redaction, correlation ID)
+import src.workers.celery_signals  # noqa: E402, F401

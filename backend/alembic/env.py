@@ -8,7 +8,12 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from src.adapters.db.models import Base
+from src.adapters.db.models import (  # noqa: F401 — all models must be imported for autogenerate
+    Base,
+    InvestigationACLModel,
+    InvestigationRiskScoreModel,
+    ScannerQuotaModel,
+)
 
 # Alembic Config object
 config = context.config

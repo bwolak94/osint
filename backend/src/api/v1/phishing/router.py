@@ -364,8 +364,8 @@ async def track_open(
 
 @router.post(
     "/phishing/track/submit/{campaign_id}/{recipient_hash}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT, response_model=None,
+    
 )
 async def track_submit(
     campaign_id: str,

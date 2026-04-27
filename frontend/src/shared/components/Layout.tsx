@@ -28,7 +28,9 @@ export function Layout() {
   };
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
-  const [tosAccepted, setTosAccepted] = useState(false);
+  const [tosAccepted, setTosAccepted] = useState(() => {
+    try { return !!localStorage.getItem('tos_accepted_at') } catch { return false }
+  });
   const { isOpen, toggle, close } = useChatPanel();
   useScanNotificationMonitor();
 

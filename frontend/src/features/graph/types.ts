@@ -36,6 +36,8 @@ export interface OsintEdgeData {
   validFrom?: string | null;
   validTo?: string | null;
   isOnPath: boolean;
+  /** Number of edges bundled into this edge when more than 4 parallel edges exist. */
+  bundleCount?: number;
 }
 
 export interface GraphApiNode {

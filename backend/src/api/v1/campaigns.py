@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from fastapi.responses import Response
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
@@ -177,7 +178,7 @@ async def update_campaign(
     )
 
 
-@router.delete("/campaigns/{campaign_id}", status_code=204)
+@router.delete("/campaigns/{campaign_id}", status_code=204, response_model=None)
 async def delete_campaign(
     campaign_id: str,
     current_user: Any = Depends(get_current_user),
@@ -197,7 +198,7 @@ async def add_investigation_to_campaign(
     return {"status": "added", "campaign_id": campaign_id, "investigation_id": body.investigation_id}
 
 
-@router.delete("/campaigns/{campaign_id}/investigations/{investigation_id}", status_code=204)
+@router.delete("/campaigns/{campaign_id}/investigations/{investigation_id}", status_code=204, response_model=None)
 async def remove_investigation_from_campaign(
     campaign_id: str,
     investigation_id: str,

@@ -43,15 +43,19 @@ export function LoginPage() {
       setTimeout(() => setShake(false), 500);
 
       if (err instanceof ApiError) {
-        if (err.status === 423) {
+        if (err.status === 401) {
+          setFormError("Invalid email or password");
+        } else if (err.status === 423) {
           setFormError("Account temporarily locked. Try again in 15 minutes.");
         } else if (err.status === 429) {
           setFormError("Too many attempts. Please wait before trying again.");
+        } else if (err.status === 0 || err.status >= 500) {
+          setFormError("Cannot reach the server. Check that the backend is running.");
         } else {
-          setFormError("Invalid email or password");
+          setFormError(err.message || "Login failed");
         }
       } else {
-        setFormError("An unexpected error occurred");
+        setFormError("Cannot reach the server. Check your connection.");
       }
     }
   };

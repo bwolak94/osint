@@ -13,35 +13,32 @@ down_revision = 'p6q7r8s9t0u1'
 
 
 def upgrade() -> None:
-    # Investigations table
-    op.create_index('ix_investigations_status', 'investigations', ['status'])
-    op.create_index('ix_investigations_created_at', 'investigations', ['created_at'])
-    op.create_index('ix_investigations_user_id', 'investigations', ['user_id'])
+    # Use raw SQL with IF NOT EXISTS to be resilient to schema drift
+    # investigations: owner_id (not user_id), status, created_at all exist
+    op.execute("CREATE INDEX IF NOT EXISTS ix_investigations_status ON investigations (status)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_investigations_created_at ON investigations (created_at)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_investigations_owner_id ON investigations (owner_id)")
 
-    # Scan results
-    op.create_index('ix_scan_results_investigation_id', 'scan_results', ['investigation_id'])
-    op.create_index('ix_scan_results_created_at', 'scan_results', ['created_at'])
-    op.create_index('ix_scan_results_scanner_type', 'scan_results', ['scanner_type'])
-    op.create_index('ix_scan_results_status', 'scan_results', ['status'])
+    # scan_results: scanner_name (not scanner_type)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_scan_results_investigation_id ON scan_results (investigation_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_scan_results_created_at ON scan_results (created_at)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_scan_results_scanner_name ON scan_results (scanner_name)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_scan_results_status ON scan_results (status)")
 
-    # Entities
-    op.create_index('ix_entities_investigation_id', 'entities', ['investigation_id'])
-    op.create_index('ix_entities_entity_type', 'entities', ['entity_type'])
+    # identities (not entities)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_identities_investigation_id ON identities (investigation_id)")
 
-    # Annotations
-    op.create_index('ix_annotations_investigation_id', 'annotations', ['investigation_id'])
-    op.create_index('ix_annotations_target_id', 'annotations', ['target_id'])
+    # comments table exists
+    op.execute("CREATE INDEX IF NOT EXISTS ix_comments_investigation_id ON comments (investigation_id)")
 
 
 def downgrade() -> None:
-    op.drop_index('ix_investigations_status')
-    op.drop_index('ix_investigations_created_at')
-    op.drop_index('ix_investigations_user_id')
-    op.drop_index('ix_scan_results_investigation_id')
-    op.drop_index('ix_scan_results_created_at')
-    op.drop_index('ix_scan_results_scanner_type')
-    op.drop_index('ix_scan_results_status')
-    op.drop_index('ix_entities_investigation_id')
-    op.drop_index('ix_entities_entity_type')
-    op.drop_index('ix_annotations_investigation_id')
-    op.drop_index('ix_annotations_target_id')
+    op.execute("DROP INDEX IF EXISTS ix_investigations_status")
+    op.execute("DROP INDEX IF EXISTS ix_investigations_created_at")
+    op.execute("DROP INDEX IF EXISTS ix_investigations_owner_id")
+    op.execute("DROP INDEX IF EXISTS ix_scan_results_investigation_id")
+    op.execute("DROP INDEX IF EXISTS ix_scan_results_created_at")
+    op.execute("DROP INDEX IF EXISTS ix_scan_results_scanner_name")
+    op.execute("DROP INDEX IF EXISTS ix_scan_results_status")
+    op.execute("DROP INDEX IF EXISTS ix_identities_investigation_id")
+    op.execute("DROP INDEX IF EXISTS ix_comments_investigation_id")

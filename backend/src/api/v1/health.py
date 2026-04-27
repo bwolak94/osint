@@ -6,8 +6,68 @@ from starlette.responses import JSONResponse
 router = APIRouter(tags=["health"])
 
 
+@router.get("/health/scanners")
+async def scanner_health() -> JSONResponse:
+    """Return aggregated health status for all registered scanners.
+
+    Exposes circuit-breaker state and consecutive-open counts from the
+    ScannerHealthRegistry so Grafana / Flower can visualize scanner liveness.
+    """
+    try:
+        import redis.asyncio as aioredis
+
+        from src.adapters.scanners.health_registry import ScannerHealthRegistry
+        from src.adapters.scanners.registry import get_default_registry
+        from src.config import get_settings
+
+        settings = get_settings()
+        redis_client = aioredis.from_url(settings.redis_url, decode_responses=True)
+        registry = get_default_registry()
+        health_registry = ScannerHealthRegistry(redis_client=redis_client)
+
+        all_names = [s.scanner_name for s in registry.get_all()]
+        health_list = await health_registry.get_all_health(all_names)
+
+        scanners_data = [
+            {
+                "scanner": h.scanner_name,
+                "status": h.status.value,
+                "consecutive_opens": h.consecutive_opens,
+                "last_checked": h.last_checked,
+                "disabled_reason": h.disabled_reason,
+            }
+            for h in health_list
+        ]
+
+        healthy = sum(1 for h in health_list if h.status.value == "healthy")
+        degraded = sum(1 for h in health_list if h.status.value == "degraded")
+        disabled = sum(1 for h in health_list if h.status.value == "disabled")
+
+        await redis_client.aclose()
+
+        return JSONResponse(
+            content={
+                "total": len(all_names),
+                "healthy": healthy,
+                "degraded": degraded,
+                "disabled": disabled,
+                "scanners": scanners_data,
+            }
+        )
+    except Exception as exc:
+        return JSONResponse(
+            content={"error": str(exc)},
+            status_code=503,
+        )
+
+
 @router.get("/health")
 async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@router.get("")
+async def health_root() -> dict[str, str]:
     return {"status": "ok"}
 
 
@@ -59,6 +119,18 @@ async def readiness(request: Request) -> JSONResponse:
         checks["neo4j"] = "ok"
     except Exception as e:
         checks["neo4j"] = f"error: {type(e).__name__}"
+
+    # MinIO / S3 storage
+    try:
+        from src.config import get_settings
+        import httpx
+        settings = get_settings()
+        scheme = "https" if settings.minio_secure else "http"
+        async with httpx.AsyncClient(timeout=3) as c:
+            r = await c.get(f"{scheme}://{settings.minio_endpoint}/minio/health/live")
+            checks["minio"] = "ok" if r.status_code < 500 else f"http_{r.status_code}"
+    except Exception as e:
+        checks["minio"] = f"error: {type(e).__name__}"
 
     # n8n connectivity (#39)
     try:

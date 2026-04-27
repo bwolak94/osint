@@ -26,7 +26,11 @@ export function EmptyState({
   const Icon = icons[variant];
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex flex-col items-center justify-center py-16 text-center"
+    >
       <div
         className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl"
         style={{ background: "var(--bg-elevated)" }}

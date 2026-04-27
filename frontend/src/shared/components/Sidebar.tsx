@@ -62,6 +62,10 @@ import {
   PackageCheck,
   FlaskConical,
   ShoppingBag,
+  Radio,
+  Gauge,
+  Puzzle,
+  Layers,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 import { motion, AnimatePresence } from "framer-motion";
@@ -102,6 +106,7 @@ const mainNav: NavEntry[] = [
   { to: "/deep-research", label: "Deep Research", icon: FlaskConical },
   { to: "/digital-footprint", label: "Footprint Score", icon: Fingerprint },
   { to: "/correlation", label: "Correlation Engine", icon: GitMerge },
+  { to: "/multi-graph", label: "Multi-Graph Analysis", icon: Layers },
   { to: "/evidence-locker", label: "Evidence Locker", icon: Archive },
   { to: "/secure-notes", label: "Secure Notes", icon: Lock },
   { to: "/collaboration", label: "Collaboration", icon: Users },
@@ -142,6 +147,8 @@ const mainNav: NavEntry[] = [
       { to: "/crypto-trace", label: "Crypto Tracing", icon: Bitcoin },
       { to: "/corporate-intel", label: "Corporate Intel", icon: Building2 },
       { to: "/brand-protection", label: "Brand Protection", icon: ShieldAlert },
+      { to: "/ioc-feed", label: "IOC Feed", icon: Radio },
+      { to: "/attack-surface", label: "Attack Surface", icon: Gauge },
       { to: "/threat-feed", label: "Threat Feed", icon: Rss },
       { to: "/canary-tokens", label: "Canary Tokens", icon: Zap },
     ],
@@ -186,7 +193,9 @@ const mainNav: NavEntry[] = [
       { to: "/pentest/bas", label: "Attack Simulation", icon: Swords },
       { to: "/pentest/finding-library", label: "Finding Library", icon: Library },
       { to: "/pentest/attack-planner", label: "Attack Planner", icon: Brain },
+      { to: "/pentest/attack-flow", label: "Attack Flow", icon: Zap },
       { to: "/pentest/marketplace", label: "Scenario Marketplace", icon: ShoppingBag },
+      { to: "/mitre-attack", label: "MITRE ATT&CK", icon: Swords },
       { to: "/report-builder", label: "Report Builder", icon: FileOutput },
       { to: "/vuln-management", label: "Vuln Management", icon: ShieldAlert },
       { to: "/phishing", label: "Phishing Sim", icon: Mail },
@@ -210,6 +219,8 @@ const mainNav: NavEntry[] = [
       { to: "/gdpr", label: "GDPR Requests", icon: Scale },
     ],
   },
+  { to: "/scanner-quota", label: "Scanner Quota", icon: Gauge },
+  { to: "/browser-extension", label: "Browser Extension", icon: Puzzle },
   {
     key: "integrations",
     label: "Integrations",

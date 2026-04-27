@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
+from fastapi.responses import Response
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 
@@ -172,7 +173,7 @@ async def update_annotation(
     )
 
 
-@router.delete("/annotations/{annotation_id}", status_code=204)
+@router.delete("/annotations/{annotation_id}", status_code=204, response_model=None)
 async def delete_annotation(
     annotation_id: str,
     current_user: Any = Depends(get_current_user),

@@ -6,7 +6,7 @@ import {
   useRef,
   type ChangeEvent,
 } from "react";
-import { Filter, X, ChevronDown, Check } from "lucide-react";
+import { Filter, X, ChevronDown, Check, Bookmark, BookmarkCheck } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
 import { Input } from "@/shared/components/Input";
@@ -40,6 +40,30 @@ const DEFAULT_FILTER: GraphFilterState = {
   dateRange: { from: null, to: null },
 };
 
+const PRESETS_STORAGE_KEY = "graph_filter_presets";
+
+interface FilterPreset {
+  name: string;
+  filters: Omit<GraphFilterState, "dateRange">;
+}
+
+function loadPresets(): FilterPreset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePresets(presets: FilterPreset[]): void {
+  try {
+    localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+  } catch {
+    // Storage quota exceeded — silently ignore
+  }
+}
+
 function countActiveFilters(state: GraphFilterState): number {
   let count = 0;
   if (state.nodeTypes.length > 0) count++;
@@ -55,10 +79,39 @@ export function GraphFilterBar({ nodes, onFilterChange }: GraphFilterBarProps) {
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [showScannerDropdown, setShowScannerDropdown] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [presets, setPresets] = useState<FilterPreset[]>(loadPresets);
+  const [showPresetsDropdown, setShowPresetsDropdown] = useState(false);
+  const [newPresetName, setNewPresetName] = useState("");
+  const presetsDropdownRef = useRef<HTMLDivElement>(null);
 
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const scannerDropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const saveCurrentAsPreset = useCallback(() => {
+    const name = newPresetName.trim();
+    if (!name) return;
+    const preset: FilterPreset = {
+      name,
+      filters: { nodeTypes: filters.nodeTypes, minConfidence: filters.minConfidence, scanners: filters.scanners, searchText: filters.searchText },
+    };
+    const updated = [...presets.filter((p) => p.name !== name), preset];
+    setPresets(updated);
+    savePresets(updated);
+    setNewPresetName("");
+    setShowPresetsDropdown(false);
+  }, [filters, newPresetName, presets]);
+
+  const loadPreset = useCallback((preset: FilterPreset) => {
+    setFilters((prev) => ({ ...prev, ...preset.filters }));
+    setShowPresetsDropdown(false);
+  }, []);
+
+  const deletePreset = useCallback((name: string) => {
+    const updated = presets.filter((p) => p.name !== name);
+    setPresets(updated);
+    savePresets(updated);
+  }, [presets]);
 
   const availableScanners = useMemo(() => {
     const scannerSet = new Set<string>();
@@ -108,17 +161,14 @@ export function GraphFilterBar({ nodes, onFilterChange }: GraphFilterBarProps) {
   // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: globalThis.MouseEvent) => {
-      if (
-        typeDropdownRef.current &&
-        !typeDropdownRef.current.contains(e.target as Node)
-      ) {
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target as Node)) {
         setShowTypeDropdown(false);
       }
-      if (
-        scannerDropdownRef.current &&
-        !scannerDropdownRef.current.contains(e.target as Node)
-      ) {
+      if (scannerDropdownRef.current && !scannerDropdownRef.current.contains(e.target as Node)) {
         setShowScannerDropdown(false);
+      }
+      if (presetsDropdownRef.current && !presetsDropdownRef.current.contains(e.target as Node)) {
+        setShowPresetsDropdown(false);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -360,6 +410,69 @@ export function GraphFilterBar({ nodes, onFilterChange }: GraphFilterBarProps) {
                   ) : undefined
                 }
               />
+            </div>
+
+            {/* Filter presets */}
+            <div className="relative ml-auto" ref={presetsDropdownRef}>
+              <button
+                onClick={() => setShowPresetsDropdown((v) => !v)}
+                aria-expanded={showPresetsDropdown}
+                className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-bg-overlay"
+                style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
+                title="Filter presets"
+              >
+                <Bookmark className="h-3.5 w-3.5" />
+                Presets {presets.length > 0 && <span className="opacity-60">({presets.length})</span>}
+              </button>
+              {showPresetsDropdown && (
+                <div
+                  className="absolute right-0 top-full z-50 mt-1 w-52 rounded-lg border py-1 shadow-lg"
+                  style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
+                >
+                  {presets.length > 0 && (
+                    <div className="border-b pb-1 mb-1" style={{ borderColor: "var(--border-subtle)" }}>
+                      {presets.map((p) => (
+                        <div key={p.name} className="flex items-center gap-1 px-2 py-1 hover:bg-bg-overlay">
+                          <button
+                            onClick={() => loadPreset(p)}
+                            className="flex-1 truncate text-left text-xs"
+                            style={{ color: "var(--text-primary)" }}
+                          >
+                            <BookmarkCheck className="h-3 w-3 inline mr-1" style={{ color: "var(--brand-400)" }} />
+                            {p.name}
+                          </button>
+                          <button
+                            onClick={() => deletePreset(p.name)}
+                            className="rounded p-0.5 hover:bg-bg-elevated"
+                            aria-label={`Delete preset ${p.name}`}
+                          >
+                            <X className="h-3 w-3" style={{ color: "var(--text-tertiary)" }} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1 px-2 py-1">
+                    <input
+                      type="text"
+                      value={newPresetName}
+                      onChange={(e) => setNewPresetName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveCurrentAsPreset()}
+                      placeholder="Preset name…"
+                      className="flex-1 rounded border px-2 py-0.5 text-xs"
+                      style={{ background: "var(--bg-overlay)", borderColor: "var(--border-subtle)", color: "var(--text-primary)" }}
+                    />
+                    <button
+                      onClick={saveCurrentAsPreset}
+                      disabled={!newPresetName.trim()}
+                      className="rounded px-2 py-0.5 text-xs font-medium disabled:opacity-40"
+                      style={{ background: "var(--brand-500)", color: "#fff" }}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Clear all */}

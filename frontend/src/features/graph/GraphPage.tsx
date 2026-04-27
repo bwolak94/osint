@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import ReactFlow, { Background, MiniMap, ReactFlowProvider, useReactFlow, type NodeTypes, type EdgeTypes, type Node } from "reactflow";
+import ReactFlow, { Background, MiniMap, ReactFlowProvider, useReactFlow, useViewport, type NodeTypes, type EdgeTypes, type Node } from "reactflow";
 import "reactflow/dist/style.css";
 import { ArrowLeft, Search, X } from "lucide-react";
 
@@ -19,7 +19,7 @@ import { useGraphNodes, useNodeSelection, useNodeSearch, useNodeFilters, usePath
 import { useGraphLayout } from "./useGraphLayout";
 import { Card, CardBody } from "@/shared/components/Card";
 import { EmptyState } from "@/shared/components/EmptyState";
-import type { OsintNodeData, LayoutType, NodeType } from "./types";
+import type { OsintNodeData, OsintEdgeData, LayoutType, NodeType } from "./types";
 
 const nodeTypes: NodeTypes = {
   person: PersonNode,
@@ -253,7 +253,54 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
     [pathFinding, selectNode],
   );
 
-  // Node type counts for status bar
+  // Viewport-based node culling for graphs >500 nodes (Improvement 26)
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const { x: vpX, y: vpY, zoom: vpZoom } = useViewport();
+
+  const displayNodes = useMemo(() => {
+    if (filteredNodes.length <= 500) return filteredNodes;
+    const w = graphContainerRef.current?.clientWidth ?? 1200;
+    const h = graphContainerRef.current?.clientHeight ?? 800;
+    const BUFFER = 300;
+    const left = -vpX / vpZoom - BUFFER;
+    const top = -vpY / vpZoom - BUFFER;
+    const right = left + w / vpZoom + 2 * BUFFER;
+    const bottom = top + h / vpZoom + 2 * BUFFER;
+    return filteredNodes.map((n) => ({
+      ...n,
+      hidden:
+        n.position.x < left ||
+        n.position.x > right ||
+        n.position.y < top ||
+        n.position.y > bottom,
+    }));
+  }, [filteredNodes, vpX, vpY, vpZoom]);
+
+  // Edge bundling: collapse 5+ parallel edges between same pair (Improvement 27)
+  const displayEdges = useMemo(() => {
+    const groups = new Map<string, typeof filteredEdges>();
+    for (const edge of filteredEdges) {
+      const key = [edge.source, edge.target].sort().join("||");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(edge);
+    }
+    const result: typeof filteredEdges = [];
+    for (const [, group] of groups) {
+      if (group.length < 5) {
+        result.push(...group);
+      } else {
+        const head = group[0]!;
+        result.push({
+          ...head,
+          id: `bundle-${head.source}-${head.target}`,
+          data: { ...(head.data ?? {}), label: `${group.length} links`, bundleCount: group.length } as OsintEdgeData,
+        });
+      }
+    }
+    return result;
+  }, [filteredEdges]);
+
+  // Node type counts for status bar (uses filteredNodes, not displayNodes, to count all)
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredNodes.forEach((n) => {
@@ -357,7 +404,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
           </CardBody>
         </Card>
       ) : (
-        <div className="relative mt-2 flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-subtle)" }}>
+        <div ref={graphContainerRef} className="relative mt-2 flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-subtle)" }}>
           {/* Floating canvas search bar */}
           <div
             style={{
@@ -406,8 +453,8 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
           </div>
 
           <ReactFlow
-            nodes={filteredNodes}
-            edges={filteredEdges}
+            nodes={displayNodes}
+            edges={displayEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}

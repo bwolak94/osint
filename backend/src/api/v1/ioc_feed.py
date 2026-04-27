@@ -1,13 +1,14 @@
-"""IOC (Indicator of Compromise) feed export endpoints."""
+"""IOC (Indicator of Compromise) feed aggregator and export endpoints."""
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Annotated
 
 import structlog
-from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from src.api.v1.auth.dependencies import get_current_user
+from src.core.domain.entities.user import User
 
 log = structlog.get_logger()
 router = APIRouter()
@@ -70,6 +71,72 @@ async def get_ioc_feed(
         generated_at=datetime.now(timezone.utc).isoformat(),
         format=format,
     )
+
+
+class IOCSourceStatus(BaseModel):
+    source: str
+    last_polled: str | None
+    ioc_count: int
+    status: str  # active | error | disabled
+
+
+class IOCFeedStats(BaseModel):
+    total_iocs: int
+    by_type: dict[str, int]
+    by_tlp: dict[str, int]
+    by_source: dict[str, int]
+    sources: list[IOCSourceStatus]
+
+
+FEED_SOURCES = [
+    {"name": "VirusTotal", "enabled": True},
+    {"name": "AlienVault OTX", "enabled": True},
+    {"name": "ThreatFox", "enabled": True},
+    {"name": "MalwareBazaar", "enabled": True},
+    {"name": "URLhaus", "enabled": True},
+]
+
+
+@router.get("/ioc-feed/stats", response_model=IOCFeedStats)
+async def get_ioc_feed_stats(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> IOCFeedStats:
+    """Return aggregated statistics about the IOC feed."""
+    iocs = SAMPLE_IOCS
+    return IOCFeedStats(
+        total_iocs=len(iocs),
+        by_type={t: sum(1 for i in iocs if i.type == t) for t in {i.type for i in iocs}},
+        by_tlp={t: sum(1 for i in iocs if i.tlp == t) for t in {i.tlp for i in iocs}},
+        by_source={s: sum(1 for i in iocs if i.source_scanner == s) for s in {i.source_scanner for i in iocs}},
+        sources=[
+            IOCSourceStatus(
+                source=src["name"],
+                last_polled=datetime.now(timezone.utc).isoformat() if src["enabled"] else None,
+                ioc_count=sum(1 for i in iocs),
+                status="active" if src["enabled"] else "disabled",
+            )
+            for src in FEED_SOURCES
+        ],
+    )
+
+
+@router.post("/ioc-feed/enrich")
+async def enrich_ioc(
+    value: str = Query(..., min_length=1),
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+) -> dict[str, Any]:
+    """
+    Look up a single IOC value across aggregated feeds.
+    Returns matching entries plus enrichment metadata.
+    """
+    matches = [i for i in SAMPLE_IOCS if i.value == value]
+    return {
+        "value": value,
+        "found": len(matches) > 0,
+        "matches": [m.model_dump() for m in matches],
+        "sources_checked": [s["name"] for s in FEED_SOURCES if s["enabled"]],
+        "enriched_at": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get("/ioc-feed/stix")

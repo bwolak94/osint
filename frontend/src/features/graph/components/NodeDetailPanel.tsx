@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Expand, Scan, MessageSquare, Play } from "lucide-react";
+import { X, Expand, Scan, MessageSquare, Play, Network, Database } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
 import { DataBadge } from "@/shared/components/DataBadge";
@@ -14,6 +15,15 @@ interface NodeDetailPanelProps {
   onExpandNode: (nodeId: string) => void;
   onRunTransform?: (nodeId: string, transformName: string) => void;
 }
+
+type PanelTab = "overview" | "raw" | "related" | "transforms";
+
+const PANEL_TABS: { value: PanelTab; label: string; icon: typeof Network }[] = [
+  { value: "overview", label: "Overview", icon: Network },
+  { value: "raw", label: "Raw Data", icon: Database },
+  { value: "related", label: "Related", icon: Network },
+  { value: "transforms", label: "Actions", icon: Play },
+];
 
 /** Available transforms based on node type */
 function getAvailableTransforms(type: string): { name: string; label: string; description: string }[] {
@@ -64,6 +74,7 @@ function getAvailableTransforms(type: string): { name: string; label: string; de
 }
 
 export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode, onRunTransform }: NodeDetailPanelProps) {
+  const [activeTab, setActiveTab] = useState<PanelTab>("overview");
   const transforms = node ? getAvailableTransforms(node.type) : [];
 
   return (
@@ -95,123 +106,156 @@ export function NodeDetailPanel({ node, connectedNodes, onClose, onExpandNode, o
             </button>
           </div>
 
-          {/* Content */}
+          {/* Tab navigation */}
+          <div className="flex border-b" style={{ borderColor: "var(--border-subtle)" }}>
+            {PANEL_TABS.map((t) => (
+              <button
+                key={t.value}
+                onClick={() => setActiveTab(t.value)}
+                className={`flex flex-1 items-center justify-center gap-1 border-b-2 px-2 py-2 text-[11px] font-medium transition-colors ${
+                  activeTab === t.value
+                    ? "border-brand-500 text-brand-400"
+                    : "border-transparent text-text-secondary hover:text-text-primary"
+                }`}
+              >
+                <t.icon className="h-3 w-3" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab content */}
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-            {/* Confidence */}
-            <div>
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                Confidence
-              </p>
-              <ConfidenceIndicator value={node.confidence} />
-            </div>
 
-            {/* Weight / Child Count stats */}
-            {(node.weight != null && node.weight > 0 || node.childCount != null && node.childCount > 0) && (
-              <div className="flex gap-4">
-                {node.weight != null && node.weight > 0 && (
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                      Connections
-                    </p>
-                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {node.weight}
-                    </p>
-                  </div>
-                )}
-                {node.childCount != null && node.childCount > 0 && (
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                      Children
-                    </p>
-                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {node.childCount}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Properties */}
-            {Object.keys(node.properties).length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                  Properties
-                </p>
-                <div className="space-y-1.5">
-                  {Object.entries(node.properties).map(([key, value]) => (
-                    <div key={key} className="flex items-start justify-between gap-2">
-                      <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{key}</span>
-                      <DataBadge value={String(value)} />
-                    </div>
-                  ))}
+            {/* ── Overview tab ── */}
+            {activeTab === "overview" && (
+              <>
+                <div>
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                    Confidence
+                  </p>
+                  <ConfidenceIndicator value={node.confidence} />
                 </div>
-              </div>
-            )}
 
-            {/* Sources */}
-            <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                Sources
-              </p>
-              <div className="flex flex-wrap gap-1">
-                {node.sources.map((s) => (
-                  <Badge key={s} variant="neutral" size="sm">{s}</Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Available Transforms */}
-            {transforms.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                  Transforms
-                </p>
-                <div className="space-y-1">
-                  {transforms.map((t) => (
-                    <button
-                      key={t.name}
-                      onClick={() => onRunTransform?.(node.id, t.name)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-bg-overlay"
-                    >
-                      <Play className="h-3 w-3 shrink-0" style={{ color: "var(--brand-500)" }} />
-                      <div className="flex-1 min-w-0">
-                        <span className="block truncate font-medium" style={{ color: "var(--text-primary)" }}>
-                          {t.label}
-                        </span>
-                        <span className="block truncate" style={{ color: "var(--text-tertiary)" }}>
-                          {t.description}
-                        </span>
+                {(node.weight != null && node.weight > 0 || node.childCount != null && node.childCount > 0) && (
+                  <div className="flex gap-4">
+                    {node.weight != null && node.weight > 0 && (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                          Connections
+                        </p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                          {node.weight}
+                        </p>
                       </div>
-                    </button>
-                  ))}
+                    )}
+                    {node.childCount != null && node.childCount > 0 && (
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                          Children
+                        </p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                          {node.childCount}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                    Sources
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {node.sources.map((s) => (
+                      <Badge key={s} variant="neutral" size="sm">{s}</Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
-            {/* Connected nodes */}
-            {connectedNodes.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-                  Connected ({connectedNodes.length})
-                </p>
-                <div className="space-y-1">
-                  {connectedNodes.map((cn) => (
-                    <button
-                      key={cn.id}
-                      onClick={() => onExpandNode(cn.id)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-bg-overlay"
-                    >
-                      <NodeTypeIcon type={cn.type} size="sm" />
-                      <span className="flex-1 truncate" style={{ color: "var(--text-primary)" }}>{cn.label}</span>
-                      <span className="text-[10px] uppercase" style={{ color: "var(--text-tertiary)" }}>{cn.relation}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* ── Raw Data tab ── */}
+            {activeTab === "raw" && (
+              <>
+                {Object.keys(node.properties).length > 0 ? (
+                  <div className="space-y-1.5">
+                    {Object.entries(node.properties).map(([key, value]) => (
+                      <div key={key} className="flex items-start justify-between gap-2">
+                        <span className="text-xs shrink-0" style={{ color: "var(--text-secondary)" }}>{key}</span>
+                        <DataBadge value={String(value)} />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-center py-6" style={{ color: "var(--text-tertiary)" }}>
+                    No raw properties available for this node.
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* ── Related tab ── */}
+            {activeTab === "related" && (
+              <>
+                {connectedNodes.length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                      Connected ({connectedNodes.length})
+                    </p>
+                    {connectedNodes.map((cn) => (
+                      <button
+                        key={cn.id}
+                        onClick={() => onExpandNode(cn.id)}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-bg-overlay"
+                      >
+                        <NodeTypeIcon type={cn.type} size="sm" />
+                        <span className="flex-1 truncate" style={{ color: "var(--text-primary)" }}>{cn.label}</span>
+                        <span className="text-[10px] uppercase" style={{ color: "var(--text-tertiary)" }}>{cn.relation}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-center py-6" style={{ color: "var(--text-tertiary)" }}>
+                    No connected nodes found. Try expanding connections first.
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* ── Transforms / Actions tab ── */}
+            {activeTab === "transforms" && (
+              <>
+                {transforms.length > 0 ? (
+                  <div className="space-y-1">
+                    {transforms.map((t) => (
+                      <button
+                        key={t.name}
+                        onClick={() => onRunTransform?.(node.id, t.name)}
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-bg-overlay"
+                      >
+                        <Play className="h-3 w-3 shrink-0" style={{ color: "var(--brand-500)" }} />
+                        <div className="flex-1 min-w-0">
+                          <span className="block truncate font-medium" style={{ color: "var(--text-primary)" }}>
+                            {t.label}
+                          </span>
+                          <span className="block truncate" style={{ color: "var(--text-tertiary)" }}>
+                            {t.description}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-center py-6" style={{ color: "var(--text-tertiary)" }}>
+                    No transforms available for this node type.
+                  </p>
+                )}
+              </>
             )}
           </div>
 
-          {/* Actions */}
+          {/* Actions footer */}
           <div className="border-t px-4 py-3 space-y-2" style={{ borderColor: "var(--border-subtle)" }}>
             <Button variant="secondary" size="sm" className="w-full" leftIcon={<Expand className="h-3.5 w-3.5" />} onClick={() => onExpandNode(node.id)}>
               Expand Connections

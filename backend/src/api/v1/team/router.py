@@ -145,8 +145,8 @@ async def add_team_member(
 
 @router.delete(
     "/engagements/{engagement_id}/team/{user_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT, response_model=None,
+    
 )
 async def remove_team_member(
     engagement_id: uuid.UUID,

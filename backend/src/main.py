@@ -1,6 +1,9 @@
 """FastAPI application entry point."""
 
+import importlib
+import pkgutil
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 import structlog
@@ -14,160 +17,218 @@ from src.adapters.db.database import engine
 from src.api.middleware.correlation import CorrelationIdMiddleware
 from src.api.middleware.rate_limit import RateLimitMiddleware
 from src.api.middleware.security import RequestLoggingMiddleware, SecurityHeadersMiddleware
-from src.api.v1.auth.router import router as auth_router
-from src.api.v1.health import router as health_router
-from src.api.v1.metrics import router as metrics_router
-from src.api.v1.graph.router import router as graph_router
-from src.api.v1.investigations.graph_router import router as investigations_graph_router
-from src.api.v1.investigations.router import router as investigations_router
-from src.api.v1.investigations.websocket import router as ws_router
-from src.api.v1.payments.router import router as payments_router
-from src.api.v1.admin.router import router as admin_router
-from src.api.v1.auth.totp import router as totp_router
-from src.api.v1.auth.webauthn import router as webauthn_router
-from src.api.v1.auth.sessions import router as sessions_router
-from src.api.v1.investigations.report import router as report_router
-from src.api.v1.settings.router import router as settings_router
-from src.api.v1.settings.webhooks import router as webhooks_router
-from src.api.v1.investigations.comments import router as comments_router
-from src.api.v1.investigations.summarize import router as summarize_router
-from src.api.v1.search import router as search_router
-from src.api.v1.workspaces import router as workspaces_router
-from src.api.v1.public_api import router as public_api_router
-from src.api.v1.playbooks import router as playbooks_router
-from src.api.v1.maltego import router as maltego_router
-from src.api.v1.search_fulltext import router as search_fulltext_router
-from src.api.v1.chat import router as chat_router
-from src.api.v1.nl_query import router as nl_query_router
-from src.api.v1.watchlist import router as watchlist_router
-from src.api.v1.webhook_triggers import router as webhook_triggers_router
-from src.api.v1.investigations.fork import router as fork_router
-from src.api.v1.playbook_conditions import router as playbook_conditions_router
-from src.api.v1.presence import router as presence_router
-from src.api.v1.mentions import router as mentions_router
-from src.api.v1.report_schedules import router as report_schedules_router
-from src.api.v1.report_builder import router as report_builder_router
-from src.api.v1.task_board import router as task_board_router
-from src.api.v1.templates import router as templates_router
-from src.api.v1.integrations import router as integrations_router
-from src.api.v1.ticketing import router as ticketing_router
-from src.api.v1.graph_analytics import router as graph_analytics_router
-from src.api.v1.evidence.router import router as evidence_router
-from src.api.v1.investigation_diff import router as investigation_diff_router
-from src.api.v1.saved_searches import router as saved_searches_router
-from src.api.v1.lineage import router as lineage_router
-from src.api.v1.versioning import router as versioning_router
-from src.api.v1.redaction import router as redaction_router
-from src.api.v1.report_narrative import router as report_narrative_router
-from src.api.v1.email_ingestion import router as email_ingestion_router
-from src.api.v1.browser_extension import router as browser_extension_router
-from src.api.graphql.router import router as graphql_router
-from src.api.v1.api_versions import router as api_versions_router
-from src.api.v1.ml import router as ml_router
-from src.api.v1.bulk_actions import router as bulk_actions_router
-from src.api.v1.campaigns import router as campaigns_router
-from src.api.v1.annotations import router as annotations_router
-from src.api.v1.scan_profiles import router as scan_profiles_router
-from src.api.v1.share_links import router as share_links_router
-from src.api.v1.activity_feed import router as activity_feed_router
-from src.api.v1.sse import router as sse_router
-from src.api.v1.investigation_merge import router as investigation_merge_router
-from src.api.v1.tlp import router as tlp_router
-from src.api.v1.retention import router as retention_router
-from src.api.v1.image_checker.router import router as image_checker_router
-from src.api.v1.doc_metadata.router import router as doc_metadata_router
-from src.api.v1.email_headers.router import router as email_headers_router
-from src.api.v1.mac_lookup.router import router as mac_lookup_router
-from src.api.v1.domain_permutation.router import router as domain_permutation_router
-from src.api.v1.cloud_exposure.router import router as cloud_exposure_router
-from src.api.v1.stealer_logs.router import router as stealer_logs_router
-from src.api.v1.supply_chain.router import router as supply_chain_router
-from src.api.v1.fediverse.router import router as fediverse_router
-from src.api.v1.wigle.router import router as wigle_router
-from src.api.v1.tech_recon.router import router as tech_recon_router
-from src.api.v1.socmint.router import router as socmint_router
-from src.api.v1.credential_intel.router import router as credential_intel_router
-from src.api.v1.imint.router import router as imint_router
-from src.api.v1.pentesting.router import router as pentesting_router
-from src.api.v1.redteam.router import router as redteam_router
-from src.api.v1.engagements.router import router as engagements_router
-from src.api.v1.pentest_scans.router import router as pentest_scans_router
-from src.api.v1.pentest_scans.llm_router import router as pentest_llm_router
-from src.api.v1.pentest_findings.router import router as pentest_findings_router
-from src.api.v1.pentest_reports.router import router as pentest_reports_router
-from src.api.v1.pentest_audit.router import router as pentest_audit_router
-from src.api.v1.rag.router import router as rag_router
-from src.api.v1.hitl.router import router as hitl_router
-from src.api.v1.attack_chains.router import router as attack_chains_router
-from src.api.v1.investigations.pentest_integration import (
-    investigations_router as pentest_integration_investigations_router,
-    scans_router as pentest_integration_scans_router,
-)
-from src.api.v1.ai_planner.router import router as ai_planner_router
-from src.api.v1.test_catalog.router import router as test_catalog_router
-from src.api.v1.bas.router import router as bas_router
-from src.api.v1.sarif.router import router as sarif_router
-from src.api.v1.finding_library.router import router as finding_library_router
-from src.api.v1.retest.router import router as retest_router
-from src.api.v1.notifications.router import router as notifications_router
-from src.api.v1.api_keys.router import router as api_keys_router
-from src.api.v1.pentest_integrations.jira_router import router as jira_router
-from src.api.v1.pentest_integrations.siem_router import router as siem_router
-from src.api.v1.pentest_scans.cvss_router import router as cvss_router
-from src.api.v1.pentest_findings.dedup_router import router as dedup_router
-from src.api.v1.team.router import router as team_router
-from src.api.v1.assets.router import router as assets_router
-from src.api.v1.phishing.router import router as phishing_router
-from src.api.v1.peer_review.router import router as peer_review_router
-from src.api.v1.agent.router import router as agent_router
-from src.api.v1.hub.router import router as hub_router
-from src.api.v1.hub_tasks.router import router as hub_tasks_router
-from src.api.v1.knowledge.router import router as knowledge_router
-from src.api.v1.threat_actors import router as threat_actors_router
-from src.api.v1.scanner_health import router as scanner_health_router
-from src.api.v1.dark_web import router as dark_web_router
-from src.api.v1.passive_dns import router as passive_dns_router
-from src.api.v1.footprint import router as footprint_router
-from src.api.v1.phone_intel import router as phone_intel_router
-from src.api.v1.social_graph import router as social_graph_router
-from src.api.v1.brand_protection import router as brand_protection_router
-from src.api.v1.cert_transparency import router as cert_transparency_router
-from src.api.v1.crypto_trace import router as crypto_trace_router
-from src.api.v1.corporate_intel import router as corporate_intel_router
-from src.api.v1.deep_research import router as deep_research_router
-from src.api.v1.correlation import router as correlation_router
-from src.api.v1.evidence_locker import router as evidence_locker_router
-from src.api.v1.vuln_management import router as vuln_management_router
-from src.api.v1.phishing_campaigns import router as phishing_campaigns_router
-from src.api.v1.exploit_chain import router as exploit_chain_router
-from src.api.v1.c2_integration import router as c2_integration_router
-from src.api.v1.network_topology import router as network_topology_router
-from src.api.v1.methodology import router as methodology_router
-from src.api.v1.collaboration import router as collaboration_router
-from src.api.v1.retest_engine import router as retest_engine_router
-from src.api.v1.client_portal import router as client_portal_router
-from src.api.v1.secure_notes import router as secure_notes_router
-from src.api.v1.time_tracking import router as time_tracking_router
-from src.api.v1.sla import router as sla_router
-from src.api.v1.ai_debrief import router as ai_debrief_router
-from src.api.v1.threat_feed import router as threat_feed_router
-from src.api.v1.canary import router as canary_router
-from src.api.v1.custom_scanner import router as custom_scanner_router
-from src.api.v1.knowledge_base import router as knowledge_base_router
-from src.api.v1.client_handoff import router as client_handoff_router
-from src.api.v1.auth.tos import router as tos_router
-from src.api.v1.scenarios.marketplace_router import router as marketplace_router
-from src.api.v1.workflows.n8n_router import router as n8n_router
-from src.api.v1.tools.custom_tools_router import router as custom_tools_router
-from src.api.v1.rbac.router import router as rbac_router
-from src.api.v1.gdpr.router import router as gdpr_compliance_router
-from src.api.v1.auth.sso import router as sso_router
-from src.api.middleware.locale import LocaleMiddleware
 from src.config import get_settings
 
+log = structlog.get_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Router auto-discovery
+# ---------------------------------------------------------------------------
+
+_ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
+    # (module_path, attr_name, prefix, tags)
+
+    # ── Infrastructure ────────────────────────────────────────────────────────
+    ("src.api.v1.health", "router", "/health", ["health"]),
+    ("src.api.v1.metrics", "router", "/metrics", ["metrics"]),
+
+    # ── Auth & sessions ───────────────────────────────────────────────────────
+    ("src.api.v1.auth.router", "router", "/api/v1/auth", ["auth"]),
+    ("src.api.v1.investigations.router", "router", "/api/v1/investigations", ["investigations"]),
+    ("src.api.v1.investigations.websocket", "router", "/api/v1/investigations", ["websocket"]),
+    ("src.api.v1.investigations.graph_router", "router", "/api/v1/investigations", ["graph"]),
+    ("src.api.v1.graph.router", "router", "/api/v1/graph", ["graph"]),
+    ("src.api.v1.settings.router", "router", "/api/v1/settings", ["settings"]),
+    ("src.api.v1.payments.router", "router", "/api/v1/payments", ["payments"]),
+    ("src.api.v1.admin.router", "router", "/api/v1/admin", ["admin"]),
+    ("src.api.v1.auth.totp", "router", "/api/v1/auth", ["2fa"]),
+    ("src.api.v1.auth.webauthn", "router", "/api/v1/auth", ["webauthn"]),
+    ("src.api.v1.auth.sessions", "router", "/api/v1/auth", ["sessions"]),
+    ("src.api.v1.auth.tos", "router", "/api/v1/auth", ["auth-tos"]),
+    ("src.api.v1.auth.sso", "router", "/api/v1", ["sso"]),
+
+    # ── Investigations ────────────────────────────────────────────────────────
+    ("src.api.v1.investigations.report", "router", "/api/v1/investigations", ["reports"]),
+    ("src.api.v1.investigations.comments", "router", "/api/v1/investigations", ["comments"]),
+    ("src.api.v1.investigations.fork", "router", "/api/v1/investigations", ["investigations"]),
+    ("src.api.v1.investigations.summarize", "router", "/api/v1/investigations", ["ai"]),
+    ("src.api.v1.settings.webhooks", "router", "/api/v1/settings", ["webhooks"]),
+    # ── Core platform ─────────────────────────────────────────────────────────
+    ("src.api.v1.search", "router", "/api/v1", ["search"]),
+    ("src.api.v1.search_fulltext", "router", "/api/v1", ["search"]),
+    ("src.api.v1.workspaces", "router", "/api/v1/workspaces", ["workspaces"]),
+    ("src.api.v1.public_api", "router", "/api/v1/public", ["public-api"]),
+    ("src.api.v1.playbooks", "router", "/api/v1/playbooks", ["playbooks"]),
+    ("src.api.v1.playbook_conditions", "router", "/api/v1", ["playbooks"]),
+    ("src.api.v1.maltego", "router", "/api/v1", ["maltego"]),
+    ("src.api.v1.chat", "router", "/api/v1", ["ai"]),
+    ("src.api.v1.nl_query", "router", "/api/v1", ["ai"]),
+    ("src.api.v1.watchlist", "router", "/api/v1", ["watchlist"]),
+    ("src.api.v1.webhook_triggers", "router", "/api/v1", ["webhooks"]),
+    ("src.api.v1.presence", "router", "/api/v1", ["collaboration"]),
+    ("src.api.v1.mentions", "router", "/api/v1", ["collaboration"]),
+    ("src.api.v1.report_schedules", "router", "/api/v1", ["reports"]),
+    ("src.api.v1.report_builder", "router", "/api/v1", ["reports"]),
+    ("src.api.v1.task_board", "router", "/api/v1", ["tasks"]),
+    ("src.api.v1.templates", "router", "/api/v1", ["templates"]),
+    ("src.api.v1.integrations", "router", "/api/v1", ["integrations"]),
+    ("src.api.v1.ticketing", "router", "/api/v1", ["ticketing"]),
+    ("src.api.v1.graph_analytics", "router", "/api/v1", ["graph"]),
+    ("src.api.v1.evidence.router", "router", "/api/v1", ["evidence"]),
+    ("src.api.v1.investigation_diff", "router", "/api/v1", ["investigations"]),
+    ("src.api.v1.saved_searches", "router", "/api/v1", ["saved-searches"]),
+    ("src.api.v1.lineage", "router", "/api/v1", ["lineage"]),
+    ("src.api.v1.versioning", "router", "/api/v1", ["versioning"]),
+    ("src.api.v1.redaction", "router", "/api/v1", ["redaction"]),
+    ("src.api.v1.report_narrative", "router", "/api/v1", ["reports"]),
+    ("src.api.v1.email_ingestion", "router", "/api/v1", ["ingestion"]),
+    ("src.api.v1.browser_extension", "router", "/api/v1", ["extension"]),
+    ("src.api.graphql.router", "router", "/api", ["graphql"]),
+    ("src.api.v1.api_versions", "router", "/api/v1", ["api-versions"]),
+    ("src.api.v1.ml", "router", "/api/v1", ["ml"]),
+    ("src.api.v1.bulk_actions", "router", "/api/v1", ["bulk"]),
+    ("src.api.v1.campaigns", "router", "/api/v1/campaigns", ["campaigns"]),
+    ("src.api.v1.annotations", "router", "/api/v1", ["annotations"]),
+    ("src.api.v1.scan_profiles", "router", "/api/v1/scan-profiles", ["scan-profiles"]),
+    ("src.api.v1.share_links", "router", "/api/v1", ["share-links"]),
+    ("src.api.v1.activity_feed", "router", "/api/v1", ["activity"]),
+    ("src.api.v1.sse", "router", "/api/v1", ["streaming"]),
+    ("src.api.v1.investigation_merge", "router", "/api/v1/investigations", ["investigations"]),
+    ("src.api.v1.ioc_feed", "router", "/api/v1", ["ioc-feed"]),
+    ("src.api.v1.attack_surface", "router", "/api/v1", ["attack-surface"]),
+    ("src.api.v1.forensic_timeline", "router", "/api/v1", ["forensic-timeline"]),
+    ("src.api.v1.multi_investigation_graph", "router", "/api/v1", ["multi-graph"]),
+    ("src.api.v1.tlp", "router", "/api/v1", ["tlp"]),
+    ("src.api.v1.retention", "router", "/api/v1/retention", ["retention"]),
+    ("src.api.v1.image_checker.router", "router", "/api/v1/image-checker", ["image-checker"]),
+    ("src.api.v1.doc_metadata.router", "router", "/api/v1/doc-metadata", ["doc-metadata"]),
+    ("src.api.v1.email_headers.router", "router", "/api/v1/email-headers", ["email-headers"]),
+    ("src.api.v1.mac_lookup.router", "router", "/api/v1/mac-lookup", ["mac-lookup"]),
+    ("src.api.v1.domain_permutation.router", "router", "/api/v1/domain-permutation", ["domain-permutation"]),
+    ("src.api.v1.cloud_exposure.router", "router", "/api/v1/cloud-exposure", ["cloud-exposure"]),
+    ("src.api.v1.stealer_logs.router", "router", "/api/v1/stealer-logs", ["stealer-logs"]),
+    ("src.api.v1.supply_chain.router", "router", "/api/v1/supply-chain", ["supply-chain"]),
+    ("src.api.v1.fediverse.router", "router", "/api/v1/fediverse", ["fediverse"]),
+    ("src.api.v1.wigle.router", "router", "/api/v1/wigle", ["wigle"]),
+    ("src.api.v1.tech_recon.router", "router", "/api/v1/tech-recon", ["tech-recon"]),
+    ("src.api.v1.socmint.router", "router", "/api/v1/socmint", ["socmint"]),
+    ("src.api.v1.credential_intel.router", "router", "/api/v1/credential-intel", ["credential-intel"]),
+    ("src.api.v1.imint.router", "router", "/api/v1/imint", ["imint"]),
+    # ── Pentesting platform ───────────────────────────────────────────────────
+    ("src.api.v1.pentesting.router", "router", "/api/v1/pentesting", ["pentesting"]),
+    ("src.api.v1.redteam.router", "router", "/api/v1/redteam", ["red-team"]),
+    ("src.api.v1.engagements.router", "router", "/api/v1/engagements", ["pentest-engagements"]),
+    ("src.api.v1.pentest_scans.router", "router", "/api/v1/scans", ["pentest-scans"]),
+    ("src.api.v1.pentest_scans.llm_router", "router", "/api/v1/scans", ["pentest-llm"]),
+    ("src.api.v1.pentest_scans.cvss_router", "router", "/api/v1", ["cvss"]),
+    ("src.api.v1.pentest_findings.router", "router", "/api/v1/findings", ["pentest-findings"]),
+    ("src.api.v1.pentest_findings.dedup_router", "router", "/api/v1", ["pentest-findings-dedup"]),
+    ("src.api.v1.pentest_reports.router", "router", "/api/v1", ["pentest-reports"]),
+    ("src.api.v1.pentest_audit.router", "router", "/api/v1/audit-log", ["pentest-audit"]),
+    ("src.api.v1.hitl.router", "router", "/api/v1/hitl", ["pentest-hitl"]),
+    ("src.api.v1.attack_chains.router", "router", "/api/v1/scans", ["pentest-attack-chains"]),
+    ("src.api.v1.rag.router", "router", "/api/v1", ["rag"]),
+    ("src.api.v1.ai_planner.router", "router", "/api/v1", ["ai-planner"]),
+    ("src.api.v1.test_catalog.router", "router", "/api/v1", ["test-catalog"]),
+    ("src.api.v1.bas.router", "router", "/api/v1/bas", ["bas"]),
+    ("src.api.v1.sarif.router", "router", "/api/v1", ["pentest-export"]),
+    ("src.api.v1.finding_library.router", "router", "/api/v1/finding-library", ["finding-library"]),
+    ("src.api.v1.retest.router", "router", "/api/v1", ["retest"]),
+    ("src.api.v1.notifications.router", "router", "/api/v1/notifications", ["notifications"]),
+    ("src.api.v1.api_keys.router", "router", "/api/v1/api-keys", ["api-keys"]),
+    ("src.api.v1.pentest_integrations.jira_router", "router", "/api/v1/integrations", ["integrations"]),
+    ("src.api.v1.pentest_integrations.siem_router", "router", "/api/v1/integrations", ["integrations-siem"]),
+    ("src.api.v1.team.router", "router", "/api/v1", ["team"]),
+    ("src.api.v1.assets.router", "router", "/api/v1", ["assets"]),
+    ("src.api.v1.phishing.router", "router", "/api/v1", ["phishing"]),
+    ("src.api.v1.peer_review.router", "router", "/api/v1", ["peer-review"]),
+    ("src.api.v1.agent.router", "router", "/api/v1", ["agent"]),
+    ("src.api.v1.hub.router", "router", "/api/v1", ["hub"]),
+    ("src.api.v1.hub_tasks.router", "router", "/api/v1", ["hub-tasks"]),
+    ("src.api.v1.knowledge.router", "router", "/api/v1", ["knowledge"]),
+    ("src.api.v1.threat_actors", "router", "/api/v1", ["threat-actors"]),
+    # ── OSINT scanners & analysis ─────────────────────────────────────────────
+    ("src.api.v1.scanner_health", "router", "/api/v1", ["scanners"]),
+    ("src.api.v1.dark_web", "router", "/api/v1", ["dark-web"]),
+    ("src.api.v1.passive_dns", "router", "/api/v1", ["passive-dns"]),
+    ("src.api.v1.footprint", "router", "/api/v1", ["footprint"]),
+    ("src.api.v1.cert_transparency", "router", "/api/v1", ["cert-transparency"]),
+    ("src.api.v1.crypto_trace", "router", "/api/v1", ["crypto-trace"]),
+    ("src.api.v1.corporate_intel", "router", "/api/v1", ["corporate-intel"]),
+    ("src.api.v1.deep_research", "router", "/api/v1", ["deep-research"]),
+    ("src.api.v1.phone_intel", "router", "/api/v1", ["phone-intel"]),
+    ("src.api.v1.social_graph", "router", "/api/v1", ["social-graph"]),
+    ("src.api.v1.brand_protection", "router", "/api/v1", ["brand-protection"]),
+    ("src.api.v1.correlation", "router", "/api/v1", ["correlation"]),
+    ("src.api.v1.evidence_locker", "router", "/api/v1", ["evidence-locker"]),
+    ("src.api.v1.vuln_management", "router", "/api/v1", ["vuln-management"]),
+    ("src.api.v1.phishing_campaigns", "router", "/api/v1", ["phishing-campaigns"]),
+    ("src.api.v1.exploit_chain", "router", "/api/v1", ["exploit-chain"]),
+    ("src.api.v1.c2_integration", "router", "/api/v1", ["c2-integration"]),
+    ("src.api.v1.network_topology", "router", "/api/v1", ["network-topology"]),
+    ("src.api.v1.methodology", "router", "/api/v1", ["methodology"]),
+    ("src.api.v1.collaboration", "router", "/api/v1", ["collaboration"]),
+    ("src.api.v1.retest_engine", "router", "/api/v1", ["retest-engine"]),
+    ("src.api.v1.client_portal", "router", "/api/v1", ["client-portal"]),
+    ("src.api.v1.secure_notes", "router", "/api/v1", ["secure-notes"]),
+    ("src.api.v1.time_tracking", "router", "/api/v1", ["time-tracking"]),
+    ("src.api.v1.sla", "router", "/api/v1", ["sla"]),
+    ("src.api.v1.ai_debrief", "router", "/api/v1", ["ai-debrief"]),
+    ("src.api.v1.threat_feed", "router", "/api/v1", ["threat-feed"]),
+    ("src.api.v1.canary", "router", "/api/v1", ["canary"]),
+    ("src.api.v1.custom_scanner", "router", "/api/v1", ["custom-scanner"]),
+    ("src.api.v1.knowledge_base", "router", "/api/v1", ["knowledge-base"]),
+    ("src.api.v1.client_handoff", "router", "/api/v1", ["client-handoff"]),
+    ("src.api.v1.scenarios.marketplace_router", "router", "/api/v1", ["scenario-marketplace"]),
+    ("src.api.v1.workflows.n8n_router", "router", "/api/v1", ["n8n-workflows"]),
+    ("src.api.v1.tools.custom_tools_router", "router", "/api/v1", ["custom-tools"]),
+    ("src.api.v1.rbac.router", "router", "/api/v1", ["rbac"]),
+    ("src.api.v1.gdpr.router", "router", "/api/v1", ["gdpr-compliance"]),
+    # OSINT ↔ Pentest integration bridge
+    ("src.api.v1.investigations.pentest_integration", "investigations_router", "/api/v1/investigations", ["osint-pentest-integration"]),
+    ("src.api.v1.investigations.pentest_integration", "scans_router", "/api/v1/scans", ["osint-pentest-integration"]),
+    # ── New features (batch 2) ────────────────────────────────────────────────
+    ("src.api.v1.investigation_risk_score", "router", "/api/v1", ["risk-score"]),
+    ("src.api.v1.stix_export", "router", "/api/v1", ["stix-export"]),
+    ("src.api.v1.investigation_acl", "router", "/api/v1", ["investigation-acl"]),
+    ("src.api.v1.scanner_quota", "router", "/api/v1", ["scanner-quota"]),
+    ("src.api.v1.scheduled_rescan", "router", "/api/v1", ["scheduled-rescan"]),
+    ("src.api.v1.pivot_recommendations", "router", "/api/v1", ["pivot-recommendations"]),
+    ("src.api.v1.attack_flow", "router", "/api/v1", ["attack-flow"]),
+]
+
+
+def _include_all_routers(application: FastAPI) -> None:
+    """Register all routers from the registry.
+
+    In production (debug=False) any router that fails to import raises immediately
+    so a misconfigured deployment is caught at startup rather than silently serving
+    incomplete endpoints.  In debug mode, the error is logged and skipped so
+    developers can work with partially-installed optional modules.
+    """
+    settings = get_settings()
+    for module_path, attr_name, prefix, tags in _ROUTER_REGISTRY:
+        try:
+            module = importlib.import_module(module_path)
+            router = getattr(module, attr_name)
+            application.include_router(router, prefix=prefix, tags=tags)
+        except (ImportError, AttributeError) as exc:
+            if settings.debug:
+                log.warning("router_load_failed", module=module_path, attr=attr_name, error=str(exc))
+            else:
+                raise RuntimeError(
+                    f"Failed to load router '{module_path}.{attr_name}': {exc}. "
+                    "Fix the import error or set DEBUG=true to skip missing routers."
+                ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Structured logging
+# ---------------------------------------------------------------------------
 
 def configure_logging() -> None:
     """Initialize structured logging with structlog."""
+    import structlog
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -187,20 +248,18 @@ def configure_logging() -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# Lifespan
+# ---------------------------------------------------------------------------
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
-    log = structlog.get_logger()
-
-    # Startup
     await log.ainfo("Starting OSINT platform backend")
 
-    # Database pool is initialized lazily by SQLAlchemy on first use.
-    # Redis connection for rate limiting / caching.
     settings = get_settings()
     try:
         import redis.asyncio as aioredis
-
         app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
         await app.state.redis.ping()
         await log.ainfo("Redis connection established")
@@ -208,10 +267,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await log.awarn("Redis not available, rate limiting disabled", error=str(exc))
         app.state.redis = None
 
-    # Elasticsearch index setup
     try:
         from src.adapters.search.elasticsearch_store import ElasticsearchStore
-
         es = ElasticsearchStore()
         await es.ensure_indices()
         app.state.elasticsearch = es
@@ -220,23 +277,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await log.awarn("Elasticsearch not available", error=str(exc))
         app.state.elasticsearch = None
 
-    # Ensure audit log table is registered with SQLAlchemy metadata
     from src.adapters.db.audit_models import AuditLogModel  # noqa: F401
+
+    if not settings.debug and settings.proxy_mode == "direct":
+        await log.awarn(
+            "opsec_warning",
+            message=(
+                "proxy_mode is 'direct': all scanner traffic originates from this server's real IP. "
+                "Set PROXY_MODE=tor or PROXY_MODE=socks5 in production to protect investigator identity."
+            ),
+        )
 
     yield
 
-    # Shutdown
     await log.ainfo("Shutting down OSINT platform backend")
-
     if getattr(app.state, "elasticsearch", None) is not None:
         await app.state.elasticsearch.close()
-
     if getattr(app.state, "redis", None) is not None:
         await app.state.redis.close()
-
     await engine.dispose()
     await log.ainfo("Database pool disposed")
 
+
+# ---------------------------------------------------------------------------
+# App factory
+# ---------------------------------------------------------------------------
 
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application."""
@@ -250,238 +315,61 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # OpenTelemetry (no-op when OTEL_ENABLED=false)
     from src.adapters.telemetry import setup_telemetry
     setup_telemetry(application)
 
-    # Middleware (order matters: outermost first)
+    # Middleware (outermost first)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=settings.cors_allow_methods,
+        allow_headers=settings.cors_allow_headers,
     )
     application.add_middleware(CorrelationIdMiddleware)
     application.add_middleware(RateLimitMiddleware)
     application.add_middleware(SecurityHeadersMiddleware)
     application.add_middleware(RequestLoggingMiddleware)
-    application.add_middleware(LocaleMiddleware)
 
-    # Global exception handlers for consistent JSON error responses
+    try:
+        from src.api.middleware.locale import LocaleMiddleware
+        application.add_middleware(LocaleMiddleware)
+    except ImportError:
+        pass
+
+    # Global exception handlers
     @application.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,
-            content={"error": exc.detail, "code": f"HTTP_{exc.status_code}", "details": None},
+            content={
+                "error": exc.detail,
+                "code": f"HTTP_{exc.status_code}",
+                "details": None,
+            },
         )
 
     @application.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        def _sanitize(obj: object) -> object:
+            if isinstance(obj, bytes):
+                return obj.decode("utf-8", errors="replace")
+            if isinstance(obj, dict):
+                return {k: _sanitize(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [_sanitize(i) for i in obj]
+            return obj
+
         return JSONResponse(
             status_code=422,
-            content={"error": "Validation error", "code": "VALIDATION_ERROR", "details": exc.errors()},
+            content={
+                "error": "Validation error",
+                "code": "VALIDATION_ERROR",
+                "details": _sanitize(exc.errors()),
+            },
         )
 
-    # Health check and metrics routers
-    application.include_router(health_router)
-    application.include_router(metrics_router)
-
-    # Routers
-    application.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
-    application.include_router(investigations_router, prefix="/api/v1/investigations", tags=["investigations"])
-    application.include_router(ws_router, prefix="/api/v1/investigations", tags=["websocket"])
-    application.include_router(investigations_graph_router, prefix="/api/v1/investigations", tags=["graph"])
-    application.include_router(graph_router, prefix="/api/v1/graph", tags=["graph"])
-    application.include_router(settings_router, prefix="/api/v1/settings", tags=["settings"])
-    application.include_router(payments_router, prefix="/api/v1/payments", tags=["payments"])
-    application.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
-    application.include_router(totp_router, prefix="/api/v1/auth", tags=["2fa"])
-    application.include_router(webauthn_router, prefix="/api/v1/auth", tags=["webauthn"])
-    application.include_router(sessions_router, prefix="/api/v1/auth", tags=["sessions"])
-    application.include_router(report_router, prefix="/api/v1/investigations", tags=["reports"])
-    application.include_router(comments_router, prefix="/api/v1/investigations", tags=["comments"])
-    application.include_router(webhooks_router, prefix="/api/v1/settings", tags=["webhooks"])
-    application.include_router(summarize_router, prefix="/api/v1/investigations", tags=["ai"])
-    application.include_router(search_router, prefix="/api/v1", tags=["search"])
-    application.include_router(workspaces_router, prefix="/api/v1/workspaces", tags=["workspaces"])
-    application.include_router(public_api_router, prefix="/api/v1/public", tags=["public-api"])
-    application.include_router(playbooks_router, prefix="/api/v1/playbooks", tags=["playbooks"])
-    application.include_router(maltego_router, prefix="/api/v1", tags=["maltego"])
-    application.include_router(search_fulltext_router, prefix="/api/v1", tags=["search"])
-    application.include_router(chat_router, prefix="/api/v1", tags=["ai"])
-    application.include_router(nl_query_router, prefix="/api/v1", tags=["ai"])
-    application.include_router(watchlist_router, prefix="/api/v1", tags=["watchlist"])
-    application.include_router(webhook_triggers_router, prefix="/api/v1", tags=["webhooks"])
-    application.include_router(fork_router, prefix="/api/v1/investigations", tags=["investigations"])
-    application.include_router(playbook_conditions_router, prefix="/api/v1", tags=["playbooks"])
-    application.include_router(presence_router, prefix="/api/v1", tags=["collaboration"])
-    application.include_router(mentions_router, prefix="/api/v1", tags=["collaboration"])
-    application.include_router(report_schedules_router, prefix="/api/v1", tags=["reports"])
-    application.include_router(report_builder_router, prefix="/api/v1", tags=["reports"])
-    application.include_router(task_board_router, prefix="/api/v1", tags=["tasks"])
-    application.include_router(templates_router, prefix="/api/v1", tags=["templates"])
-    application.include_router(integrations_router, prefix="/api/v1", tags=["integrations"])
-    application.include_router(ticketing_router, prefix="/api/v1", tags=["ticketing"])
-    application.include_router(graph_analytics_router, prefix="/api/v1", tags=["graph"])
-    application.include_router(evidence_router, prefix="/api/v1", tags=["evidence"])
-    application.include_router(investigation_diff_router, prefix="/api/v1", tags=["investigations"])
-    application.include_router(saved_searches_router, prefix="/api/v1", tags=["saved-searches"])
-    application.include_router(lineage_router, prefix="/api/v1", tags=["lineage"])
-    application.include_router(versioning_router, prefix="/api/v1", tags=["versioning"])
-    application.include_router(redaction_router, prefix="/api/v1", tags=["redaction"])
-    application.include_router(report_narrative_router, prefix="/api/v1", tags=["reports"])
-    application.include_router(email_ingestion_router, prefix="/api/v1", tags=["ingestion"])
-    application.include_router(browser_extension_router, prefix="/api/v1", tags=["extension"])
-    application.include_router(graphql_router, prefix="/api", tags=["graphql"])
-    application.include_router(api_versions_router, prefix="/api/v1", tags=["api-versions"])
-    application.include_router(ml_router, prefix="/api/v1", tags=["ml"])
-    application.include_router(bulk_actions_router, prefix="/api/v1", tags=["bulk"])
-    application.include_router(campaigns_router, prefix="/api/v1/campaigns", tags=["campaigns"])
-    application.include_router(annotations_router, prefix="/api/v1", tags=["annotations"])
-    application.include_router(scan_profiles_router, prefix="/api/v1/scan-profiles", tags=["scan-profiles"])
-    application.include_router(share_links_router, prefix="/api/v1", tags=["share-links"])
-    application.include_router(activity_feed_router, prefix="/api/v1", tags=["activity"])
-    application.include_router(sse_router, prefix="/api/v1", tags=["streaming"])
-    application.include_router(investigation_merge_router, prefix="/api/v1/investigations", tags=["investigations"])
-    application.include_router(tlp_router, prefix="/api/v1", tags=["tlp"])
-    application.include_router(retention_router, prefix="/api/v1/retention", tags=["retention"])
-    application.include_router(image_checker_router, prefix="/api/v1/image-checker", tags=["image-checker"])
-    application.include_router(doc_metadata_router, prefix="/api/v1/doc-metadata", tags=["doc-metadata"])
-    application.include_router(email_headers_router, prefix="/api/v1/email-headers", tags=["email-headers"])
-    application.include_router(mac_lookup_router, prefix="/api/v1/mac-lookup", tags=["mac-lookup"])
-    application.include_router(domain_permutation_router, prefix="/api/v1/domain-permutation", tags=["domain-permutation"])
-    application.include_router(cloud_exposure_router, prefix="/api/v1/cloud-exposure", tags=["cloud-exposure"])
-    application.include_router(stealer_logs_router, prefix="/api/v1/stealer-logs", tags=["stealer-logs"])
-    application.include_router(supply_chain_router, prefix="/api/v1/supply-chain", tags=["supply-chain"])
-    application.include_router(fediverse_router, prefix="/api/v1/fediverse", tags=["fediverse"])
-    application.include_router(wigle_router, prefix="/api/v1/wigle", tags=["wigle"])
-    application.include_router(tech_recon_router, prefix="/api/v1/tech-recon", tags=["tech-recon"])
-    application.include_router(socmint_router, prefix="/api/v1/socmint", tags=["socmint"])
-    application.include_router(credential_intel_router, prefix="/api/v1/credential-intel", tags=["credential-intel"])
-    application.include_router(imint_router, prefix="/api/v1/imint", tags=["imint"])
-    application.include_router(pentesting_router, prefix="/api/v1/pentesting", tags=["pentesting"])
-    application.include_router(redteam_router, prefix="/api/v1/redteam", tags=["red-team"])
-
-    # PentAI module routers
-    application.include_router(engagements_router, prefix="/api/v1/engagements", tags=["pentest-engagements"])
-    application.include_router(pentest_scans_router, prefix="/api/v1/scans", tags=["pentest-scans"])
-    application.include_router(pentest_llm_router, prefix="/api/v1/scans", tags=["pentest-llm"])
-    application.include_router(pentest_findings_router, prefix="/api/v1/findings", tags=["pentest-findings"])
-    application.include_router(pentest_reports_router, prefix="/api/v1", tags=["pentest-reports"])
-    application.include_router(pentest_audit_router, prefix="/api/v1/audit-log", tags=["pentest-audit"])
-    application.include_router(hitl_router, prefix="/api/v1/hitl", tags=["pentest-hitl"])
-    application.include_router(attack_chains_router, prefix="/api/v1/scans", tags=["pentest-attack-chains"])
-
-    # RAG knowledge base
-    application.include_router(rag_router, prefix="/api/v1", tags=["rag"])
-
-    # AI Planner (LangGraph multi-agent)
-    application.include_router(ai_planner_router, prefix="/api/v1", tags=["ai-planner"])
-
-    # Test Catalog (YAML module definitions)
-    application.include_router(test_catalog_router, prefix="/api/v1", tags=["test-catalog"])
-
-    # Pentest extended features
-    application.include_router(bas_router, prefix="/api/v1/bas", tags=["bas"])
-    application.include_router(sarif_router, prefix="/api/v1", tags=["pentest-export"])
-    application.include_router(finding_library_router, prefix="/api/v1/finding-library", tags=["finding-library"])
-    application.include_router(retest_router, prefix="/api/v1", tags=["retest"])
-    application.include_router(notifications_router, prefix="/api/v1/notifications", tags=["notifications"])
-    application.include_router(api_keys_router, prefix="/api/v1/api-keys", tags=["api-keys"])
-    application.include_router(jira_router, prefix="/api/v1/integrations", tags=["integrations"])
-    application.include_router(siem_router, prefix="/api/v1/integrations", tags=["integrations-siem"])
-    application.include_router(cvss_router, prefix="/api/v1", tags=["cvss"])
-    application.include_router(dedup_router, prefix="/api/v1", tags=["pentest-findings-dedup"])
-    application.include_router(team_router, prefix="/api/v1", tags=["team"])
-    application.include_router(assets_router, prefix="/api/v1", tags=["assets"])
-    application.include_router(phishing_router, prefix="/api/v1", tags=["phishing"])
-    application.include_router(peer_review_router, prefix="/api/v1", tags=["peer-review"])
-    application.include_router(agent_router, prefix="/api/v1", tags=["agent"])
-
-    # Hub AI Productivity (Phase 1 + Phase 2)
-    application.include_router(hub_router, prefix="/api/v1", tags=["hub"])
-    application.include_router(hub_tasks_router, prefix="/api/v1", tags=["hub-tasks"])
-    application.include_router(knowledge_router, prefix="/api/v1", tags=["knowledge"])
-
-    # Threat Actor Knowledge Graph
-    application.include_router(threat_actors_router, prefix="/api/v1", tags=["threat-actors"])
-
-    # Scanner health endpoint
-    application.include_router(scanner_health_router, prefix="/api/v1", tags=["scanners"])
-
-    # OSINT intelligence features
-    application.include_router(dark_web_router)
-    application.include_router(passive_dns_router)
-    application.include_router(footprint_router)
-
-    # Certificate Transparency, Crypto Tracing, Corporate Intelligence
-    application.include_router(cert_transparency_router)
-    application.include_router(crypto_trace_router)
-    application.include_router(corporate_intel_router)
-    application.include_router(deep_research_router)
-
-    # Phone Intel, Social Graph Mapper, Brand Protection Monitor
-    application.include_router(phone_intel_router)
-    application.include_router(social_graph_router)
-    application.include_router(brand_protection_router)
-
-    # OSINT Correlation Engine, Evidence Locker, Vulnerability Management
-    application.include_router(correlation_router)
-    application.include_router(evidence_locker_router)
-    application.include_router(vuln_management_router)
-
-    # Pentest advanced features: Phishing Campaigns, Exploit Chain Builder, C2 Integration
-    application.include_router(phishing_campaigns_router)
-    application.include_router(exploit_chain_router)
-    application.include_router(c2_integration_router)
-
-    # Infra scanners: Network Topology, Methodology Enforcer, Collaboration
-    application.include_router(network_topology_router)
-    application.include_router(methodology_router)
-    application.include_router(collaboration_router)
-
-    # Pentest productivity features: Retest Engine, Client Portal, Secure Notes
-    application.include_router(retest_engine_router)
-    application.include_router(client_portal_router)
-    application.include_router(secure_notes_router)
-
-    # Pentest management features: Time Tracking, SLA Dashboard, AI Debrief
-    application.include_router(time_tracking_router)
-    application.include_router(sla_router)
-    application.include_router(ai_debrief_router)
-
-    # Threat intel, deception, custom scanners, knowledge base, client handoff
-    application.include_router(threat_feed_router)
-    application.include_router(canary_router)
-    application.include_router(custom_scanner_router)
-    application.include_router(knowledge_base_router)
-    application.include_router(client_handoff_router)
-    application.include_router(tos_router, prefix="/api/v1/auth", tags=["auth-tos"])
-    application.include_router(marketplace_router, prefix="/api/v1", tags=["scenario-marketplace"])
-
-    # Phase 3: n8n workflow integration, custom tool containers
-    application.include_router(n8n_router, prefix="/api/v1", tags=["n8n-workflows"])
-    application.include_router(custom_tools_router, prefix="/api/v1", tags=["custom-tools"])
-
-    # Phase 4: RBAC, GDPR compliance, SSO/OIDC
-    application.include_router(rbac_router, prefix="/api/v1", tags=["rbac"])
-    application.include_router(gdpr_compliance_router, prefix="/api/v1", tags=["gdpr-compliance"])
-    application.include_router(sso_router, prefix="/api/v1", tags=["sso"])
-
-    # OSINT ↔ Pentest integration bridge
-    # POST /api/v1/investigations/{id}/to-pentest
-    application.include_router(
-        pentest_integration_investigations_router,
-        prefix="/api/v1/investigations",
-        tags=["osint-pentest-integration"],
-    )
-    # POST /api/v1/scans/{id}/to-osint
-    application.include_router(
-        pentest_integration_scans_router,
-        prefix="/api/v1/scans",
-        tags=["osint-pentest-integration"],
-    )
+    _include_all_routers(application)
 
     return application
 

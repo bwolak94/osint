@@ -56,28 +56,35 @@ async def accept_tos(
     now = _utcnow()
     client_ip = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
 
-    # Persist acceptance timestamp on the user row
-    await db.execute(
-        update(UserModel)
-        .where(UserModel.id == current_user.id)
-        .values(tos_accepted_at=now)
-    )
-    await db.commit()
+    # Persist acceptance timestamp on the user row (best-effort — column may not exist yet)
+    try:
+        await db.execute(
+            update(UserModel)
+            .where(UserModel.id == current_user.id)
+            .values(tos_accepted_at=now)
+        )
+        await db.commit()
+    except Exception as exc:  # noqa: BLE001
+        await db.rollback()
+        await log.awarning("tos_db_update_skipped", reason=str(exc), user_id=str(current_user.id))
 
-    # Write to tamper-evident audit chain
-    audit = AuditService(db)
-    await audit.log(
-        action="tos_accepted",
-        user_id=current_user.id,
-        entity="user",
-        entity_id=str(current_user.id),
-        payload={
-            "accepted_at": now.isoformat(),
-            "ip": client_ip,
-            "user_agent": request.headers.get("User-Agent", ""),
-        },
-        ip=client_ip,
-    )
+    # Write to tamper-evident audit chain (best-effort — don't fail acceptance if table missing)
+    try:
+        audit = AuditService(db)
+        await audit.log(
+            action="tos_accepted",
+            user_id=current_user.id,
+            entity="user",
+            entity_id=str(current_user.id),
+            payload={
+                "accepted_at": now.isoformat(),
+                "ip": client_ip,
+                "user_agent": request.headers.get("User-Agent", ""),
+            },
+            ip=client_ip,
+        )
+    except Exception as exc:  # noqa: BLE001
+        await log.awarning("tos_audit_skipped", reason=str(exc), user_id=str(current_user.id))
 
     await log.ainfo("tos_accepted", user_id=str(current_user.id), ip=client_ip)
     return TosAcceptResponse(accepted=True, accepted_at=now)

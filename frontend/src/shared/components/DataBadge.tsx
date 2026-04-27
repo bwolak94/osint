@@ -3,7 +3,7 @@ import { Check, Copy } from "lucide-react";
 
 interface DataBadgeProps {
   value: string;
-  type?: "email" | "nip" | "phone" | "ip" | "hash" | "default";
+  type?: "email" | "nip" | "phone" | "ip" | "hash" | "username" | "domain" | "default";
 }
 
 export function DataBadge({ value, type: _type = "default" }: DataBadgeProps) {
