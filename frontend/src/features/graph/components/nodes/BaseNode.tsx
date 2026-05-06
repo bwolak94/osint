@@ -27,6 +27,7 @@ const nodeColors: Record<NodeType, string> = {
   nip: "var(--node-nip, #78716c)",
   online_service: "var(--node-online-service, #c084fc)",
   input: "var(--node-input, #6366f1)",
+  social_profile: "var(--node-social-profile, #f0abfc)",
 };
 
 interface BaseNodeProps {

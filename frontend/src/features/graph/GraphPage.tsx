@@ -8,7 +8,7 @@ import {
   PersonNode, CompanyNode, EmailNode, PhoneNode, UsernameNode, IPNode, DomainNode,
   ServiceNode, LocationNode, VulnerabilityNode, BreachNode, SubdomainNode,
   PortNode, CertificateNode, ASNNode, URLNode, HashNode, AddressNode,
-  BankAccountNode, GenericNode,
+  BankAccountNode, GenericNode, SocialProfileNode,
 } from "./components/nodes";
 import { RelationshipEdge } from "./components/edges/RelationshipEdge";
 import { GraphToolbar } from "./components/GraphToolbar";
@@ -41,6 +41,7 @@ const nodeTypes: NodeTypes = {
   hash: HashNode,
   address: AddressNode,
   bank_account: BankAccountNode,
+  social_profile: SocialProfileNode,
   // Fallback types map to GenericNode
   regon: GenericNode,
   nip: GenericNode,
@@ -61,6 +62,7 @@ const NODE_COLOR_MAP: Record<string, string> = {
   certificate: "#a78bfa", asn: "#64748b", url: "#2dd4bf",
   hash: "#a3a3a3", address: "#fb923c", bank_account: "#eab308",
   regon: "#78716c", nip: "#78716c", online_service: "#c084fc", input: "#6366f1",
+  social_profile: "#f0abfc",
 };
 
 function GraphExplorer({ investigationId }: { investigationId: string }) {

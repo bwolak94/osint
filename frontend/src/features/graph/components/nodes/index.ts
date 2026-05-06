@@ -18,3 +18,4 @@ export { HashNode } from "./HashNode";
 export { AddressNode } from "./AddressNode";
 export { BankAccountNode } from "./BankAccountNode";
 export { GenericNode } from "./GenericNode";
+export { SocialProfileNode } from "./SocialProfileNode";

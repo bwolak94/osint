@@ -43,12 +43,14 @@ function getAvailableTransforms(type: string): { name: string; label: string; de
       { name: "find_owner", label: "Find Owner", description: "Identify the email owner" },
     ],
     domain: [
+      { name: "vuln_probe", label: "Vulnerability Probe", description: "Run all probe templates — headers, exposed files, misconfigs, tech fingerprint" },
       { name: "find_subdomains", label: "Find Subdomains", description: "Enumerate subdomains" },
       { name: "dns_lookup", label: "DNS Lookup", description: "Resolve DNS records" },
       { name: "whois_lookup", label: "WHOIS Lookup", description: "Get registration information" },
       { name: "find_certificates", label: "Find Certificates", description: "Discover SSL certificates" },
     ],
     ip: [
+      { name: "vuln_probe", label: "Vulnerability Probe", description: "Run all probe templates against this IP" },
       { name: "port_scan", label: "Port Scan", description: "Scan for open ports" },
       { name: "reverse_dns", label: "Reverse DNS", description: "Resolve IP to hostname" },
       { name: "geolocate", label: "Geolocate", description: "Find geographic location" },
@@ -59,8 +61,13 @@ function getAvailableTransforms(type: string): { name: string; label: string; de
       { name: "find_owner", label: "Find Owner", description: "Search for phone owner" },
     ],
     username: [
+      { name: "username_intel", label: "Platform Presence Scan", description: "Multi-factor username check across 50+ platforms" },
       { name: "find_profiles", label: "Find Profiles", description: "Search across platforms" },
       { name: "find_emails", label: "Find Emails", description: "Discover associated emails" },
+    ],
+    social_profile: [
+      { name: "expand_platform", label: "Expand Platform", description: "Find related accounts on the same platform" },
+      { name: "cross_reference", label: "Cross-Reference", description: "Link to associated identities" },
     ],
     company: [
       { name: "find_employees", label: "Find Employees", description: "Discover known employees" },

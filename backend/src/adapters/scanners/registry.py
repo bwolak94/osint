@@ -146,6 +146,8 @@ from src.adapters.scanners.virustotal_scanner import VirusTotalScanner
 from src.adapters.scanners.waf_scanner import WAFDetectScanner
 from src.adapters.scanners.wayback_cdx_scanner import WaybackCdxScanner
 from src.adapters.scanners.wayback_scanner import WaybackScanner
+from src.adapters.scanners.username_intel_scanner import UsernameIntelScanner
+from src.adapters.scanners.vuln_probe_scanner import VulnProbeScanner
 from src.adapters.scanners.whatsmyname_scanner import WhatsmynameScanner
 from src.adapters.scanners.whois_scanner import WhoisScanner
 from src.adapters.scanners.youtube_scanner import YouTubeScanner
@@ -182,6 +184,8 @@ class ScannerRegistry:
 def create_default_registry() -> ScannerRegistry:
     """Create a registry with all built-in scanners."""
     registry = ScannerRegistry()
+    registry.register(UsernameIntelScanner())
+    registry.register(VulnProbeScanner())
     registry.register(HoleheScanner())
     registry.register(MaigretScanner())
     registry.register(PlaywrightKRSScanner())

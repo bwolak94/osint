@@ -2,7 +2,8 @@ export type NodeType =
   | "person" | "company" | "email" | "phone" | "username" | "ip" | "domain"
   | "service" | "location" | "vulnerability" | "breach" | "subdomain"
   | "port" | "certificate" | "asn" | "url" | "hash" | "address"
-  | "bank_account" | "regon" | "nip" | "online_service" | "input";
+  | "bank_account" | "regon" | "nip" | "online_service" | "input"
+  | "social_profile";
 
 export type RelationType =
   | "owns" | "uses" | "member_of" | "connected_to" | "registered_to"
@@ -11,7 +12,7 @@ export type RelationType =
   | "belongs_to_asn" | "has_profile" | "registered_on" | "has_mx" | "has_ns"
   | "uses_nameserver" | "registered_with" | "runs_service" | "mentioned_on"
   | "found_in_paste" | "identifies" | "has_regon" | "has_address"
-  | "has_bank_account" | "has_backup";
+  | "has_bank_account" | "has_backup" | "has_social_profile";
 
 export interface OsintNodeData {
   id: string;

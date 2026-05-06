@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon, Copy, FileText, MessageSquare, Send, Timer, Brain, CheckCircle, AlertTriangle, Lightbulb, MapPin, Layers } from "lucide-react";
+import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon, Copy, FileText, MessageSquare, Send, Timer, Brain, CheckCircle, AlertTriangle, Lightbulb, MapPin, Layers, ShieldAlert } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
@@ -24,12 +24,13 @@ import { InvestigationTabErrorBoundary } from "./InvestigationTabErrorBoundary";
 import { AnnotationPanel } from "./components/AnnotationPanel";
 import { SimilarInvestigationsPanel } from "./components/SimilarInvestigationsPanel";
 import { NLQueryBar } from "./components/NLQueryBar";
+import { VulnFindingsPanel } from "./components/VulnFindingsPanel";
 
 const statusVariant: Record<string, "neutral" | "info" | "success" | "warning" | "danger"> = {
   draft: "neutral", running: "info", paused: "warning", completed: "success", archived: "danger",
 };
 
-type Tab = "overview" | "scans" | "identities" | "timeline" | "map" | "comments" | "summary" | "annotations" | "similar";
+type Tab = "overview" | "scans" | "identities" | "timeline" | "map" | "comments" | "summary" | "annotations" | "similar" | "vulns";
 
 export function InvestigationDetailPage() {
   const { id } = useParams();
@@ -154,6 +155,7 @@ export function InvestigationDetailPage() {
     { value: "summary", label: "AI Summary", icon: Brain },
     { value: "annotations", label: "Annotations", icon: MessageSquare },
     { value: "similar", label: "Similar", icon: Layers },
+    { value: "vulns", label: "Vulnerabilities", icon: ShieldAlert },
   ];
 
   if (isLoading) {
@@ -697,6 +699,12 @@ export function InvestigationDetailPage() {
               <SimilarInvestigationsPanel currentInvestigationId={id} />
             </CardBody>
           </Card>
+        </InvestigationTabErrorBoundary>
+      )}
+
+      {tab === "vulns" && (
+        <InvestigationTabErrorBoundary tabName="Vulnerabilities">
+          <VulnFindingsPanel scanResults={scanResults} />
         </InvestigationTabErrorBoundary>
       )}
     </div>

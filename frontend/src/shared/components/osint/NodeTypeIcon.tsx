@@ -6,6 +6,7 @@ import {
   AtSign,
   Globe,
   Wifi,
+  Share2,
 } from "lucide-react";
 
 const nodeConfig: Record<string, { icon: typeof User; color: string }> = {
@@ -16,6 +17,7 @@ const nodeConfig: Record<string, { icon: typeof User; color: string }> = {
   username: { icon: AtSign, color: "var(--node-username)" },
   ip: { icon: Wifi, color: "var(--node-ip)" },
   domain: { icon: Globe, color: "var(--node-domain)" },
+  social_profile: { icon: Share2, color: "var(--node-social-profile, #f0abfc)" },
 };
 
 interface NodeTypeIconProps {
