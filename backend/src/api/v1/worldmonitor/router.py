@@ -26,6 +26,8 @@ from fastapi.responses import JSONResponse
 from src.api.v1.auth.dependencies import get_current_user
 from src.core.domain.entities.user import User
 from src.worldmonitor.cache import CACHE_TIERS, get_list_json, make_etag
+from src.worldmonitor.events_aggregator import KEY_EVENTS, KEY_EVENTS_META
+from src.worldmonitor.social_scraper import KEY_POSTS, KEY_POSTS_META
 from src.worldmonitor.rss_aggregator import (
     KEY_BY_CAT,
     KEY_LATEST,
@@ -65,6 +67,12 @@ def _etag_response(request: Request, data: Any, *, status: int = 200) -> JSONRes
 
 # ── /news ─────────────────────────────────────────────────────────────────────
 
+_ALL_CATEGORIES = [
+    "geopolitics", "military", "cyber", "economy",
+    "disaster", "climate", "health", "energy", "tech",
+]
+
+
 @router.get("/news")
 async def get_news(
     request: Request,
@@ -72,17 +80,37 @@ async def get_news(
     _user: CurrentUser,
     category: str | None = Query(None, description="Filter by category slug"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=500),
 ) -> JSONResponse:
-    """Return paginated news items from Redis cache."""
-    if category:
-        key = KEY_BY_CAT.format(cat=category)
-        max_items = 200
-    else:
-        key = KEY_LATEST
-        max_items = 500
+    """Return paginated news items from Redis cache.
 
-    all_items = await get_list_json(redis, key, 0, max_items - 1)
+    When no category is specified returns a balanced interleaved mix from all
+    per-category lists so no single high-volume category (e.g. disaster)
+    drowns out the others.
+    """
+    if category:
+        all_items = await get_list_json(redis, KEY_BY_CAT.format(cat=category), 0, 499)
+    else:
+        # Fetch up to 50 items from each category then interleave round-robin
+        per_cat: list[list[dict[str, Any]]] = await asyncio.gather(*[
+            get_list_json(redis, KEY_BY_CAT.format(cat=cat), 0, 49)
+            for cat in _ALL_CATEGORIES
+        ])
+        # Round-robin interleave so every category appears in the result
+        all_items = []
+        iterators = [iter(lst) for lst in per_cat]
+        exhausted = [False] * len(iterators)
+        while not all(exhausted):
+            for i, it in enumerate(iterators):
+                if exhausted[i]:
+                    continue
+                item = next(it, None)
+                if item is None:
+                    exhausted[i] = True
+                else:
+                    all_items.append(item)
+        # Sort by published_at descending (newest first)
+        all_items.sort(key=lambda x: x.get("published_at", ""), reverse=True)
 
     total = len(all_items)
     start = (page - 1) * page_size
@@ -198,6 +226,83 @@ async def get_health(
     })
 
 
+# ── /posts ────────────────────────────────────────────────────────────────────
+
+@router.get("/posts")
+async def get_posts(
+    request: Request,
+    redis: RedisClient,
+    _user: CurrentUser,
+    platform: str | None = Query(None, description="Filter by platform: x|truthsocial"),
+    account_id: str | None = Query(None, description="Filter by account handle"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+) -> JSONResponse:
+    """Return paginated social posts from X/Twitter and Truth Social."""
+    all_posts = await get_list_json(redis, KEY_POSTS, 0, 399)
+
+    if platform:
+        all_posts = [p for p in all_posts if p.get("platform") == platform]
+    if account_id:
+        all_posts = [p for p in all_posts if p.get("account_id", "").lower() == account_id.lower()]
+
+    total = len(all_posts)
+    start = (page - 1) * page_size
+    page_posts = all_posts[start : start + page_size]
+
+    meta_raw = await redis.get(KEY_POSTS_META)
+    meta: dict[str, Any] = {}
+    if meta_raw:
+        try:
+            meta = json.loads(meta_raw)
+        except json.JSONDecodeError:
+            pass
+
+    return _etag_response(request, {
+        "items": page_posts,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "last_updated": meta.get("last_run"),
+        "account_counts": meta.get("account_counts", {}),
+    })
+
+
+# ── /map-events ───────────────────────────────────────────────────────────────
+
+@router.get("/map-events")
+async def get_map_events(
+    request: Request,
+    redis: RedisClient,
+    _user: CurrentUser,
+    layer: str | None = Query(None, description="Filter by layer key"),
+    severity: str | None = Query(None, description="Filter by severity: high|medium|low"),
+    limit: int = Query(300, ge=1, le=500),
+) -> JSONResponse:
+    """Return live geospatial events from USGS, NASA EONET, GDACS, and Feodo Tracker."""
+    all_events = await get_list_json(redis, KEY_EVENTS, 0, limit - 1)
+
+    if layer:
+        all_events = [e for e in all_events if e.get("layer") == layer]
+    if severity:
+        all_events = [e for e in all_events if e.get("severity") == severity]
+
+    meta_raw = await redis.get(KEY_EVENTS_META)
+    meta: dict[str, Any] = {}
+    if meta_raw:
+        try:
+            meta = json.loads(meta_raw)
+        except json.JSONDecodeError:
+            pass
+
+    return _etag_response(request, {
+        "events": all_events,
+        "total": len(all_events),
+        "last_updated": meta.get("last_run"),
+        "source_counts": meta.get("source_counts", {}),
+    })
+
+
 # ── /bootstrap ────────────────────────────────────────────────────────────────
 
 @router.get("/bootstrap")
@@ -210,8 +315,12 @@ async def bootstrap(
     news_coro = get_list_json(redis, KEY_LATEST, 0, 49)
     meta_coro = redis.get(KEY_META)
     total_coro = redis.llen(KEY_LATEST)
+    events_coro = get_list_json(redis, KEY_EVENTS, 0, 299)
+    events_meta_coro = redis.get(KEY_EVENTS_META)
 
-    news_items, meta_raw, total = await asyncio.gather(news_coro, meta_coro, total_coro)
+    news_items, meta_raw, total, events, events_meta_raw = await asyncio.gather(
+        news_coro, meta_coro, total_coro, events_coro, events_meta_coro,
+    )
 
     meta: dict[str, Any] = {}
     if meta_raw:
@@ -220,11 +329,19 @@ async def bootstrap(
         except json.JSONDecodeError:
             pass
 
+    events_meta: dict[str, Any] = {}
+    if events_meta_raw:
+        try:
+            events_meta = json.loads(events_meta_raw)
+        except json.JSONDecodeError:
+            pass
+
     feeds = _load_feeds()
     categories = sorted({f["category"] for f in feeds})
 
     return _etag_response(request, {
         "news": {"items": news_items, "total_cached": total},
+        "events": {"items": events, "total": len(events), "last_updated": events_meta.get("last_run")},
         "categories": categories,
         "meta": meta,
         "generated_at": datetime.now(tz=timezone.utc).isoformat(),

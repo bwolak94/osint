@@ -67,5 +67,47 @@
   {"id": "interpol-news", "name": "Interpol Notices", "url": "https://www.interpol.int/en/How-we-work/Notices/rss", "category": "geopolitics", "country_iso": "FR", "language": "en", "weight": 0.8},
   {"id": "hrw-news", "name": "Human Rights Watch", "url": "https://www.hrw.org/rss/node/202068.xml", "category": "geopolitics", "country_iso": "US", "language": "en", "weight": 0.8},
   {"id": "amnesty-news", "name": "Amnesty International", "url": "https://www.amnesty.org/en/feed/", "category": "geopolitics", "country_iso": "GB", "language": "en", "weight": 0.7},
-  {"id": "icrc-news", "name": "ICRC News", "url": "https://www.icrc.org/en/feed", "category": "disaster", "country_iso": "CH", "language": "en", "weight": 0.8}
+  {"id": "icrc-news", "name": "ICRC News", "url": "https://www.icrc.org/en/feed", "category": "disaster", "country_iso": "CH", "language": "en", "weight": 0.8},
+
+  {"id": "bno-news", "name": "BNO News", "url": "https://bnonews.com/index.php/feed/", "category": "geopolitics", "country_iso": "US", "language": "en", "weight": 1.0},
+  {"id": "foreign-policy", "name": "Foreign Policy", "url": "https://foreignpolicy.com/feed/", "category": "geopolitics", "country_iso": "US", "language": "en", "weight": 0.9},
+  {"id": "cfr-global", "name": "Council on Foreign Relations", "url": "https://www.cfr.org/rss.xml", "category": "geopolitics", "country_iso": "US", "language": "en", "weight": 0.9},
+  {"id": "kyiv-independent", "name": "Kyiv Independent", "url": "https://kyivindependent.com/feed/", "category": "geopolitics", "country_iso": "UA", "language": "en", "weight": 0.9},
+  {"id": "occrp", "name": "OCCRP", "url": "https://www.occrp.org/en/rss", "category": "geopolitics", "country_iso": "NL", "language": "en", "weight": 0.9},
+  {"id": "euractiv-global", "name": "EURActiv Global Europe", "url": "https://www.euractiv.com/sections/global-europe/feed/", "category": "geopolitics", "country_iso": "BE", "language": "en", "weight": 0.8},
+  {"id": "rand-research", "name": "RAND Research", "url": "https://www.rand.org/pubs/research_reports/rss.xml", "category": "geopolitics", "country_iso": "US", "language": "en", "weight": 0.8},
+  {"id": "middle-east-eye", "name": "Middle East Eye", "url": "https://www.middleeasteye.net/rss", "category": "geopolitics", "country_iso": "GB", "language": "en", "weight": 0.8},
+  {"id": "mei-dc", "name": "Middle East Institute", "url": "https://www.mei.edu/rss.xml", "category": "geopolitics", "country_iso": "US", "language": "en", "weight": 0.8},
+
+  {"id": "usni-news", "name": "USNI News", "url": "https://news.usni.org/feed", "category": "military", "country_iso": "US", "language": "en", "weight": 1.0},
+  {"id": "the-warzone", "name": "The War Zone", "url": "https://www.thedrive.com/the-war-zone/rss", "category": "military", "country_iso": "US", "language": "en", "weight": 0.9},
+  {"id": "military-times", "name": "Military Times", "url": "https://www.militarytimes.com/arc/outboundfeeds/rss/?rss=true", "category": "military", "country_iso": "US", "language": "en", "weight": 0.8},
+  {"id": "rusi-news", "name": "RUSI Commentary", "url": "https://rusi.org/rss.xml", "category": "military", "country_iso": "GB", "language": "en", "weight": 0.9},
+  {"id": "cnas-research", "name": "CNAS Research", "url": "https://www.cnas.org/rss/all", "category": "military", "country_iso": "US", "language": "en", "weight": 0.8},
+
+  {"id": "cyberscoop", "name": "CyberScoop", "url": "https://cyberscoop.com/feed/", "category": "cyber", "country_iso": "US", "language": "en", "weight": 0.9},
+  {"id": "ransomware-live", "name": "Ransomware.live", "url": "https://www.ransomware.live/rss.xml", "category": "cyber", "country_iso": "FR", "language": "en", "weight": 1.0},
+  {"id": "cert-eu", "name": "CERT-EU Advisories", "url": "https://cert.europa.eu/publications/threat-intelligence/rss", "category": "cyber", "country_iso": "EU", "language": "en", "weight": 0.9},
+  {"id": "shadowserver", "name": "Shadowserver News", "url": "https://www.shadowserver.org/feed/", "category": "cyber", "country_iso": "US", "language": "en", "weight": 0.9},
+  {"id": "recorded-future", "name": "Recorded Future Blog", "url": "https://www.recordedfuture.com/feed", "category": "cyber", "country_iso": "US", "language": "en", "weight": 0.8},
+  {"id": "mandiant-blog", "name": "Mandiant Blog", "url": "https://www.mandiant.com/resources/blog/rss.xml", "category": "cyber", "country_iso": "US", "language": "en", "weight": 0.9},
+
+  {"id": "gdacs-alerts", "name": "GDACS Disaster Alerts", "url": "https://www.gdacs.org/xml/rss.xml", "category": "disaster", "country_iso": "EU", "language": "en", "weight": 1.0},
+  {"id": "acled-blog", "name": "ACLED Research", "url": "https://acleddata.com/feed/", "category": "disaster", "country_iso": "US", "language": "en", "weight": 0.9},
+  {"id": "disaster-risk-un", "name": "UNDRR News", "url": "https://www.undrr.org/news/rss", "category": "disaster", "country_iso": "UN", "language": "en", "weight": 0.8},
+
+  {"id": "carbon-brief", "name": "Carbon Brief", "url": "https://www.carbonbrief.org/feed", "category": "climate", "country_iso": "GB", "language": "en", "weight": 0.8},
+  {"id": "climate-home", "name": "Climate Home News", "url": "https://www.climatechangenews.com/feed/", "category": "climate", "country_iso": "GB", "language": "en", "weight": 0.8},
+  {"id": "nasa-climate", "name": "NASA Climate Change", "url": "https://climate.nasa.gov/news/rss.xml", "category": "climate", "country_iso": "US", "language": "en", "weight": 0.9},
+
+  {"id": "oilprice-news", "name": "OilPrice.com", "url": "https://oilprice.com/rss/main", "category": "energy", "country_iso": "US", "language": "en", "weight": 0.8},
+  {"id": "eia-press", "name": "U.S. EIA Press", "url": "https://www.eia.gov/rss/press_releases.xml", "category": "energy", "country_iso": "US", "language": "en", "weight": 0.8},
+  {"id": "energy-monitor", "name": "Energy Monitor", "url": "https://www.energymonitor.ai/feed/", "category": "energy", "country_iso": "GB", "language": "en", "weight": 0.7},
+
+  {"id": "imf-blog", "name": "IMF Blog", "url": "https://www.imf.org/en/Blogs/rss?language=eng", "category": "economy", "country_iso": "US", "language": "en", "weight": 0.8},
+  {"id": "bis-speeches", "name": "BIS Speeches", "url": "https://www.bis.org/doclist/all_speeches.rss", "category": "economy", "country_iso": "CH", "language": "en", "weight": 0.7},
+
+  {"id": "trump-truth", "name": "Trump / Truth Social", "url": "https://truthsocial.com/@realDonaldTrump.rss", "category": "social", "country_iso": "US", "language": "en", "weight": 1.0},
+  {"id": "trump-truth-warroom", "name": "Trump War Room / Truth Social", "url": "https://truthsocial.com/@TrumpWarRoom.rss", "category": "social", "country_iso": "US", "language": "en", "weight": 0.9},
+  {"id": "whitehouse-truth", "name": "White House / Truth Social", "url": "https://truthsocial.com/@WhiteHouse45.rss", "category": "social", "country_iso": "US", "language": "en", "weight": 0.9}
 ]

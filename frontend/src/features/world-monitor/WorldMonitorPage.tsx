@@ -17,12 +17,13 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import {
   Globe2, Radio, Clock, ChevronDown, Maximize2,
 } from 'lucide-react'
-import { useWorldMonitorBootstrap, useNews, useWorldMonitorHealth } from './hooks'
+import { useWorldMonitorBootstrap, useNews, useWorldMonitorHealth, useMapEvents } from './hooks'
 import { ThreatIndicator } from './components/ThreatIndicator'
 import { LayerPanel } from './components/LayerPanel'
 import { LiveNewsPanel } from './components/LiveNewsPanel'
 import { AiInsights } from './components/AiInsights'
-import { LAYER_CONFIGS, MOCK_EVENTS, type LayerKey } from './mapTypes'
+import { LAYER_CONFIGS, MOCK_EVENTS, type LayerKey, type MapEvent } from './mapTypes'
+import type { MapEventItem } from './types'
 
 // Lazy-load Leaflet map (heavy, contains DOM side effects)
 const WorldMap = lazy(() =>
@@ -50,10 +51,30 @@ function UtcClock() {
   )
 }
 
+/** Convert a MapEventItem from the API to the MapEvent format used by WorldMap. */
+function toMapEvent(item: MapEventItem): MapEvent {
+  const validLayers = new Set<LayerKey>([
+    'conflict', 'intel', 'military', 'nuclear', 'cyber', 'crisis', 'energy', 'disaster',
+  ])
+  const layer: LayerKey = validLayers.has(item.layer as LayerKey)
+    ? (item.layer as LayerKey)
+    : 'crisis'
+  return {
+    id: item.id,
+    layer,
+    lat: item.lat,
+    lng: item.lng,
+    title: item.title,
+    severity: item.severity,
+    timestamp: item.timestamp,
+  }
+}
+
 export function WorldMonitorDashboard() {
   const { data: bootstrap } = useWorldMonitorBootstrap()
   const { data: health } = useWorldMonitorHealth()
   const { data: newsData } = useNews(null, 1, 100)
+  const { data: eventsData } = useMapEvents()
 
   const [activeLayers, setActiveLayers] = useState<Set<LayerKey>>(
     new Set(LAYER_CONFIGS.map((l) => l.key))
@@ -65,6 +86,15 @@ export function WorldMonitorDashboard() {
   const totalCached = bootstrap?.news?.total_cached ?? 0
   const latestNews = newsData?.items ?? bootstrap?.news?.items ?? []
 
+  // Use real events from API; fall back to bootstrap events, then to mock data
+  const liveEvents: MapEvent[] = (
+    eventsData?.events
+    ?? bootstrap?.events?.items
+    ?? []
+  ).map(toMapEvent)
+
+  const mapEvents: MapEvent[] = liveEvents.length > 0 ? liveEvents : MOCK_EVENTS
+
   const toggleLayer = useCallback((key: LayerKey) => {
     setActiveLayers((prev) => {
       const next = new Set(prev)
@@ -75,7 +105,7 @@ export function WorldMonitorDashboard() {
   }, [])
 
   // Count events per layer for the layer panel badges
-  const eventCounts = MOCK_EVENTS.reduce<Record<LayerKey, number>>(
+  const eventCounts = mapEvents.reduce<Record<LayerKey, number>>(
     (acc, ev) => {
       acc[ev.layer] = (acc[ev.layer] ?? 0) + 1
       return acc
@@ -213,9 +243,10 @@ export function WorldMonitorDashboard() {
             }
           >
             <WorldMap
-              events={MOCK_EVENTS}
+              events={mapEvents}
               activeLayers={activeLayers}
               timeRange={timeRange}
+              region={region}
             />
           </Suspense>
 

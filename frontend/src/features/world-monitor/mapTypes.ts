@@ -1,4 +1,18 @@
-export type LayerKey = 'conflict' | 'intel' | 'military' | 'nuclear' | 'cyber' | 'crisis' | 'energy'
+export type LayerKey = 'conflict' | 'intel' | 'military' | 'nuclear' | 'cyber' | 'crisis' | 'energy' | 'disaster'
+
+export interface RegionView {
+  center: [number, number]
+  zoom: number
+}
+
+export const REGION_VIEWS: Record<string, RegionView> = {
+  'Global':       { center: [20,  10],   zoom: 2  },
+  'Europe':       { center: [52,  15],   zoom: 4  },
+  'Middle East':  { center: [29,  42],   zoom: 4  },
+  'Asia-Pacific': { center: [20,  115],  zoom: 3  },
+  'Americas':     { center: [10,  -80],  zoom: 3  },
+  'Africa':       { center: [5,   20],   zoom: 3  },
+}
 
 export interface MapEvent {
   id: string
@@ -25,6 +39,7 @@ export const LAYER_CONFIGS: LayerConfig[] = [
   { key: 'cyber',     label: 'Cyber Incidents',   color: '#10b981', emoji: '🟢' },
   { key: 'crisis',    label: 'Humanitarian',      color: '#eab308', emoji: '🟡' },
   { key: 'energy',    label: 'Energy / Infra',    color: '#6366f1', emoji: '🔷' },
+  { key: 'disaster',  label: 'Natural Disasters', color: '#fb923c', emoji: '🟧' },
 ]
 
 // Seeded mock events covering major hotspots

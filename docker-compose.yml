@@ -284,6 +284,36 @@ services:
       minio:
         condition: service_healthy
 
+  rsshub:
+    image: diygod/rsshub:latest
+    restart: unless-stopped
+    expose:
+      - "1200"
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: redis
+      REDIS_URL: redis://redis:6379/1
+      REQUEST_TIMEOUT: "10000"
+      REQUEST_RETRIES: "2"
+      ALLOW_ORIGIN: "*"
+      # X/Twitter auth — set these in .env to enable Twitter/X scraping.
+      # Get auth_token + ct0 from browser DevTools → Application → Cookies on x.com
+      TWITTER_AUTH_TOKEN: ${TWITTER_AUTH_TOKEN:-}
+      TWITTER_CT0: ${TWITTER_CT0:-}
+      # Optional: Twitter API v2 bearer token (alternative to cookie auth)
+      TWITTER_BEARER_TOKEN: ${TWITTER_BEARER_TOKEN:-}
+    networks:
+      - backend-net
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:1200/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
   qdrant:
     image: qdrant/qdrant:latest
     restart: unless-stopped

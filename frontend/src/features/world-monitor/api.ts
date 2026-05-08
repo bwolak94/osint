@@ -13,8 +13,10 @@ import type {
   CategoryInfo,
   ClusterResponse,
   HealthResponse,
+  MapEventsResponse,
   NewsCategory,
   NewsResponse,
+  PostsResponse,
 } from './types'
 
 const wmClient = axios.create({
@@ -65,5 +67,37 @@ export async function fetchClusters(): Promise<ClusterResponse> {
 
 export async function fetchHealth(): Promise<HealthResponse> {
   const { data } = await wmClient.get<HealthResponse>('/health')
+  return data
+}
+
+export async function fetchPosts(params: {
+  platform?: 'x' | 'truthsocial' | null
+  account_id?: string | null
+  page?: number
+  page_size?: number
+} = {}): Promise<PostsResponse> {
+  const { data } = await wmClient.get<PostsResponse>('/posts', {
+    params: {
+      ...(params.platform ? { platform: params.platform } : {}),
+      ...(params.account_id ? { account_id: params.account_id } : {}),
+      page: params.page ?? 1,
+      page_size: params.page_size ?? 50,
+    },
+  })
+  return data
+}
+
+export async function fetchMapEvents(params: {
+  layer?: string | null
+  severity?: string | null
+  limit?: number
+} = {}): Promise<MapEventsResponse> {
+  const { data } = await wmClient.get<MapEventsResponse>('/map-events', {
+    params: {
+      ...(params.layer ? { layer: params.layer } : {}),
+      ...(params.severity ? { severity: params.severity } : {}),
+      ...(params.limit ? { limit: params.limit } : {}),
+    },
+  })
   return data
 }

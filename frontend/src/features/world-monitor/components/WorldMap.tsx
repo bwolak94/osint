@@ -3,10 +3,11 @@
  * Uses CartoDB Dark Matter tiles (free, no API key).
  * Layer markers are generated from mock data seeded by RSS item counts.
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import type { LayerKey, MapEvent } from '../mapTypes'
+import { REGION_VIEWS } from '../mapTypes'
 
 // Fix default icon paths broken by Vite bundling
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
@@ -24,6 +25,7 @@ const LAYER_COLORS: Record<LayerKey, string> = {
   cyber: '#10b981',
   crisis: '#eab308',
   energy: '#6366f1',
+  disaster: '#fb923c',
 }
 
 function makeCircleMarker(color: string, pulseRing = false) {
@@ -43,9 +45,10 @@ interface WorldMapProps {
   events: MapEvent[]
   activeLayers: Set<LayerKey>
   timeRange: string
+  region?: string
 }
 
-export function WorldMap({ events, activeLayers, timeRange }: WorldMapProps) {
+export function WorldMap({ events, activeLayers, timeRange, region = 'Global' }: WorldMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<L.Map | null>(null)
   const layerGroupRef = useRef<L.LayerGroup | null>(null)
@@ -92,6 +95,14 @@ export function WorldMap({ events, activeLayers, timeRange }: WorldMapProps) {
     }
   }, [])
 
+  // Fly to region when selector changes
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    const view = REGION_VIEWS[region] ?? REGION_VIEWS['Global']
+    map.flyTo(view.center, view.zoom, { duration: 1.2 })
+  }, [region])
+
   // Update markers when events/filters change
   useEffect(() => {
     const group = layerGroupRef.current
@@ -112,9 +123,10 @@ export function WorldMap({ events, activeLayers, timeRange }: WorldMapProps) {
           icon: makeCircleMarker(color, ev.severity === 'high'),
           title: ev.title,
         })
+        const source = (ev as MapEvent & { source?: string }).source
         marker.bindTooltip(
-          `<div style="background:#1a1f2e;border:1px solid #374151;padding:6px 10px;border-radius:6px;font-size:11px;color:#e5e7eb;max-width:220px;">
-            <div style="color:${color};font-weight:600;margin-bottom:2px;">${ev.layer.toUpperCase()}</div>
+          `<div style="background:#1a1f2e;border:1px solid #374151;padding:6px 10px;border-radius:6px;font-size:11px;color:#e5e7eb;max-width:240px;">
+            <div style="color:${color};font-weight:600;margin-bottom:2px;">${ev.layer.toUpperCase()}${source ? ` · ${source}` : ''}</div>
             <div>${ev.title}</div>
           </div>`,
           { className: 'wm-tooltip', opacity: 1 }

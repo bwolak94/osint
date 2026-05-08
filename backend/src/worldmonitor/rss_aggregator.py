@@ -47,6 +47,37 @@ NS_ATOM = "http://www.w3.org/2005/Atom"
 NS_MEDIA = "http://search.yahoo.com/mrss/"
 NS_DC = "http://purl.org/dc/elements/1.1/"
 
+_IMG_RE = __import__("re").compile(r'<img[^>]+src=["\']([^"\']+)["\']', __import__("re").IGNORECASE)
+
+
+def _extract_image(item: ET.Element, description: str) -> str:
+    """Extract best available image URL from an RSS/Atom item."""
+    # media:content
+    mc = item.find(f"{{{NS_MEDIA}}}content")
+    if mc is not None:
+        url = mc.get("url", "")
+        mime = mc.get("type", "")
+        if url and (not mime or mime.startswith("image/")):
+            return url
+    # media:thumbnail
+    mt = item.find(f"{{{NS_MEDIA}}}thumbnail")
+    if mt is not None:
+        url = mt.get("url", "")
+        if url:
+            return url
+    # enclosure
+    enc = item.find("enclosure")
+    if enc is not None:
+        url = enc.get("url", "")
+        mime = enc.get("type", "")
+        if url and mime.startswith("image/"):
+            return url
+    # first <img> in description HTML
+    m = _IMG_RE.search(description or "")
+    if m:
+        return m.group(1)
+    return ""
+
 
 def _load_feeds() -> list[dict[str, Any]]:
     """Load feed definitions from the bundled feeds.json."""
@@ -103,15 +134,16 @@ def _parse_rss_items(root: ET.Element, feed_meta: dict[str, Any]) -> list[dict[s
         description = _text(item.find("description"))
         pub_date = _parse_date(_text(item.find("pubDate")) or _text(item.find(f"{{{NS_DC}}}date")))
         guid = _text(item.find("guid")) or link
+        image_url = _extract_image(item, description)
 
         if not title:
             continue
 
-        items.append({
+        entry: dict[str, Any] = {
             "id": fnv1a_hash(title + pub_date),
             "title": title,
             "url": link,
-            "description": description[:500] if description else "",
+            "description": description[:800] if description else "",
             "published_at": pub_date,
             "source_id": feed_meta["id"],
             "source_name": feed_meta["name"],
@@ -120,7 +152,10 @@ def _parse_rss_items(root: ET.Element, feed_meta: dict[str, Any]) -> list[dict[s
             "language": feed_meta["language"],
             "weight": feed_meta["weight"],
             "guid": guid,
-        })
+        }
+        if image_url:
+            entry["image_url"] = image_url
+        items.append(entry)
 
     return items
 
@@ -137,18 +172,19 @@ def _parse_atom_items(root: ET.Element, feed_meta: dict[str, Any]) -> list[dict[
         link = link_el.get("href", "") if link_el is not None else ""
 
         summary_el = entry.find(f"{{{NS_ATOM}}}summary") or entry.find(f"{{{NS_ATOM}}}content")
-        description = _text(summary_el)[:500] if summary_el is not None else ""
+        description = _text(summary_el)[:800] if summary_el is not None else ""
 
         updated = _text(entry.find(f"{{{NS_ATOM}}}updated") or entry.find(f"{{{NS_ATOM}}}published"))
         pub_date = _parse_date(updated)
 
         id_el = entry.find(f"{{{NS_ATOM}}}id")
         guid = _text(id_el) or link
+        image_url = _extract_image(entry, description)
 
         if not title:
             continue
 
-        items.append({
+        atom_entry: dict[str, Any] = {
             "id": fnv1a_hash(title + pub_date),
             "title": title,
             "url": link,
@@ -161,7 +197,10 @@ def _parse_atom_items(root: ET.Element, feed_meta: dict[str, Any]) -> list[dict[
             "language": feed_meta["language"],
             "weight": feed_meta["weight"],
             "guid": guid,
-        })
+        }
+        if image_url:
+            atom_entry["image_url"] = image_url
+        items.append(atom_entry)
 
     return items
 
@@ -215,48 +254,52 @@ async def _store_items(
     redis: aioredis.Redis,
     new_items: list[dict[str, Any]],
 ) -> int:
-    """Deduplicate against seen-hashes set, then store in Redis. Returns count stored."""
+    """Store items to Redis.
+
+    Strategy:
+    - Global ``wm:news:latest``: deduplicated by seen-hash, newest-first, max 500, TTL 48h.
+    - Per-category lists: rebuilt completely from the current run's full batch each time
+      (no dedup — avoids empty lists after TTL expiry), max 200, TTL 48h.
+    """
     if not new_items:
         return 0
 
+    # ── 1. Determine which items are new to the global latest list ──────────
     item_ids = [item["id"] for item in new_items]
-    # Check which hashes are already known
     pipe = redis.pipeline()
     for h in item_ids:
         pipe.sismember(KEY_SEEN, h)
     membership = await pipe.execute()
 
     fresh = [item for item, seen in zip(new_items, membership, strict=True) if not seen]
-    if not fresh:
-        return 0
 
-    # Persist: global latest list + per-category lists + seen-hash set
-    pipe = redis.pipeline()
+    big_pipe = redis.pipeline()
 
-    serialized = [json.dumps(item, default=str) for item in fresh]
-    for s in serialized:
-        pipe.lpush(KEY_LATEST, s)
-    pipe.ltrim(KEY_LATEST, 0, 499)
-    pipe.expire(KEY_LATEST, CACHE_TIERS["fast"] * 2)
+    # ── 2. Prepend fresh items to global latest list ─────────────────────────
+    if fresh:
+        for item in fresh:
+            big_pipe.lpush(KEY_LATEST, json.dumps(item, default=str))
+        big_pipe.ltrim(KEY_LATEST, 0, 499)
+        big_pipe.expire(KEY_LATEST, 172800)  # 48 h
 
-    # Per-category
-    by_cat: dict[str, list[str]] = {}
-    for item, s in zip(fresh, serialized, strict=True):
-        by_cat.setdefault(item["category"], []).append(s)
+        for item in fresh:
+            big_pipe.sadd(KEY_SEEN, item["id"])
+        big_pipe.expire(KEY_SEEN, 172800)  # 48 h
+
+    # ── 3. Rebuild every category list from the full current-run batch ───────
+    # This runs regardless of dedup state so lists never go stale/empty.
+    by_cat: dict[str, list[dict[str, Any]]] = {}
+    for item in new_items:
+        by_cat.setdefault(item["category"], []).append(item)
 
     for cat, cat_items in by_cat.items():
         cat_key = KEY_BY_CAT.format(cat=cat)
-        for s in cat_items:
-            pipe.lpush(cat_key, s)
-        pipe.ltrim(cat_key, 0, 199)
-        pipe.expire(cat_key, CACHE_TIERS["fast"] * 2)
+        big_pipe.delete(cat_key)
+        for item in cat_items[:200]:
+            big_pipe.rpush(cat_key, json.dumps(item, default=str))
+        big_pipe.expire(cat_key, 172800)  # 48 h
 
-    # Mark hashes as seen (TTL 48h)
-    for item in fresh:
-        pipe.sadd(KEY_SEEN, item["id"])
-    pipe.expire(KEY_SEEN, 172800)
-
-    await pipe.execute()
+    await big_pipe.execute()
     return len(fresh)
 
 

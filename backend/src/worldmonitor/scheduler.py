@@ -13,11 +13,15 @@ from typing import Any
 import redis.asyncio as aioredis
 import structlog
 
+from .events_aggregator import run_events_aggregation
 from .rss_aggregator import run_aggregation
+from .social_scraper import run_social_aggregation
 
 log = structlog.get_logger(__name__)
 
-RSS_INTERVAL_S = 300  # 5 minutes
+RSS_INTERVAL_S = 300     # 5 minutes
+EVENTS_INTERVAL_S = 600  # 10 minutes
+SOCIAL_INTERVAL_S = 300  # 5 minutes
 
 
 class WorldMonitorScheduler:
@@ -33,8 +37,9 @@ class WorldMonitorScheduler:
         self._running = True
         log.info("worldmonitor_scheduler_start")
 
-        # Run immediately on startup, then on interval
         self._tasks.append(asyncio.create_task(self._rss_loop(redis), name="wm-rss-loop"))
+        self._tasks.append(asyncio.create_task(self._events_loop(redis), name="wm-events-loop"))
+        self._tasks.append(asyncio.create_task(self._social_loop(redis), name="wm-social-loop"))
 
     async def stop(self) -> None:
         self._running = False
@@ -54,6 +59,28 @@ class WorldMonitorScheduler:
             if not self._running:
                 break
             await asyncio.sleep(RSS_INTERVAL_S)
+
+    async def _events_loop(self, redis: aioredis.Redis) -> None:
+        """Fetch geospatial events immediately, then repeat every EVENTS_INTERVAL_S seconds."""
+        while self._running:
+            try:
+                await run_events_aggregation(redis)
+            except Exception as exc:
+                log.error("events_aggregation_error", error=str(exc))
+            if not self._running:
+                break
+            await asyncio.sleep(EVENTS_INTERVAL_S)
+
+    async def _social_loop(self, redis: aioredis.Redis) -> None:
+        """Fetch social posts immediately, then repeat every SOCIAL_INTERVAL_S seconds."""
+        while self._running:
+            try:
+                await run_social_aggregation(redis)
+            except Exception as exc:
+                log.error("social_aggregation_error", error=str(exc))
+            if not self._running:
+                break
+            await asyncio.sleep(SOCIAL_INTERVAL_S)
 
 
 # Singleton — imported by the FastAPI lifespan

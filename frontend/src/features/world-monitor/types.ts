@@ -10,6 +10,7 @@ export interface NewsItem {
   country_iso: string
   language: string
   weight: number
+  image_url?: string
 }
 
 export type NewsCategory =
@@ -22,6 +23,52 @@ export type NewsCategory =
   | 'health'
   | 'energy'
   | 'tech'
+  | 'social'
+
+export interface PostItem {
+  id: string
+  title: string
+  url: string
+  description: string
+  published_at: string
+  source_id: string
+  source_name: string
+  display_name: string
+  category: 'social'
+  platform: 'x' | 'truthsocial'
+  account_id: string
+  country_iso: string
+  language: string
+  weight: number
+  image_url?: string
+}
+
+export interface PostsResponse {
+  items: PostItem[]
+  total: number
+  page: number
+  page_size: number
+  last_updated: string | null
+  account_counts: Record<string, number>
+}
+
+export interface MapEventItem {
+  id: string
+  layer: string
+  lat: number
+  lng: number
+  title: string
+  severity: 'high' | 'medium' | 'low'
+  timestamp: string
+  source: string
+}
+
+export interface MapEventsResponse {
+  events: MapEventItem[]
+  total: number
+  last_updated: string | null
+  source_counts: Record<string, number>
+}
 
 export interface NewsResponse {
   items: NewsItem[]
@@ -56,6 +103,11 @@ export interface BootstrapResponse {
   news: {
     items: NewsItem[]
     total_cached: number
+  }
+  events: {
+    items: MapEventItem[]
+    total: number
+    last_updated: string | null
   }
   categories: NewsCategory[]
   meta: {
