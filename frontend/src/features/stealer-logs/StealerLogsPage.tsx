@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { Bug, History } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { StealerQueryForm } from './components/StealerQueryForm'
 import { StealerResultsDisplay } from './components/StealerResultsDisplay'
 import { StealerHistoryTable } from './components/StealerHistoryTable'
@@ -22,12 +24,11 @@ export function StealerLogsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Stealer Log Intelligence</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Check if an email, domain, or IP appears in infostealer logs — LummaC2, RedLine, Vidar, and more
-        </p>
-      </div>
+      <ToolHeader
+        title="Stealer Log Intelligence"
+        description={TOOL_INFO['stealer-logs'].short}
+        details={TOOL_INFO['stealer-logs'].details}
+      />
 
       <Card>
         <CardHeader>

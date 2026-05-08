@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { ScanSearch, History } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { ImageUpload } from './components/ImageUpload'
 import { MetadataDisplay } from './components/MetadataDisplay'
 import { HistoryTable } from './components/HistoryTable'
@@ -36,14 +38,11 @@ export function ImageCheckerPage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Image Metadata Analyzer
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Upload an image to extract EXIF metadata, GPS coordinates, and camera information
-        </p>
-      </div>
+      <ToolHeader
+        title="Image Metadata Analyzer"
+        description={TOOL_INFO['image-checker'].short}
+        details={TOOL_INFO['image-checker'].details}
+      />
 
       {/* Upload section */}
       <Card>

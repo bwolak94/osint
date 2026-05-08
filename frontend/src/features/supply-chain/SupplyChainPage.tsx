@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { Package, History } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { SupplyChainForm } from './components/SupplyChainForm'
 import { SupplyChainHistory } from './components/SupplyChainHistory'
 import type { SupplyChainScan } from './types'
@@ -20,10 +22,11 @@ export function SupplyChainPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Supply Chain Intelligence</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>Enumerate npm/PyPI packages for a GitHub user, org, or domain and check for CVEs via OSV.dev</p>
-      </div>
+      <ToolHeader
+        title="Supply Chain Intelligence"
+        description={TOOL_INFO['supply-chain'].short}
+        details={TOOL_INFO['supply-chain'].details}
+      />
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">

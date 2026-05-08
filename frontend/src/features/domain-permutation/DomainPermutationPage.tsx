@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { Globe, History, SearchX } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { DomainInputForm } from './components/DomainInputForm'
 import { PermutationResultsDisplay } from './components/PermutationResultsDisplay'
 import { DomainScanHistory } from './components/DomainScanHistory'
@@ -30,12 +32,11 @@ export function DomainPermutationPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Domain Permutation Scanner</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Detect typosquatting and lookalike domains — generates permutations and resolves which ones are registered
-        </p>
-      </div>
+      <ToolHeader
+        title="Domain Permutation Scanner"
+        description={TOOL_INFO['domain-permutation'].short}
+        details={TOOL_INFO['domain-permutation'].details}
+      />
 
       <Card>
         <CardHeader>

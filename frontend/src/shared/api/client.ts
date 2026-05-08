@@ -1,4 +1,4 @@
-import axios, { type AxiosError, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "@/features/auth/store";
 import { AUTH_STORAGE_KEY } from "@/features/auth/constants";
 
@@ -17,41 +17,12 @@ export class ApiError<T = unknown> extends Error {
   }
 }
 
-// ── In-flight GET deduplication ───────────────────────────────────────────────
-// Concurrent identical GETs (same URL + params) share one network request.
-// Implemented via adapter wrapping so cleanup on error is guaranteed.
-const _inflight = new Map<string, Promise<AxiosResponse>>();
-
-function _dedupKey(config: InternalAxiosRequestConfig): string | null {
-  if (config.method?.toUpperCase() !== "GET") return null;
-  return `${config.baseURL ?? ""}${config.url ?? ""}?${JSON.stringify(config.params ?? {})}`;
-}
-
 // ── Axios client ──────────────────────────────────────────────────────────────
 const apiClient = axios.create({
   baseURL: "/api/v1",
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
-
-// Wrap the default adapter for transparent GET deduplication.
-// Using the adapter layer (rather than interceptors) guarantees that the
-// _inflight entry is always removed via .finally(), even on network errors.
-const _baseAdapter = apiClient.defaults.adapter as (
-  config: InternalAxiosRequestConfig,
-) => Promise<AxiosResponse>;
-
-apiClient.defaults.adapter = (config: InternalAxiosRequestConfig) => {
-  const key = _dedupKey(config);
-  if (!key) return _baseAdapter(config);
-
-  const existing = _inflight.get(key);
-  if (existing) return existing;
-
-  const pending = _baseAdapter(config).finally(() => _inflight.delete(key));
-  _inflight.set(key, pending);
-  return pending;
-};
 
 // ── Mutable refresh state (encapsulated object, not bare module globals) ──────
 const refreshState = {
@@ -94,6 +65,35 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+// ── Shared token refresh — deduplicates concurrent callers ───────────────────
+// Both the 401 interceptor and useAuthInit use this so only one refresh call
+// is ever in-flight at a time (important with rotating refresh tokens).
+export async function performTokenRefresh(): Promise<string> {
+  if (refreshState.isRefreshing) {
+    // Another refresh is already in-flight — wait for it to finish.
+    return new Promise<string>((resolve, reject) => {
+      refreshState.failedQueue.push({ resolve, reject });
+    });
+  }
+
+  refreshState.isRefreshing = true;
+  try {
+    const { data } = await _refreshClient.post<{ access_token: string }>(
+      "/api/v1/auth/refresh",
+      null,
+    );
+    const newToken = data.access_token;
+    useAuthStore.getState().setAccessToken(newToken);
+    processQueue(null, newToken);
+    return newToken;
+  } catch (err) {
+    processQueue(err, null);
+    throw err;
+  } finally {
+    refreshState.isRefreshing = false;
+  }
+}
+
 // ── Response interceptor: handle 401 with token refresh ──────────────────────
 apiClient.interceptors.response.use(
   (response) => response,
@@ -101,39 +101,17 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (refreshState.isRefreshing) {
-        return new Promise((resolve, reject) => {
-          refreshState.failedQueue.push({
-            resolve: (token: string) => {
-              originalRequest._retry = true;
-              if (originalRequest.headers) {
-                originalRequest.headers.Authorization = `Bearer ${token}`;
-              }
-              resolve(apiClient(originalRequest));
-            },
-            reject,
-          });
-        });
-      }
-
       originalRequest._retry = true;
-      refreshState.isRefreshing = true;
 
       try {
-        const { data } = await _refreshClient.post("/api/v1/auth/refresh", null);
-        const newToken = data.access_token as string;
-        useAuthStore.getState().setAccessToken(newToken);
-        processQueue(null, newToken);
+        const newToken = await performTokenRefresh();
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
         }
         return apiClient(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
         redirectToLogin();
         return Promise.reject(refreshError);
-      } finally {
-        refreshState.isRefreshing = false;
       }
     }
 

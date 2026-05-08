@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { Mail, History } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { HeaderInputForm } from './components/HeaderInputForm'
 import { HeaderResultsDisplay } from './components/HeaderResultsDisplay'
 import { HeaderHistoryTable } from './components/HeaderHistoryTable'
@@ -22,12 +24,11 @@ export function EmailHeadersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Email Header Analyzer</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Paste raw email headers to trace routing path, detect spoofing, and verify SPF/DKIM/DMARC authentication
-        </p>
-      </div>
+      <ToolHeader
+        title="Email Header Analyzer"
+        description={TOOL_INFO['email-headers'].short}
+        details={TOOL_INFO['email-headers'].details}
+      />
 
       <Card>
         <CardHeader>

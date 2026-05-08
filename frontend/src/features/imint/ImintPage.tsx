@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { useRunImint } from './hooks'
 import { ImintForm } from './components/ImintForm'
 import { ImintResults } from './components/ImintResults'
@@ -25,15 +27,11 @@ export function ImintPage() {
         >
           <MapPin className="h-5 w-5" style={{ color: 'var(--brand-400)' }} />
         </div>
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            IMINT / GEOINT
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Image forensics, geospatial intelligence, satellite analysis, sun chronolocation,
-            ADS-B/AIS tracking, and deepfake detection
-          </p>
-        </div>
+        <ToolHeader
+          title="IMINT / GEOINT"
+          description={TOOL_INFO['imint'].short}
+          details={TOOL_INFO['imint'].details}
+        />
       </div>
 
       {/* Scan form */}

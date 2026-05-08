@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { FileSearch, History } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { DocUpload } from './components/DocUpload'
 import { DocMetadataDisplay } from './components/DocMetadataDisplay'
 import { DocHistoryTable } from './components/DocHistoryTable'
@@ -22,12 +24,11 @@ export function DocMetadataPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Document Metadata Extractor</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Upload PDF, DOCX, XLSX, or PPTX files to extract author, organization, timestamps, and hidden content
-        </p>
-      </div>
+      <ToolHeader
+        title="Document Metadata Extractor"
+        description={TOOL_INFO['doc-metadata'].short}
+        details={TOOL_INFO['doc-metadata'].details}
+      />
 
       <Card>
         <CardHeader>

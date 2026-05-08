@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { useRunCredentialIntel } from './hooks'
 import { CredentialIntelForm } from './components/CredentialIntelForm'
 import { CredentialIntelResults } from './components/CredentialIntelResults'
@@ -28,14 +30,11 @@ export function CredentialIntelPage() {
         >
           <ShieldAlert className="h-5 w-5" style={{ color: 'var(--brand-400)' }} />
         </div>
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Credential Intelligence
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Domain III - Modules 41-60. Breach aggregation, hash analysis, exposure detection, and threat correlation.
-          </p>
-        </div>
+        <ToolHeader
+          title="Credential Intelligence"
+          description={TOOL_INFO['credential-intel'].short}
+          details={TOOL_INFO['credential-intel'].details}
+        />
       </div>
 
       <Card>

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { useRunSocmint } from './hooks'
 import { SocmintForm } from './components/SocmintForm'
 import { SocmintResults } from './components/SocmintResults'
@@ -28,15 +30,11 @@ export function SocmintPage() {
         >
           <Users className="h-5 w-5" style={{ color: 'var(--brand-400)' }} />
         </div>
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            SOCMINT Analysis
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Social Media Intelligence — Modules 21-40. Profile analysis, behavioral patterns, and
-            identity correlation.
-          </p>
-        </div>
+        <ToolHeader
+          title="SOCMINT Analysis"
+          description={TOOL_INFO['socmint'].short}
+          details={TOOL_INFO['socmint'].details}
+        />
       </div>
 
       {/* Scan form */}

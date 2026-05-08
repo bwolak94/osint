@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { Wifi, History, SearchX } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { WigleForm } from './components/WigleForm'
 import { WigleResults } from './components/WigleResults'
 import { WigleHistory } from './components/WigleHistory'
@@ -33,15 +35,11 @@ export function WiglePage() {
   return (
     <div className="space-y-6">
       {/* Page header */}
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          WiGLE WiFi Geolocation
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Look up a BSSID or SSID on WiGLE.net to retrieve historical physical location data for
-          WiFi networks
-        </p>
-      </div>
+      <ToolHeader
+        title="WiGLE WiFi Geolocation"
+        description={TOOL_INFO['wigle'].short}
+        details={TOOL_INFO['wigle'].details}
+      />
 
       {/* Search form */}
       <Card>

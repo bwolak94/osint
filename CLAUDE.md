@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Full-stack OSINT investigation platform. React 18 + Vite SPA frontend, FastAPI Python backend, with PostgreSQL, Redis, Neo4j, and MinIO. Celery handles async scan tasks.
+Full-stack OSINT + pentesting investigation platform. React 18 + Vite SPA frontend, FastAPI Python backend, with PostgreSQL, Redis, Neo4j, and MinIO. Celery handles async scan tasks.
+
+The app is accessed via nginx at `http://localhost:8080` (host port 8080 → container port 80).
 
 ## Commands
 
@@ -16,6 +18,7 @@ make prod             # Start production build
 make logs             # Stream container logs
 make shell            # SSH into API container
 make clean            # Remove all containers/volumes (destructive)
+make seed             # Seed default admin users into the database
 ```
 
 ### Testing
@@ -51,58 +54,82 @@ docker compose exec api alembic revision --autogenerate -m "description"
 
 ### System Stack
 
-| Service       | Port  | Purpose                           |
-|---------------|-------|-----------------------------------|
-| nginx         | 80    | Reverse proxy                     |
-| frontend      | 5173  | Vite dev server                   |
-| api           | 8000  | FastAPI (4 Uvicorn workers)       |
-| worker        | —     | Celery heavy tasks (Playwright)   |
-| worker-light  | —     | Celery light tasks (concurrency 4)|
-| flower        | 5555  | Celery monitoring                 |
-| postgres      | 5432  | Primary database                  |
-| redis         | 6379  | Cache + Celery broker             |
-| neo4j         | 7687  | Graph database for entity linking |
-| minio         | 9000  | S3-compatible object storage      |
+| Service       | Port  | Purpose                                     |
+|---------------|-------|---------------------------------------------|
+| nginx         | 8080  | Reverse proxy (host-facing)                 |
+| frontend      | 5173  | Vite dev server                             |
+| api           | 8000  | FastAPI (4 Uvicorn workers)                 |
+| worker        | —     | Celery heavy tasks (Playwright)             |
+| worker-light  | —     | Celery light tasks (concurrency 4)          |
+| flower        | 5555  | Celery monitoring (basic auth required)     |
+| postgres      | 5432  | Primary database                            |
+| redis         | 6379  | Cache + Celery broker + circuit breakers    |
+| neo4j         | 7687  | Graph database for entity linking           |
+| minio         | 9000  | S3-compatible object storage                |
 
 ### Backend (`backend/src/`)
 
 Layered architecture: **Router → API handler → Use cases → Adapters → Repositories**
 
-- `api/v1/` — FastAPI routers grouped by domain (investigations, graph, auth, search, etc.)
-- `api/v1/investigations/` — Core investigation CRUD, graph, fork, diff
-- `api/graphql/` — Alternative GraphQL interface
-- `core/` — Domain models and use cases (business logic)
-- `adapters/` — External integrations: DB (SQLAlchemy), cache (Redis), search (Elasticsearch), scanners, AI, security
-- `adapters/scanners/` — OSINT scanners (Shodan, GitHub, Telegram, ASN, subdomain, etc.) registered via `registry.py`
-- `workers/` — Celery task definitions; three queue classes: `light`, `heavy`, `graph`
+- `main.py` — App factory, middleware stack, `_ROUTER_REGISTRY` (auto-discovers all routers at startup; in `DEBUG=true` mode, import failures are logged and skipped rather than crashing)
+- `dependencies.py` — FastAPI DI providers: `get_db` (yields `AsyncSession`, commits on success, rolls back on exception), `get_app_settings`
 - `config.py` — All configuration via environment variables (Pydantic Settings)
-- `main.py` — App factory, middleware stack, router registration
+- `api/v1/` — FastAPI routers grouped by domain
+- `api/v1/auth/` — Login, register, refresh, TOTP, WebAuthn, sessions, SSO, ToS
+- `api/v1/investigations/` — Core investigation CRUD, graph, fork, diff, comments, reports
+- `api/graphql/` — Alternative GraphQL interface
+- `core/` — Domain models, ports (interfaces), and use cases (business logic)
+- `core/domain/entities/types.py` — `ScanInputType` and `ScanStatus` enums used throughout
+- `adapters/` — External integrations: DB (SQLAlchemy), cache (Redis), search (Elasticsearch), scanners, AI, security
+- `adapters/scanners/` — 127+ OSINT scanners registered via `registry.py`
+- `workers/` — Celery task definitions and beat schedule
+- `workers/celery_app.py` — Celery config, queue routing, beat schedule
 
 **Key patterns:**
 - Async-first: SQLAlchemy 2.0 + asyncpg throughout
-- Bulkhead queue pattern: heavy (Playwright) vs light (API calls) vs graph tasks
-- Structured logging via `structlog` (JSON output)
-- Rate limiting per task type via middleware
+- Bulkhead queue pattern: `heavy` (Playwright), `light` (API calls), `graph` (Neo4j), `pentest_heavy`, `pentest_light`
+- Redis-backed circuit breakers per scanner (`adapters/scanners/circuit_breaker.py`)
+- Structured logging via `structlog` (JSON output); use `log = structlog.get_logger(__name__)`
+- Rate limiting per task type via Celery `task_annotations`
+
+### Scanner System
+
+Every scanner lives in `adapters/scanners/` and must:
+1. Subclass `BaseOsintScanner` (`adapters/scanners/base.py`)
+2. Define `scanner_name: str`, `supported_input_types: frozenset[ScanInputType]`
+3. Implement `async _do_scan(self, input_value: str, input_type: ScanInputType) -> dict[str, Any]`
+4. Optionally override `_extract_identifiers`, `_compute_confidence`, `source_confidence`, `cache_ttl`, `scan_timeout`
+5. Register an instance in `create_default_registry()` in `adapters/scanners/registry.py`
+
+`BaseOsintScanner.scan()` handles: cache lookup → circuit breaker check → timeout enforcement → `_do_scan` → content-hash deduplication → cache write → metrics.
+
+Scanner exceptions: `RateLimitError`, `ScanAuthError`, `ScannerNotFoundError`, `ScannerQuotaExceededError`, `ScannerUnavailableError` (from `adapters/scanners/exceptions.py`).
 
 ### Frontend (`frontend/src/`)
 
 Feature-based SPA with React Router.
 
-- `features/graph/` — Core graph visualization using ReactFlow; nodes, edges, layout, hooks
-- `features/investigations/` — Investigation list, bulk actions
-- `features/settings/` — Passkey, sessions, sidebar settings
-- `features/chat/` — AI chat interface
-- `features/dashboard/` — Main dashboard
-- `shared/api/client.ts` — Axios instance with JWT auto-refresh (queues failed requests on 401, retries with new token)
+Each feature under `features/` follows a consistent structure:
+- `api.ts` — raw API call functions (Axios)
+- `hooks.ts` — TanStack Query hooks wrapping `api.ts`
+- `types.ts` — TypeScript interfaces/types for the feature
+- `schemas.ts` — Zod validation schemas (where forms exist)
+- `*Page.tsx` — top-level page components
+- `components/` — sub-components for the feature
+
+Key features: `graph/`, `investigations/`, `auth/`, `settings/`, `chat/`, `dashboard/`, `payments/`, `image-checker/`, `doc-metadata/`, `email-headers/`, `mac-lookup/`, `domain-permutation/`, `cloud-exposure/`, `stealer-logs/`, `supply-chain/`, `fediverse/`
+
+`shared/api/client.ts` — Axios instance with JWT auto-refresh: on 401, queues failed requests, refreshes token, retries all queued requests.
 
 **State management:**
-- TanStack Query — server state / data fetching
-- Zustand — minimal client-side state
+- TanStack Query v5 — server state; staleTime constants in `shared/api/queryConfig.ts`
+- Zustand — minimal client-side state (auth store: `user` + `isAuthenticated` persisted, `accessToken` not persisted)
 - React Hook Form + Zod — all form validation
+- React Query DevTools shown in DEV mode
 
 **Graph visualization** (`features/graph/`):
 - ReactFlow for rendering nodes/edges
-- Multiple custom node types in `components/nodes/` (IP, Domain, Email, Person, ASN, Certificate, etc.)
+- Custom node types in `components/nodes/` (IP, Domain, Email, Person, ASN, Certificate, Vulnerability, Breach, etc.)
 - `useGraphLayout.ts` — layout algorithms
 - `hooks.ts` — data fetching and state management for graph
 
@@ -110,12 +137,11 @@ Feature-based SPA with React Router.
 
 1. Login → JWT access token + httpOnly refresh cookie
 2. Axios interceptor attaches `Authorization: Bearer {token}` to every request
-3. On 401 → token refresh triggered, failed requests queued and retried
+3. On 401 → token refresh triggered via `_refreshClient`, failed requests queued and retried
 4. WebAuthn (passkeys) and TOTP supported as 2FA
+5. Access token is NOT persisted to storage — rehydrated on reload via refresh cookie
 
-### Scanner System
-
-Scanners in `adapters/scanners/` implement a common interface and register via `registry.py`. New scanners must be registered there. Triggered via API endpoints that enqueue Celery tasks.
+Default dev users (after `make seed`): `admin@osint.platform` / `admin`
 
 ## Environment Variables
 
@@ -124,8 +150,12 @@ Copy `.env.example` to `.env`. Key variables:
 - `REDIS_URL` — Redis connection
 - `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`
 - `JWT_SECRET_KEY`, `JWT_REFRESH_SECRET_KEY`
-- `MINIO_*` — S3 object storage config
-- External API keys: `SHODAN_API_KEY`, `HIBP_API_KEY`, `VIRUSTOTAL_API_KEY`
+- `MINIO_ENDPOINT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`, `MINIO_SECURE`
+- `FLOWER_USER`, `FLOWER_PASSWORD` — Flower basic auth
+- `PROXY_MODE` — `direct` (default, exposes server IP), `tor`, or `socks5` (recommended for production)
+- `DEBUG` — set `true` to allow missing router modules to be skipped at startup instead of crashing
+- `SCANNER_RATE_LIMIT_COUNTS_AS_FAILURE` — whether rate limit errors open the circuit breaker
+- External API keys: `SHODAN_API_KEY`, `HIBP_API_KEY`, `VIRUSTOTAL_API_KEY`, etc.
 - `CORS_ORIGINS` — allowed frontend origins
 
 ## Testing Patterns

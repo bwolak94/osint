@@ -155,7 +155,7 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.cert_transparency", "router", "/api/v1", ["cert-transparency"]),
     ("src.api.v1.crypto_trace", "router", "/api/v1", ["crypto-trace"]),
     ("src.api.v1.corporate_intel", "router", "/api/v1", ["corporate-intel"]),
-    ("src.api.v1.deep_research", "router", "/api/v1", ["deep-research"]),
+    ("src.api.v1.deep_research", "router", "", ["deep-research"]),
     ("src.api.v1.phone_intel", "router", "/api/v1", ["phone-intel"]),
     ("src.api.v1.social_graph", "router", "/api/v1", ["social-graph"]),
     ("src.api.v1.brand_protection", "router", "/api/v1", ["brand-protection"]),
@@ -167,7 +167,7 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.c2_integration", "router", "/api/v1", ["c2-integration"]),
     ("src.api.v1.network_topology", "router", "/api/v1", ["network-topology"]),
     ("src.api.v1.methodology", "router", "/api/v1", ["methodology"]),
-    ("src.api.v1.collaboration", "router", "/api/v1", ["collaboration"]),
+    ("src.api.v1.collaboration", "router", "", ["collaboration"]),
     ("src.api.v1.retest_engine", "router", "/api/v1", ["retest-engine"]),
     ("src.api.v1.client_portal", "router", "/api/v1", ["client-portal"]),
     ("src.api.v1.secure_notes", "router", "/api/v1", ["secure-notes"]),
@@ -187,6 +187,9 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     # OSINT ↔ Pentest integration bridge
     ("src.api.v1.investigations.pentest_integration", "investigations_router", "/api/v1/investigations", ["osint-pentest-integration"]),
     ("src.api.v1.investigations.pentest_integration", "scans_router", "/api/v1/scans", ["osint-pentest-integration"]),
+    # ── WorldMonitor ──────────────────────────────────────────────────────────
+    ("src.api.v1.worldmonitor.router", "router", "/worldmonitor/api", ["world-monitor"]),
+
     # ── New features (batch 2) ────────────────────────────────────────────────
     ("src.api.v1.investigation_risk_score", "router", "/api/v1", ["risk-score"]),
     ("src.api.v1.stix_export", "router", "/api/v1", ["stix-export"]),
@@ -264,7 +267,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await app.state.redis.ping()
         await log.ainfo("Redis connection established")
     except Exception as exc:
-        await log.awarn("Redis not available, rate limiting disabled", error=str(exc))
+        log.warning("Redis not available, rate limiting disabled", error=str(exc))
         app.state.redis = None
 
     try:
@@ -274,7 +277,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         app.state.elasticsearch = es
         await log.ainfo("Elasticsearch indices ensured")
     except Exception as exc:
-        await log.awarn("Elasticsearch not available", error=str(exc))
+        log.warning("Elasticsearch not available", error=str(exc))
         app.state.elasticsearch = None
 
     from src.adapters.db.audit_models import AuditLogModel  # noqa: F401
@@ -297,10 +300,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         else:
             await log.ainfo("MinIO bucket already exists", bucket=settings.minio_bucket)
     except Exception as exc:
-        await log.awarn("MinIO not available", error=str(exc))
+        log.warning("MinIO not available", error=str(exc))
+
+    # WorldMonitor background scheduler (RSS aggregation every 5 min)
+    try:
+        from src.worldmonitor.scheduler import scheduler as wm_scheduler
+        if app.state.redis is not None:
+            await wm_scheduler.start(app.state.redis)
+            await log.ainfo("WorldMonitor scheduler started")
+    except Exception as exc:
+        log.warning("worldmonitor_scheduler_unavailable", error=str(exc))
 
     if not settings.debug and settings.proxy_mode == "direct":
-        await log.awarn(
+        log.warning(
             "opsec_warning",
             message=(
                 "proxy_mode is 'direct': all scanner traffic originates from this server's real IP. "
@@ -311,6 +323,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
 
     await log.ainfo("Shutting down OSINT platform backend")
+    try:
+        from src.worldmonitor.scheduler import scheduler as wm_scheduler
+        await wm_scheduler.stop()
+    except Exception:
+        pass
     if getattr(app.state, "elasticsearch", None) is not None:
         await app.state.elasticsearch.close()
     if getattr(app.state, "redis", None) is not None:

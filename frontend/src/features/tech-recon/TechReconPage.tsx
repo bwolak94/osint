@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { ScanLine } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { useRunTechRecon } from './hooks'
 import { TechReconForm } from './components/TechReconForm'
 import { TechReconResults } from './components/TechReconResults'
@@ -25,14 +27,11 @@ export function TechReconPage() {
         >
           <ScanLine className="h-5 w-5" style={{ color: 'var(--brand-400)' }} />
         </div>
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Infrastructure Recon
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Aggregate technical reconnaissance across DNS, ports, SSL, WAF, BGP, and more
-          </p>
-        </div>
+        <ToolHeader
+          title="Infrastructure Recon"
+          description={TOOL_INFO['tech-recon'].short}
+          details={TOOL_INFO['tech-recon'].details}
+        />
       </div>
 
       {/* Scan form */}

@@ -25,8 +25,17 @@ if config.config_file_name is not None:
 # Target metadata for autogenerate support
 target_metadata = Base.metadata
 
-# Override sqlalchemy.url from environment variable if set
+# Override sqlalchemy.url from environment variable if set.
+# Supports both DATABASE_URL (full DSN) and individual POSTGRES_* vars.
 database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    _host = os.getenv("POSTGRES_HOST")
+    _port = os.getenv("POSTGRES_PORT", "5432")
+    _user = os.getenv("POSTGRES_USER")
+    _password = os.getenv("POSTGRES_PASSWORD")
+    _db = os.getenv("POSTGRES_DB")
+    if _host and _user and _password and _db:
+        database_url = f"postgresql+asyncpg://{_user}:{_password}@{_host}:{_port}/{_db}"
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
 

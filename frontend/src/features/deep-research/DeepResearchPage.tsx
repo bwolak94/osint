@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { FlaskConical, Users, Mail, Phone, Building2, Eye, X } from 'lucide-react'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { useDeepResearch } from './hooks'
 import { ResearchForm } from './components/ResearchForm'
 import { SynthesisPanel } from './components/SynthesisPanel'
@@ -39,14 +41,11 @@ export function DeepResearchPage() {
         >
           <FlaskConical className="h-5 w-5" style={{ color: 'var(--brand-400)' }} />
         </div>
-        <div>
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Deep Research
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-            Multi-source OSINT orchestration — social media, email, phone, KRS/CEIDG, dark web leaks and AI synthesis.
-          </p>
-        </div>
+        <ToolHeader
+          title="Deep Research"
+          description={TOOL_INFO['deep-research'].short}
+          details={TOOL_INFO['deep-research'].details}
+        />
       </div>
 
       {/* Input form */}

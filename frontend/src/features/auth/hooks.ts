@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { apiClient, _refreshClient } from "@/shared/api/client";
+import { apiClient, performTokenRefresh } from "@/shared/api/client";
 import { useAuthStore } from "./store";
 
 // 25 minutes — refresh proactively 5 min before the 30-min access token expires
@@ -14,17 +14,12 @@ const PROACTIVE_REFRESH_MS = 25 * 60 * 1000;
 export function useAuthInit(): void {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const accessToken = useAuthStore((s) => s.accessToken);
-  const setAccessToken = useAuthStore((s) => s.setAccessToken);
   const logout = useAuthStore((s) => s.logout);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const silentRefresh = async (): Promise<void> => {
     try {
-      const { data } = await _refreshClient.post<{ access_token: string }>(
-        "/api/v1/auth/refresh",
-        null,
-      );
-      setAccessToken(data.access_token);
+      await performTokenRefresh();
     } catch {
       // Refresh token expired or missing — force logout
       logout();

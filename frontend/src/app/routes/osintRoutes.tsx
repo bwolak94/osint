@@ -46,6 +46,7 @@ const ForensicTimelinePage = lazy(() => import("@/features/forensic-timeline/For
 const MultiInvestigationGraphPage = lazy(() => import("@/features/multi-graph/MultiInvestigationGraphPage").then((m) => ({ default: m.MultiInvestigationGraphPage })));
 const BrowserExtensionPage = lazy(() => import("@/features/browser-extension/BrowserExtensionPage").then((m) => ({ default: m.BrowserExtensionPage })));
 const MitreAttackMatrixPage = lazy(() => import("@/features/mitre-attack").then((m) => ({ default: m.MitreAttackMatrix })));
+const WorldMonitorPage = lazy(() => import("@/features/world-monitor/WorldMonitorPage").then((m) => ({ default: m.WorldMonitorDashboard })));
 
 export const osintRoutes: RouteObject[] = [
   { path: "investigations", element: <Lazy name="Investigations"><InvestigationsPage /></Lazy> },
@@ -93,4 +94,5 @@ export const osintRoutes: RouteObject[] = [
   { path: "multi-graph", element: <Lazy name="Multi-Graph Analysis"><MultiInvestigationGraphPage /></Lazy> },
   { path: "browser-extension", element: <Lazy name="Browser Extension"><BrowserExtensionPage /></Lazy> },
   { path: "mitre-attack", element: <Lazy name="MITRE ATT&CK"><MitreAttackMatrixPage /></Lazy> },
+  { path: "world-monitor", element: <Lazy name="World Monitor"><WorldMonitorPage /></Lazy> },
 ];

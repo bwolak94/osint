@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, lazy, Suspense } from 'react'
 import { Cloud, History } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { CloudScanForm } from './components/CloudScanForm'
 import { CloudScanHistory } from './components/CloudScanHistory'
 import type { CloudExposureScan } from './types'
@@ -25,12 +27,11 @@ export function CloudExposurePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Cloud Storage Exposure Scanner</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Enumerate misconfigured public S3, Azure Blob, and GCP Storage buckets associated with a target
-        </p>
-      </div>
+      <ToolHeader
+        title="Cloud Storage Exposure Scanner"
+        description={TOOL_INFO['cloud-exposure'].short}
+        details={TOOL_INFO['cloud-exposure'].details}
+      />
 
       <Card>
         <CardHeader>

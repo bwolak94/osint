@@ -102,6 +102,7 @@ const mainNav: NavEntry[] = [
   { to: "/scanners", label: "Scanners", icon: Radar },
   { to: "/custom-scanner", label: "Custom Scanners", icon: Cpu },
   { to: "/playbooks", label: "Playbooks", icon: BookOpen },
+  { to: "/world-monitor", label: "World Monitor", icon: Globe2 },
   { to: "/deep-research", label: "Deep Research", icon: FlaskConical },
   { to: "/digital-footprint", label: "Footprint Score", icon: Fingerprint },
   { to: "/correlation", label: "Correlation Engine", icon: GitMerge },

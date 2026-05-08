@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { Wifi, History, SearchX } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { MacInputForm } from './components/MacInputForm'
 import { MacResultDisplay } from './components/MacResultDisplay'
 import { MacHistoryTable } from './components/MacHistoryTable'
@@ -31,12 +33,11 @@ export function MacLookupPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>MAC Address Lookup</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Identify the manufacturer, device type, and flags for any MAC address using the IEEE OUI registry
-        </p>
-      </div>
+      <ToolHeader
+        title="MAC Address Lookup"
+        description={TOOL_INFO['mac-lookup'].short}
+        details={TOOL_INFO['mac-lookup'].details}
+      />
 
       <Card>
         <CardHeader>

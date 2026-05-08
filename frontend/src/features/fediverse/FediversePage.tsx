@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from 'react'
 import { Users, History, SearchX } from 'lucide-react'
 import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { ToolHeader } from '@/shared/components/ToolHeader'
+import { TOOL_INFO } from '@/shared/lib/toolInfo'
 import { FediverseSearchForm } from './components/FediverseSearchForm'
 import { FediverseResults } from './components/FediverseResults'
 import { FediverseHistory } from './components/FediverseHistory'
@@ -32,14 +34,11 @@ export function FediversePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Fediverse Scanner
-        </h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
-          Search Bluesky (AT Protocol) and Mastodon for usernames — no API key required
-        </p>
-      </div>
+      <ToolHeader
+        title="Fediverse Scanner"
+        description={TOOL_INFO['fediverse'].short}
+        details={TOOL_INFO['fediverse'].details}
+      />
 
       {/* Search card */}
       <Card>
