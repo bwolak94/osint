@@ -166,6 +166,7 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.exploit_chain", "router", "/api/v1", ["exploit-chain"]),
     ("src.api.v1.c2_integration", "router", "/api/v1", ["c2-integration"]),
     ("src.api.v1.network_topology", "router", "/api/v1", ["network-topology"]),
+    ("src.api.v1.wireless_auditor", "router", "", ["wireless-auditor"]),
     ("src.api.v1.methodology", "router", "/api/v1", ["methodology"]),
     ("src.api.v1.collaboration", "router", "", ["collaboration"]),
     ("src.api.v1.retest_engine", "router", "/api/v1", ["retest-engine"]),

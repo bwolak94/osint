@@ -186,6 +186,7 @@ const mainNav: NavEntry[] = [
     label: "Pentest",
     icon: Shield,
     children: [
+      { to: "/pentest/engagements", label: "Engagements", icon: Layers },
       { to: "/pentest/targets", label: "Targets", icon: Globe },
       { to: "/pentest/dashboard", label: "Dashboard", icon: BarChart3 },
       { to: "/pentest/findings", label: "Findings", icon: ShieldAlert },
@@ -200,6 +201,7 @@ const mainNav: NavEntry[] = [
       { to: "/vuln-management", label: "Vuln Management", icon: ShieldAlert },
       { to: "/phishing", label: "Phishing Sim", icon: Mail },
       { to: "/exploit-chain", label: "Exploit Chains", icon: Swords },
+      { to: "/pentest/wireless-auditor", label: "Wireless Auditor", icon: Wifi },
       { to: "/c2-integration", label: "C2 Integration", icon: Terminal },
       { to: "/methodology", label: "Methodology", icon: ClipboardCheck },
       { to: "/retest", label: "Retest Engine", icon: RefreshCw },

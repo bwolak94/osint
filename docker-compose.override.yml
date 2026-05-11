@@ -47,6 +47,8 @@ services:
           path: ./backend/pyproject.toml
 
   worker-light:
+    volumes:
+      - ./backend/src:/app/src
     environment:
       - DEBUG=true
     develop:

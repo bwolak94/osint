@@ -147,6 +147,7 @@ from src.adapters.scanners.waf_scanner import WAFDetectScanner
 from src.adapters.scanners.wayback_cdx_scanner import WaybackCdxScanner
 from src.adapters.scanners.wayback_scanner import WaybackScanner
 from src.adapters.scanners.username_intel_scanner import UsernameIntelScanner
+from src.adapters.scanners.username_variation_scanner import UsernameVariationScanner
 from src.adapters.scanners.vuln_probe_scanner import VulnProbeScanner
 from src.adapters.scanners.whatsmyname_scanner import WhatsmynameScanner
 from src.adapters.scanners.whois_scanner import WhoisScanner
@@ -249,6 +250,10 @@ def create_default_registry() -> ScannerRegistry:
     registry.register(GhuntScanner())
     registry.register(ToutatisScanner())
     registry.register(IgnorantScanner())
+    # Username Variation — three scan levels (basic / intermediate / advanced)
+    registry.register(UsernameVariationScanner(scan_level="basic"))
+    registry.register(UsernameVariationScanner(scan_level="intermediate"))
+    registry.register(UsernameVariationScanner(scan_level="advanced"))
     # New scanners — Feature batch 6: web crawling / archival
     registry.register(WaybackCdxScanner())
     registry.register(PhotonScanner())

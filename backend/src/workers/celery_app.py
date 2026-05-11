@@ -155,6 +155,11 @@ import src.workers.scheduled_tasks  # noqa: E402, F401
 # Explicitly import OSINT enrichment consumer so its tasks are registered
 import src.workers.osint_enrichment_consumer  # noqa: E402, F401
 
+# Explicitly import investigation / scanner tasks so they are registered
+import src.workers.tasks.investigation_tasks  # noqa: E402, F401
+import src.workers.tasks.scanner_tasks  # noqa: E402, F401
+import src.workers.tasks.graph_tasks  # noqa: E402, F401
+
 # Explicitly import Hub AI agent tasks so they are registered
 import src.workers.tasks.hub_tasks  # noqa: E402, F401
 
