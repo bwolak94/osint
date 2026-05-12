@@ -11,6 +11,7 @@ class UserRole(str, Enum):
     ADMIN = "admin"
     ANALYST = "analyst"
     VIEWER = "viewer"
+    PENTESTER = "pentester"
 
 
 class SubscriptionTier(str, Enum):
@@ -67,6 +68,7 @@ class ScanInputType(str, Enum):
     URL = "url"
     IP_ADDRESS = "ip_address"
     DOMAIN = "domain"
+    COORDINATES = "coordinates"
 
 
 class NodeType(str, Enum):

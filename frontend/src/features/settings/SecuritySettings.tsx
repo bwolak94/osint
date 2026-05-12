@@ -3,7 +3,7 @@ import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { Input } from "@/shared/components/Input";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
-import { Lock, Monitor, Smartphone, AlertTriangle, Trash2, Check } from "lucide-react";
+import { Lock, Monitor, Smartphone } from "lucide-react";
 
 const mockSessions = [
   { id: "1", device: "MacBook Pro", browser: "Chrome 131", location: "Warsaw, PL", lastActive: "2 min ago", current: true },
@@ -16,7 +16,7 @@ export function SecuritySettings() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [sessions, setSessions] = useState(mockSessions);
-  const [showRevokeAll, setShowRevokeAll] = useState(false);
+  const [_showRevokeAll, setShowRevokeAll] = useState(false);
 
   const revokeSession = (id: string) => setSessions((s) => s.filter((x) => x.id !== id));
 
@@ -33,7 +33,7 @@ export function SecuritySettings() {
         <CardBody className="space-y-4">
           <Input label="Current Password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} prefixIcon={<Lock className="h-4 w-4" />} />
           <Input label="New Password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} prefixIcon={<Lock className="h-4 w-4" />} helperText="Minimum 8 characters" />
-          <Input label="Confirm New Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} prefixIcon={<Lock className="h-4 w-4" />} error={confirmPassword && newPassword !== confirmPassword ? "Passwords don't match" : undefined} />
+          <Input label="Confirm New Password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} prefixIcon={<Lock className="h-4 w-4" />} {...(confirmPassword && newPassword !== confirmPassword ? { error: "Passwords don't match" } : {})} />
           <Button disabled={!currentPassword || !newPassword || newPassword !== confirmPassword}>Change Password</Button>
         </CardBody>
       </Card>

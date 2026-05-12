@@ -1,0 +1,20 @@
+id: 024
+name: Insecure Deserialization
+ptes_phase: exploitation
+wstg_id: WSTG-INPV-11
+mitre:
+  - T1190
+cwe: 502
+tools:
+  - nuclei
+  - zap
+template: nuclei -u {target} -t deserialization -j -silent -nt
+matchers:
+  - type: contains
+    value: "deserialization"
+  - type: contains
+    value: "ysoserial"
+severity: critical
+description: Detect insecure deserialization in Java, PHP, .NET, Python pickle objects.
+risk: Critical
+tags: [deserialization, rce, java, php, python]

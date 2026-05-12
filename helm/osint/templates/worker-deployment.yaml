@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osint.fullname" . }}-worker
+  labels:
+    {{- include "osint.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "osint.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        {{- include "osint.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
+          command: ["celery", "-A", "src.workers.celery_app", "worker", "-Q", "{{ .Values.worker.queues }}", "--loglevel=info", "--concurrency=2"]
+          envFrom:
+            - secretRef:
+                name: {{ include "osint.fullname" . }}-api-secrets
+          resources:
+            {{- toYaml .Values.worker.resources | nindent 12 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osint.fullname" . }}-worker-light
+  labels:
+    {{- include "osint.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker-light
+spec:
+  replicas: {{ .Values.workerLight.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "osint.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: worker-light
+  template:
+    metadata:
+      labels:
+        {{- include "osint.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: worker-light
+    spec:
+      containers:
+        - name: worker-light
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
+          command: ["celery", "-A", "src.workers.celery_app", "worker", "-Q", "{{ .Values.workerLight.queues }}", "--loglevel=info", "--concurrency=4"]
+          envFrom:
+            - secretRef:
+                name: {{ include "osint.fullname" . }}-api-secrets
+          resources:
+            {{- toYaml .Values.workerLight.resources | nindent 12 }}

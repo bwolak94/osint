@@ -1,5 +1,5 @@
-import { Package, AlertTriangle } from 'lucide-react'
-import { Card, CardHeader, CardBody } from '@/shared/components/Card'
+import { Package } from 'lucide-react'
+import { Card, CardHeader } from '@/shared/components/Card'
 import { Badge } from '@/shared/components/Badge'
 import type { SupplyChainScan } from '../types'
 
@@ -48,9 +48,9 @@ export function SupplyChainResults({ scan }: Props) {
                       <Badge variant="neutral" size="sm">{pkg.registry}</Badge>
                       {pkg.cve_count > 0 && <Badge variant={riskVariant(pkg.risk_score)} size="sm">{pkg.cve_count} CVE{pkg.cve_count !== 1 ? 's' : ''}</Badge>}
                     </div>
-                    {pkg.cves.length > 0 && (
+                    {(pkg.cves?.length ?? 0) > 0 && (
                       <ul className="mt-2 space-y-1">
-                        {pkg.cves.slice(0, 3).map((cve) => (
+                        {(pkg.cves ?? []).slice(0, 3).map((cve) => (
                           <li key={cve.id} className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                             <span className="font-mono" style={{ color: 'var(--danger-400)' }}>{cve.id}</span>
                             {cve.summary && ` — ${cve.summary.slice(0, 80)}…`}

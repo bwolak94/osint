@@ -1,9 +1,6 @@
 import { useState, useEffect } from "react";
-import { X, Bitcoin, CheckCircle2, Clock, AlertTriangle, Copy, Check, HelpCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { X, CheckCircle2, AlertTriangle, Copy, Check, HelpCircle } from "lucide-react";
 import { Button } from "@/shared/components/Button";
-import { Badge } from "@/shared/components/Badge";
-import { Card, CardBody } from "@/shared/components/Card";
 import { ProgressBar } from "@/shared/components/ProgressBar";
 
 interface PaymentModalProps {
@@ -76,9 +73,7 @@ export function PaymentModal({ tier, period, onClose }: PaymentModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
+      <div
         className="w-full max-w-md rounded-xl border shadow-lg"
         style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
         onClick={(e) => e.stopPropagation()}
@@ -216,7 +211,7 @@ export function PaymentModal({ tier, period, onClose }: PaymentModalProps) {
             </div>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

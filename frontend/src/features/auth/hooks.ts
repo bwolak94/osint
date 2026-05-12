@@ -1,11 +1,54 @@
+import { useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { apiClient, ApiError } from "@/shared/api/client";
+import { apiClient, performTokenRefresh } from "@/shared/api/client";
 import { useAuthStore } from "./store";
-import { useNavigate } from "react-router-dom";
+
+// 25 minutes — refresh proactively 5 min before the 30-min access token expires
+const PROACTIVE_REFRESH_MS = 25 * 60 * 1000;
+
+/**
+ * Call once at the app root. Silently refreshes the access token on page load
+ * (when isAuthenticated but accessToken is null after rehydration) and sets up
+ * a repeating 25-minute timer to keep the token fresh without ever hitting 401.
+ */
+export function useAuthInit(): void {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const accessToken = useAuthStore((s) => s.accessToken);
+  const logout = useAuthStore((s) => s.logout);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const silentRefresh = async (): Promise<void> => {
+    try {
+      await performTokenRefresh();
+    } catch {
+      // Refresh token expired or missing — force logout
+      logout();
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+
+    // On page load accessToken is null (not persisted) — refresh immediately
+    if (!accessToken) {
+      silentRefresh();
+    }
+
+    // Proactive refresh every 25 min regardless of activity
+    timerRef.current = setInterval(silentRefresh, PROACTIVE_REFRESH_MS);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+}
 
 interface LoginRequest { email: string; password: string; }
 interface RegisterRequest { email: string; password: string; fullName?: string; companyName?: string; }
-interface AuthResponse { access_token: string; user: { id: string; email: string; role: string; subscription_tier: string; is_active: boolean; is_email_verified: boolean; }; }
+interface AuthResponse { access_token: string; user: { id: string; email: string; role: string; subscription_tier: string; is_active: boolean; is_email_verified: boolean; tos_accepted_at?: string | null; }; }
 
 export function useLogin() {
   const setAuth = useAuthStore((s) => s.setAuth);

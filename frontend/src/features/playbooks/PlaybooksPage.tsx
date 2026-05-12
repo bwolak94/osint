@@ -1,14 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardBody } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { apiClient } from "@/shared/api/client";
 import { toast } from "@/shared/components/Toast";
-import { Play, BookOpen, Zap, X, Plus, Trash2, GripVertical } from "lucide-react";
+import { Play, Zap, X, Plus, Trash2, GripVertical, History, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
 
 function usePlaybooks() {
   return useQuery({
@@ -68,6 +68,78 @@ const stepIcons: Record<string, string> = {
   email: "\u{1F4E7}", nip: "\u{1F3E2}", domain: "\u{1F310}", ip_address: "\u{1F4E1}", username: "\u{1F464}", phone: "\u{1F4F1}",
 };
 
+interface StepRunResult {
+  step_index: number;
+  scanner: string;
+  status: "queued" | "skipped";
+  input_type: string;
+  condition: string;
+}
+
+interface PlaybookRun {
+  run_id: string;
+  playbook_id: string;
+  playbook_name: string;
+  seed_value: string;
+  seed_type: string;
+  started_at: string;
+  status: "queued" | "running" | "completed" | "failed";
+  step_results: StepRunResult[];
+}
+
+const RUN_STATUS_ICON: Record<string, React.ReactNode> = {
+  completed: <CheckCircle2 className="h-3.5 w-3.5" style={{ color: "var(--success-500)" }} />,
+  queued: <Clock className="h-3.5 w-3.5" style={{ color: "var(--info-500)" }} />,
+  running: <Clock className="h-3.5 w-3.5" style={{ color: "var(--warning-500)" }} />,
+  failed: <AlertCircle className="h-3.5 w-3.5" style={{ color: "var(--danger-500)" }} />,
+};
+
+function usePlaybookRuns(playbookId: string | null) {
+  return useQuery({
+    queryKey: ["playbook-runs", playbookId],
+    queryFn: async () => {
+      const res = await apiClient.get<PlaybookRun[]>(`/playbooks/${playbookId}/runs`);
+      return res.data;
+    },
+    enabled: !!playbookId,
+    staleTime: 30_000,
+  });
+}
+
+function PlaybookRunHistory({ playbookId }: { playbookId: string }) {
+  const { data: runs, isLoading } = usePlaybookRuns(playbookId);
+
+  if (isLoading) return null;
+  if (!runs || runs.length === 0) {
+    return (
+      <p className="text-xs py-2" style={{ color: "var(--text-tertiary)" }}>
+        No runs yet. Use this playbook to create a run.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {runs.slice(0, 5).map((run) => (
+        <div
+          key={run.run_id}
+          className="flex items-center gap-2 rounded-md px-3 py-2"
+          style={{ background: "var(--bg-overlay)" }}
+        >
+          {RUN_STATUS_ICON[run.status] ?? RUN_STATUS_ICON.queued}
+          <span className="flex-1 min-w-0 text-xs font-mono truncate" style={{ color: "var(--text-primary)" }}>
+            {run.seed_value}
+          </span>
+          <Badge variant="neutral" size="sm">{run.step_results.length} steps</Badge>
+          <span className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+            {formatDistanceToNow(new Date(run.started_at), { addSuffix: true })}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function PlaybooksPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -75,12 +147,28 @@ export function PlaybooksPage() {
   const [activePlaybook, setActivePlaybook] = useState<Playbook | null>(null);
   const [seedValue, setSeedValue] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
 
   // Create playbook form state
   const [newName, setNewName] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newSteps, setNewSteps] = useState<PlaybookStep[]>([]);
   const [selectedInputType, setSelectedInputType] = useState("email");
+
+  const executeMutation = useMutation({
+    mutationFn: async ({ playbookId, seedVal, seedType }: { playbookId: string; seedVal: string; seedType: string }) => {
+      const res = await apiClient.post<PlaybookRun>(`/playbooks/${playbookId}/execute`, {
+        seed_value: seedVal,
+        seed_type: seedType,
+      });
+      return res.data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["playbook-runs", data.playbook_id] });
+      toast.success(`Playbook queued — ${data.step_results.length} steps`);
+    },
+    onError: () => toast.error("Playbook execution failed"),
+  });
 
   const createInvMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -119,6 +207,13 @@ export function PlaybooksPage() {
     const inputType = activePlaybook.steps[0]?.input_type || "email";
     const scanners = activePlaybook.steps.map((s) => s.scanner);
     try {
+      // Fire execute endpoint to log the run
+      executeMutation.mutate({
+        playbookId: activePlaybook.id,
+        seedVal: seedValue.trim(),
+        seedType: inputType,
+      });
+      // Create and start investigation
       const inv = await createInvMutation.mutateAsync({
         title: `${activePlaybook.name} — ${seedValue}`,
         seed_inputs: [{ type: inputType, value: seedValue.trim() }],
@@ -198,17 +293,13 @@ export function PlaybooksPage() {
       )}
 
       {/* Create Playbook Modal */}
-      <AnimatePresence>
-        {showCreate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg rounded-xl border shadow-lg"
-              style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
-              onClick={(e) => e.stopPropagation()}
-            >
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
+          <div
+            className="w-full max-w-lg rounded-xl border shadow-lg"
+            style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
               <div className="flex items-center justify-between border-b px-6 py-4" style={{ borderColor: "var(--border-subtle)" }}>
                 <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Create Custom Playbook</h2>
                 <button onClick={() => { setShowCreate(false); resetCreateForm(); }} className="rounded-md p-1 hover:bg-bg-overlay">
@@ -310,10 +401,9 @@ export function PlaybooksPage() {
                   Save Playbook
                 </Button>
               </div>
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+      )}
 
       {/* Playbook grid */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -339,14 +429,33 @@ export function PlaybooksPage() {
                   </Badge>
                 ))}
               </div>
-              <Button
-                variant="secondary" size="sm"
-                leftIcon={<Play className="h-3.5 w-3.5" />}
-                className="w-full"
-                onClick={() => { setActivePlaybook(pb); setSeedValue(""); }}
-              >
-                Use Playbook
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary" size="sm"
+                  leftIcon={<Play className="h-3.5 w-3.5" />}
+                  className="flex-1"
+                  onClick={() => { setActivePlaybook(pb); setSeedValue(""); }}
+                >
+                  Use Playbook
+                </Button>
+                <Button
+                  variant="ghost" size="sm"
+                  leftIcon={<History className="h-3.5 w-3.5" />}
+                  onClick={() => setExpandedHistoryId(expandedHistoryId === pb.id ? null : pb.id)}
+                  aria-pressed={expandedHistoryId === pb.id}
+                >
+                  History
+                </Button>
+              </div>
+
+              {expandedHistoryId === pb.id && (
+                <div className="border-t pt-3" style={{ borderColor: "var(--border-subtle)" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--text-tertiary)" }}>
+                    Recent Runs
+                  </p>
+                  <PlaybookRunHistory playbookId={pb.id} />
+                </div>
+              )}
             </CardBody>
           </Card>
         ))}

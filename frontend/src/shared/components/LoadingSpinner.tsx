@@ -13,8 +13,13 @@ const sizes = {
 
 export function LoadingSpinner({ size = "md", className = "" }: SpinnerProps) {
   return (
-    <div className={`flex items-center justify-center ${className}`}>
+    <div
+      role="status"
+      aria-label="Loading"
+      className={`flex items-center justify-center ${className}`}
+    >
       <Loader2
+        aria-hidden="true"
         className={`animate-spin ${sizes[size]}`}
         style={{ color: "var(--brand-500)" }}
       />

@@ -36,14 +36,17 @@ function forceLayout(nodes: Node<OsintNodeData>[], edges: Edge[]): Node<OsintNod
     // Repulsion between all nodes
     for (let i = 0; i < nodes.length; i++) {
       for (let j = i + 1; j < nodes.length; j++) {
-        const a = positions.get(nodes[i].id)!;
-        const b = positions.get(nodes[j].id)!;
+        const ni = nodes[i];
+        const nj = nodes[j];
+        if (!ni || !nj) continue;
+        const a = positions.get(ni.id)!;
+        const b = positions.get(nj.id)!;
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const dist = Math.max(1, Math.sqrt(dx * dx + dy * dy));
         const repulsion = 5000 / (dist * dist);
-        const fa = forces.get(nodes[i].id)!;
-        const fb = forces.get(nodes[j].id)!;
+        const fa = forces.get(ni.id)!;
+        const fb = forces.get(nj.id)!;
         fa.fx -= (dx / dist) * repulsion;
         fa.fy -= (dy / dist) * repulsion;
         fb.fx += (dx / dist) * repulsion;
@@ -102,7 +105,7 @@ function hierarchicalLayout(nodes: Node<OsintNodeData>[], edges: Edge[]): Node<O
   // Start from nodes that have no incoming edges
   const hasIncoming = new Set(edges.map((e) => e.target));
   const roots = nodes.filter((n) => !hasIncoming.has(n.id));
-  if (roots.length === 0 && nodes.length > 0) roots.push(nodes[0]);
+  if (roots.length === 0 && nodes.length > 0) { const first = nodes[0]; if (first) roots.push(first); }
 
   roots.forEach((r) => {
     levels.set(r.id, 0);

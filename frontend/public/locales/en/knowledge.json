@@ -1,0 +1,15 @@
+{
+  "title": "Knowledge Base",
+  "ingesting": "Processing document…",
+  "ingestion_done": "Document indexed — {{chunks}} chunks stored",
+  "upload_label": "Upload a document (PDF, Markdown, plain text)",
+  "url_label": "Or paste a URL to extract",
+  "ingest_button": "Add to knowledge base",
+  "no_documents": "Knowledge base is empty. Upload a document to get started.",
+  "delete_confirm": "Remove this document from the knowledge base?",
+  "chunks": "{{count}} chunk",
+  "chunks_plural": "{{count}} chunks",
+  "source": "Source",
+  "tags": "Tags",
+  "drag_drop": "Drag and drop files here, or click to select"
+}

@@ -35,6 +35,7 @@ class UserResponse(BaseModel):
     is_active: bool
     is_email_verified: bool
     created_at: datetime
+    tos_accepted_at: datetime | None = None
 
 class LoginResponse(BaseModel):
     access_token: str

@@ -1,13 +1,14 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 interface CardProps {
   children: ReactNode;
   className?: string;
+  style?: CSSProperties;
   hover?: boolean;
   onClick?: () => void;
 }
 
-export function Card({ children, className = "", hover, onClick }: CardProps) {
+export function Card({ children, className = "", style, hover, onClick }: CardProps) {
   return (
     <div
       onClick={onClick}
@@ -19,6 +20,7 @@ export function Card({ children, className = "", hover, onClick }: CardProps) {
       style={{
         background: "var(--bg-surface)",
         borderColor: "var(--border-subtle)",
+        ...style,
       }}
     >
       {children}
@@ -37,8 +39,8 @@ export function CardHeader({ children, className = "" }: { children: ReactNode; 
   );
 }
 
-export function CardBody({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`px-5 py-4 ${className}`}>{children}</div>;
+export function CardBody({ children, className = "", style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
+  return <div className={`px-5 py-4 ${className}`} style={style}>{children}</div>;
 }
 
 export function CardFooter({ children, className = "" }: { children: ReactNode; className?: string }) {

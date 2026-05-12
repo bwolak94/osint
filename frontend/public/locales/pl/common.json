@@ -1,0 +1,22 @@
+{
+  "save": "Zapisz",
+  "cancel": "Anuluj",
+  "delete": "Usuń",
+  "edit": "Edytuj",
+  "create": "Utwórz",
+  "update": "Zaktualizuj",
+  "confirm": "Potwierdź",
+  "close": "Zamknij",
+  "back": "Wróć",
+  "next": "Dalej",
+  "loading": "Ładowanie…",
+  "error": "Błąd",
+  "success": "Sukces",
+  "no_results": "Brak wyników",
+  "search_placeholder": "Szukaj…",
+  "approve": "Zatwierdź",
+  "reject": "Odrzuć",
+  "sign_out": "Wyloguj się",
+  "dashboard": "Pulpit",
+  "settings": "Ustawienia"
+}

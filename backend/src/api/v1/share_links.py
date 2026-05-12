@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import structlog
+from fastapi.responses import Response
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
@@ -112,7 +113,7 @@ async def list_share_links(
     return ShareLinkListResponse(links=[], total=0)
 
 
-@router.delete("/share-links/{token}", status_code=204)
+@router.delete("/share-links/{token}", status_code=204, response_model=None)
 async def revoke_share_link(
     token: str,
     current_user: Any = Depends(get_current_user),

@@ -1,14 +1,14 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import ReactFlow, { Background, MiniMap, ReactFlowProvider, useReactFlow, type NodeTypes, type EdgeTypes, type Node } from "reactflow";
+import ReactFlow, { Background, MiniMap, ReactFlowProvider, useReactFlow, useViewport, type NodeTypes, type EdgeTypes, type Node } from "reactflow";
 import "reactflow/dist/style.css";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 
 import {
   PersonNode, CompanyNode, EmailNode, PhoneNode, UsernameNode, IPNode, DomainNode,
   ServiceNode, LocationNode, VulnerabilityNode, BreachNode, SubdomainNode,
   PortNode, CertificateNode, ASNNode, URLNode, HashNode, AddressNode,
-  BankAccountNode, GenericNode,
+  BankAccountNode, GenericNode, SocialProfileNode,
 } from "./components/nodes";
 import { RelationshipEdge } from "./components/edges/RelationshipEdge";
 import { GraphToolbar } from "./components/GraphToolbar";
@@ -19,7 +19,7 @@ import { useGraphNodes, useNodeSelection, useNodeSearch, useNodeFilters, usePath
 import { useGraphLayout } from "./useGraphLayout";
 import { Card, CardBody } from "@/shared/components/Card";
 import { EmptyState } from "@/shared/components/EmptyState";
-import type { OsintNodeData, LayoutType, NodeType } from "./types";
+import type { OsintNodeData, OsintEdgeData, LayoutType, NodeType } from "./types";
 
 const nodeTypes: NodeTypes = {
   person: PersonNode,
@@ -41,6 +41,7 @@ const nodeTypes: NodeTypes = {
   hash: HashNode,
   address: AddressNode,
   bank_account: BankAccountNode,
+  social_profile: SocialProfileNode,
   // Fallback types map to GenericNode
   regon: GenericNode,
   nip: GenericNode,
@@ -61,6 +62,7 @@ const NODE_COLOR_MAP: Record<string, string> = {
   certificate: "#a78bfa", asn: "#64748b", url: "#2dd4bf",
   hash: "#a3a3a3", address: "#fb923c", bank_account: "#eab308",
   regon: "#78716c", nip: "#78716c", online_service: "#c084fc", input: "#6366f1",
+  social_profile: "#f0abfc",
 };
 
 function GraphExplorer({ investigationId }: { investigationId: string }) {
@@ -68,7 +70,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   const [currentLayout, setCurrentLayout] = useState<LayoutType>("force");
   const { applyLayout } = useGraphLayout();
 
-  const { nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange, isLoading, meta } =
+  const { nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange, isLoading } =
     useGraphNodes(investigationId);
 
   const { selectedNodeId, selectNode } = useNodeSelection();
@@ -76,8 +78,16 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   const { visibleTypes, toggleType, minConfidence, setMinConfidence } = useNodeFilters();
   const pathFinding = usePathFinding(investigationId);
 
+  const canvasSearchRef = useRef<HTMLInputElement>(null);
+
   // Context menu state for right-click on nodes
-  const [contextMenu, setContextMenu] = useState<{x: number; y: number; nodeId: string; nodeLabel: string} | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    nodeId: string;
+    nodeLabel: string;
+    nodeType: string;
+  } | null>(null);
 
   // Apply layout
   const handleLayoutChange = useCallback(
@@ -210,9 +220,27 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
   const onNodeContextMenu = useCallback(
     (e: React.MouseEvent, node: Node<OsintNodeData>) => {
       e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY, nodeId: node.id, nodeLabel: node.data.label });
+      setContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        nodeId: node.id,
+        nodeLabel: node.data.label,
+        nodeType: node.data.type,
+      });
     },
     [],
+  );
+
+  const handlePentestThisTarget = useCallback(
+    (_nodeId: string, nodeLabel: string, nodeType: string) => {
+      navigate("/pentest/engagements/new", {
+        state: {
+          prefilled_target: { type: nodeType, value: nodeLabel },
+          osint_investigation_id: investigationId,
+        },
+      });
+    },
+    [navigate, investigationId],
   );
 
   // Handle node click
@@ -227,7 +255,54 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
     [pathFinding, selectNode],
   );
 
-  // Node type counts for status bar
+  // Viewport-based node culling for graphs >500 nodes (Improvement 26)
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const { x: vpX, y: vpY, zoom: vpZoom } = useViewport();
+
+  const displayNodes = useMemo(() => {
+    if (filteredNodes.length <= 500) return filteredNodes;
+    const w = graphContainerRef.current?.clientWidth ?? 1200;
+    const h = graphContainerRef.current?.clientHeight ?? 800;
+    const BUFFER = 300;
+    const left = -vpX / vpZoom - BUFFER;
+    const top = -vpY / vpZoom - BUFFER;
+    const right = left + w / vpZoom + 2 * BUFFER;
+    const bottom = top + h / vpZoom + 2 * BUFFER;
+    return filteredNodes.map((n) => ({
+      ...n,
+      hidden:
+        n.position.x < left ||
+        n.position.x > right ||
+        n.position.y < top ||
+        n.position.y > bottom,
+    }));
+  }, [filteredNodes, vpX, vpY, vpZoom]);
+
+  // Edge bundling: collapse 5+ parallel edges between same pair (Improvement 27)
+  const displayEdges = useMemo(() => {
+    const groups = new Map<string, typeof filteredEdges>();
+    for (const edge of filteredEdges) {
+      const key = [edge.source, edge.target].sort().join("||");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(edge);
+    }
+    const result: typeof filteredEdges = [];
+    for (const [, group] of groups) {
+      if (group.length < 5) {
+        result.push(...group);
+      } else {
+        const head = group[0]!;
+        result.push({
+          ...head,
+          id: `bundle-${head.source}-${head.target}`,
+          data: { ...(head.data ?? {}), label: `${group.length} links`, bundleCount: group.length } as OsintEdgeData,
+        });
+      }
+    }
+    return result;
+  }, [filteredEdges]);
+
+  // Node type counts for status bar (uses filteredNodes, not displayNodes, to count all)
   const typeCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredNodes.forEach((n) => {
@@ -235,6 +310,12 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
     });
     return counts;
   }, [filteredNodes]);
+
+  // Match count for the canvas search overlay
+  const matchCount = useMemo(() => {
+    if (!searchQuery) return filteredNodes.length;
+    return filteredNodes.filter((n) => !n.data.isDimmed).length;
+  }, [filteredNodes, searchQuery]);
 
   // Keyboard shortcuts
   const { zoomIn, zoomOut, fitView } = useReactFlow();
@@ -245,9 +326,13 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
 
       switch (e.key) {
         case "Escape":
-          selectNode(null);
-          pathFinding.cancelPathFinding();
-          handleClearSelection();
+          if (searchQuery) {
+            setSearchQuery("");
+          } else {
+            selectNode(null);
+            pathFinding.cancelPathFinding();
+            handleClearSelection();
+          }
           break;
         case "+":
         case "=":
@@ -259,7 +344,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
         case "f":
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault();
-            document.querySelector<HTMLInputElement>('[placeholder*="Search"]')?.focus();
+            canvasSearchRef.current?.focus();
           } else {
             fitView({ padding: 0.2 });
           }
@@ -269,7 +354,7 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectNode, pathFinding, zoomIn, zoomOut, fitView, handleClearSelection]);
+  }, [selectNode, pathFinding, zoomIn, zoomOut, fitView, handleClearSelection, searchQuery, setSearchQuery]);
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col">
@@ -321,10 +406,57 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
           </CardBody>
         </Card>
       ) : (
-        <div className="relative mt-2 flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-subtle)" }}>
+        <div ref={graphContainerRef} className="relative mt-2 flex-1 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border-subtle)" }}>
+          {/* Floating canvas search bar */}
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 10,
+            }}
+          >
+            <div
+              className="flex items-center gap-2 rounded-lg px-3 py-1.5 shadow-lg"
+              style={{
+                background: "var(--bg-surface)",
+                border: "1px solid var(--border-default)",
+                minWidth: 260,
+              }}
+            >
+              <Search className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+              <input
+                ref={canvasSearchRef}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Filter nodes by label or type..."
+                className="flex-1 bg-transparent text-xs outline-none"
+                style={{ color: "var(--text-primary)" }}
+              />
+              {searchQuery && (
+                <>
+                  <span
+                    className="shrink-0 text-xs font-medium tabular-nums"
+                    style={{ color: "var(--text-tertiary)" }}
+                  >
+                    {matchCount} / {filteredNodes.length}
+                  </span>
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="shrink-0 rounded p-0.5 transition-colors hover:bg-bg-overlay"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-3 w-3" style={{ color: "var(--text-tertiary)" }} />
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
           <ReactFlow
-            nodes={filteredNodes}
-            edges={filteredEdges}
+            nodes={displayNodes}
+            edges={displayEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
@@ -358,12 +490,14 @@ function GraphExplorer({ investigationId }: { investigationId: string }) {
               y={contextMenu.y}
               nodeId={contextMenu.nodeId}
               nodeLabel={contextMenu.nodeLabel}
+              nodeType={contextMenu.nodeType}
               onClose={() => setContextMenu(null)}
               onExpand={(id) => selectNode(id)}
-              onStartPathFrom={(id) => pathFinding.startPathFinding()}
+              onStartPathFrom={(_id) => pathFinding.startPathFinding()}
               onCopyValue={(value) => navigator.clipboard.writeText(value)}
               onHideNode={handleHideNode}
               onRemoveNode={handleRemoveNode}
+              onPentestThis={handlePentestThisTarget}
             />
           )}
 

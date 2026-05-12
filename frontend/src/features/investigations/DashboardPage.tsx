@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, Network, Shield, Activity, Plus, ArrowUpRight, Loader2 } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Search, Network, Shield, Activity, Plus, ArrowUpRight, Loader2, GripVertical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { Button } from "@/shared/components/Button";
@@ -7,34 +7,65 @@ import { Badge } from "@/shared/components/Badge";
 import { EmptyState } from "@/shared/components/EmptyState";
 import { useInvestigations, useCreateInvestigation, useStartInvestigation } from "./hooks";
 
+const STAT_ORDER_KEY = "dashboard-stat-order";
+
+function loadStatOrder(len: number): number[] {
+  try {
+    const saved = localStorage.getItem(STAT_ORDER_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved) as number[];
+      if (parsed.length === len) return parsed;
+    }
+  } catch { /* ignore */ }
+  return Array.from({ length: len }, (_, i) => i);
+}
+
 interface StatCardProps {
   label: string;
   value: string | number;
   icon: typeof Search;
+  dragging: boolean;
+  dragOver: boolean;
+  onDragStart: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
 }
 
-function StatCard({ label, value, icon: Icon }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, dragging, dragOver, onDragStart, onDragOver, onDrop, onDragEnd }: StatCardProps) {
   return (
-    <Card>
-      <CardBody>
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
-              {label}
-            </p>
-            <p className="mt-1 text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
-              {value}
-            </p>
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      style={{ opacity: dragging ? 0.4 : 1, cursor: "grab", transition: "opacity 0.15s" }}
+    >
+      <Card style={{ outline: dragOver ? "2px dashed var(--brand-500)" : undefined }}>
+        <CardBody>
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-2">
+              <GripVertical className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "var(--text-tertiary)", cursor: "grab" }} />
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+                  {label}
+                </p>
+                <p className="mt-1 text-2xl font-bold" style={{ color: "var(--text-primary)" }}>
+                  {value}
+                </p>
+              </div>
+            </div>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-lg"
+              style={{ background: "var(--brand-900)" }}
+            >
+              <Icon className="h-5 w-5" style={{ color: "var(--brand-400)" }} />
+            </div>
           </div>
-          <div
-            className="flex h-10 w-10 items-center justify-center rounded-lg"
-            style={{ background: "var(--brand-900)" }}
-          >
-            <Icon className="h-5 w-5" style={{ color: "var(--brand-400)" }} />
-          </div>
-        </div>
-      </CardBody>
-    </Card>
+        </CardBody>
+      </Card>
+    </div>
   );
 }
 
@@ -130,12 +161,52 @@ export function DashboardPage() {
   const completedCount = items.filter((i) => i.status === "completed").length;
   const totalSeeds = items.reduce((acc, i) => acc + (i.seed_inputs?.length ?? 0), 0);
 
-  const stats = [
+  const statsBase = [
     { label: "Active Investigations", value: activeCount, icon: Search },
     { label: "Completed", value: completedCount, icon: Shield },
     { label: "Total Investigations", value: data?.total ?? 0, icon: Activity },
     { label: "Total Seeds", value: totalSeeds, icon: Network },
   ];
+
+  // Drag-and-drop ordering for stat widgets (Improvement 38)
+  const [statOrder, setStatOrder] = useState<number[]>(() => loadStatOrder(statsBase.length));
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const dragSourceOrder = useRef<number | null>(null);
+
+  const handleDragStart = useCallback((orderPos: number) => {
+    setDraggingIdx(orderPos);
+    dragSourceOrder.current = orderPos;
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, orderPos: number) => {
+    e.preventDefault();
+    setDragOverIdx(orderPos);
+  }, []);
+
+  const handleDrop = useCallback((orderPos: number) => {
+    const from = dragSourceOrder.current;
+    if (from === null || from === orderPos) return;
+    setStatOrder((prev) => {
+      const next = [...prev];
+      const tmp = next[from] as number;
+      next[from] = next[orderPos] as number;
+      next[orderPos] = tmp;
+      localStorage.setItem(STAT_ORDER_KEY, JSON.stringify(next));
+      return next;
+    });
+    setDraggingIdx(null);
+    setDragOverIdx(null);
+    dragSourceOrder.current = null;
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    setDraggingIdx(null);
+    setDragOverIdx(null);
+    dragSourceOrder.current = null;
+  }, []);
+
+  const stats = statOrder.map((origIdx) => statsBase[origIdx]).filter((s): s is typeof statsBase[0] => s !== undefined);
 
   // Show the 5 most recent investigations
   const recentInvestigations = items.slice(0, 5).map((inv) => ({
@@ -172,10 +243,19 @@ export function DashboardPage() {
         </Button>
       </div>
 
-      {/* Stats grid */}
+      {/* Stats grid — draggable to reorder */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <StatCard key={stat.label} {...stat} />
+        {stats.map((stat, orderPos) => (
+          <StatCard
+            key={stat.label}
+            {...stat}
+            dragging={draggingIdx === orderPos}
+            dragOver={dragOverIdx === orderPos}
+            onDragStart={() => handleDragStart(orderPos)}
+            onDragOver={(e) => handleDragOver(e, orderPos)}
+            onDrop={() => handleDrop(orderPos)}
+            onDragEnd={handleDragEnd}
+          />
         ))}
       </div>
 

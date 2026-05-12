@@ -1,0 +1,20 @@
+id: 021
+name: Privilege Escalation Paths
+ptes_phase: post_exploitation
+wstg_id: WSTG-ATHZ-02
+mitre:
+  - T1068
+  - T1078
+cwe: 269
+tools:
+  - nuclei
+template: nuclei -u {target} -t privilege-escalation -j -silent -nt
+matchers:
+  - type: contains
+    value: "sudo"
+  - type: contains
+    value: "SUID"
+severity: critical
+description: Identify privilege escalation vectors through SUID binaries, sudo misconfig, kernel exploits.
+risk: Critical
+tags: [privesc, linux, sudo, suid, post-exploitation]

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bookmark, Plus, Trash2 } from "lucide-react";
+import { Bookmark } from "lucide-react";
 import { Button } from "@/shared/components/Button";
 
 interface BookmarkEntry {

@@ -75,6 +75,7 @@ export function useDarkMode(): {
       mq.addEventListener("change", handler);
       return () => mq.removeEventListener("change", handler);
     }
+    return undefined;
   }, [scheme]);
 
   const setScheme = useCallback((next: ColorScheme) => {
@@ -86,7 +87,7 @@ export function useDarkMode(): {
 
   const cycleScheme = useCallback(() => {
     const currentIndex = CYCLE_ORDER.indexOf(scheme);
-    const next = CYCLE_ORDER[(currentIndex + 1) % CYCLE_ORDER.length];
+    const next = CYCLE_ORDER[(currentIndex + 1) % CYCLE_ORDER.length] ?? "system";
     setScheme(next);
   }, [scheme, setScheme]);
 

@@ -1,0 +1,14 @@
+{
+  "title": "AI Hub",
+  "thinking": "Agent is thinking…",
+  "idle_hint": "Type a question below and the agent will search, plan, or retrieve knowledge for you.",
+  "input_placeholder": "Ask anything — news, tasks, knowledge…",
+  "send": "Send",
+  "hitl_title": "Human approval required",
+  "hitl_description": "The agent detected a potentially destructive operation.",
+  "hitl_approve": "Approve",
+  "hitl_reject": "Reject",
+  "result": "Result",
+  "error": "Error",
+  "step": "Step {{n}}"
+}

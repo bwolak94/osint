@@ -92,3 +92,44 @@ def _complete_investigation_task(graph_result: dict, investigation_id: str) -> d
     """Mark the investigation as completed after all pipeline steps finish."""
     log.info("Investigation pipeline completed", investigation_id=investigation_id)
     return {"investigation_id": investigation_id, "status": "completed"}
+
+
+@celery_app.task(
+    bind=True,
+    name="src.workers.tasks.investigation_tasks.run_osint_investigation",
+    max_retries=0,
+    queue="light",
+)
+def run_osint_investigation(
+    self,
+    investigation_id: str,
+    seed_inputs_data: list[dict],
+    enabled_scanners: list[str] | None = None,
+) -> dict:
+    """Run the full OSINT scan pipeline for an investigation via Celery.
+
+    Accepts serialised seed inputs (list of {"value": ..., "input_type": ...})
+    so the task is fully self-contained and can be retried independently of the
+    HTTP request context.
+    """
+    from src.api.v1.investigations.router import _run_scans_background
+    from src.core.domain.entities.types import ScanInputType, SeedInput
+
+    seeds = [
+        SeedInput(value=d["value"], input_type=ScanInputType(d["input_type"]))
+        for d in seed_inputs_data
+    ]
+
+    try:
+        asyncio.run(_run_scans_background(investigation_id, seeds, enabled_scanners))
+    except Exception as exc:
+        log.error("OSINT investigation task failed", investigation_id=investigation_id, error=str(exc))
+        # Mark investigation as failed so completed_at is always set
+        try:
+            from src.api.v1.investigations.router import _mark_investigation_failed
+            asyncio.run(_mark_investigation_failed(investigation_id))
+        except Exception:
+            pass
+        raise
+
+    return {"investigation_id": investigation_id, "status": "completed"}

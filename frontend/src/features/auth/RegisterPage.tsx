@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Shield, Mail, Lock, User, Building2, ArrowRight, ArrowLeft, Check } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 
@@ -44,7 +43,7 @@ function getPasswordStrength(pw: string): { score: number; label: string; color:
 
 export function RegisterPage() {
   const [step, setStep] = useState(1);
-  const [step1Data, setStep1Data] = useState<Step1Data | null>(null);
+  const [_step1Data, setStep1Data] = useState<Step1Data | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -65,10 +64,10 @@ export function RegisterPage() {
     setStep(2);
   };
 
-  const onStep2 = async (data: Step2Data) => {
+  const onStep2 = async (_data: Step2Data) => {
     setLoading(true);
     try {
-      // TODO: API call with { ...step1Data, ...data }
+      // TODO: API call with { ..._step1Data, ..._data }
       navigate("/login");
     } finally {
       setLoading(false);
@@ -93,19 +92,15 @@ export function RegisterPage() {
           </div>
         </div>
 
-        <AnimatePresence mode="wait">
+        <>
           {step === 1 ? (
-            <motion.form
-              key="step1"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+            <form
               onSubmit={form1.handleSubmit(onStep1)}
               className="space-y-4"
             >
-              <Input label="Email" type="email" placeholder="you@example.com" prefixIcon={<Mail className="h-4 w-4" />} error={form1.formState.errors.email?.message} autoFocus {...form1.register("email")} />
+              <Input label="Email" type="email" placeholder="you@example.com" prefixIcon={<Mail className="h-4 w-4" />} {...(form1.formState.errors.email?.message ? { error: form1.formState.errors.email.message } : {})} autoFocus {...form1.register("email")} />
               <div className="space-y-2">
-                <Input label="Password" type="password" placeholder="Minimum 8 characters" prefixIcon={<Lock className="h-4 w-4" />} error={form1.formState.errors.password?.message} {...form1.register("password")} />
+                <Input label="Password" type="password" placeholder="Minimum 8 characters" prefixIcon={<Lock className="h-4 w-4" />} {...(form1.formState.errors.password?.message ? { error: form1.formState.errors.password.message } : {})} {...form1.register("password")} />
                 {watchPassword && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
@@ -125,19 +120,15 @@ export function RegisterPage() {
                   </div>
                 )}
               </div>
-              <Input label="Confirm Password" type="password" placeholder="Repeat your password" prefixIcon={<Lock className="h-4 w-4" />} error={form1.formState.errors.confirmPassword?.message} {...form1.register("confirmPassword")} />
+              <Input label="Confirm Password" type="password" placeholder="Repeat your password" prefixIcon={<Lock className="h-4 w-4" />} {...(form1.formState.errors.confirmPassword?.message ? { error: form1.formState.errors.confirmPassword.message } : {})} {...form1.register("confirmPassword")} />
               <Button type="submit" className="w-full" rightIcon={<ArrowRight className="h-4 w-4" />}>Continue</Button>
-            </motion.form>
+            </form>
           ) : (
-            <motion.form
-              key="step2"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
+            <form
               onSubmit={form2.handleSubmit(onStep2)}
               className="space-y-4"
             >
-              <Input label="Full Name" placeholder="John Doe" prefixIcon={<User className="h-4 w-4" />} error={form2.formState.errors.fullName?.message} autoFocus {...form2.register("fullName")} />
+              <Input label="Full Name" placeholder="John Doe" prefixIcon={<User className="h-4 w-4" />} {...(form2.formState.errors.fullName?.message ? { error: form2.formState.errors.fullName.message } : {})} autoFocus {...form2.register("fullName")} />
               <Input label="Company (optional)" placeholder="Acme Inc." prefixIcon={<Building2 className="h-4 w-4" />} {...form2.register("companyName")} />
               <div className="space-y-3 rounded-md p-3" style={{ background: "var(--bg-elevated)" }}>
                 <label className="flex items-start gap-2 text-sm cursor-pointer">
@@ -160,9 +151,9 @@ export function RegisterPage() {
                 <Button type="button" variant="secondary" onClick={() => setStep(1)} leftIcon={<ArrowLeft className="h-4 w-4" />}>Back</Button>
                 <Button type="submit" loading={loading} className="flex-1">Create Account</Button>
               </div>
-            </motion.form>
+            </form>
           )}
-        </AnimatePresence>
+        </>
 
         <p className="text-center text-sm" style={{ color: "var(--text-secondary)" }}>
           Already have an account?{" "}

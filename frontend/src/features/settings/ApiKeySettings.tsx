@@ -3,14 +3,14 @@ import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
 import { DataBadge } from "@/shared/components/DataBadge";
-import { Key, Copy, Check, AlertTriangle, ExternalLink, Lock } from "lucide-react";
+import { Key, AlertTriangle, ExternalLink, Lock } from "lucide-react";
 import { useAuth } from "@/shared/hooks/useAuth";
 
 export function ApiKeySettings() {
   const { isPro } = useAuth();
   const [hasKey, setHasKey] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
-  const [showConfirmRegenerate, setShowConfirmRegenerate] = useState(false);
+  const [_showConfirmRegenerate, setShowConfirmRegenerate] = useState(false);
 
   const generateKey = () => {
     const key = `osint_${Array.from({ length: 48 }, () => "0123456789abcdef"[Math.floor(Math.random() * 16)]).join("")}`;

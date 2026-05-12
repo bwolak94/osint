@@ -1,0 +1,18 @@
+id: 003
+name: Subdomain Enumeration
+ptes_phase: intelligence_gathering
+wstg_id: WSTG-INFO-04
+mitre:
+  - T1590.001
+cwe: null
+tools:
+  - subfinder
+  - gobuster
+template: subfinder -d {target} -all -silent
+matchers:
+  - type: regex
+    pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-]*\\."
+severity: info
+description: Passive and active subdomain enumeration to map the attack surface.
+risk: Low
+tags: [recon, dns, subdomains]

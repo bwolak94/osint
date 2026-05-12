@@ -1,0 +1,18 @@
+id: 007
+name: Directory & Endpoint Discovery
+ptes_phase: intelligence_gathering
+wstg_id: WSTG-INFO-04
+mitre:
+  - T1083
+cwe: null
+tools:
+  - ffuf
+  - gobuster
+template: ffuf -u {target}/FUZZ -w /usr/share/wordlists/dirb/common.txt -mc 200,204,301,302,401,403 -s -o - -of json
+matchers:
+  - type: status_code
+    values: [200, 204]
+severity: medium
+description: Brute-force web directories and endpoints to discover hidden resources.
+risk: Medium
+tags: [recon, web, directory, fuzzing]

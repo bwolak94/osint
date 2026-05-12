@@ -1,0 +1,19 @@
+id: 006
+name: SQL Injection Detection
+ptes_phase: exploitation
+wstg_id: WSTG-INPV-05
+mitre:
+  - T1190
+cwe: 89
+tools:
+  - sqlmap
+template: sqlmap -u {target} --batch --level=1 --risk=1 --technique=B -q
+matchers:
+  - type: contains
+    value: "is vulnerable"
+  - type: contains
+    value: "SQL injection"
+severity: critical
+description: Detect SQL injection vulnerabilities using boolean-based blind testing.
+risk: Critical
+tags: [injection, sqli, web]

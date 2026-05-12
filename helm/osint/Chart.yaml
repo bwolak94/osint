@@ -1,0 +1,15 @@
+apiVersion: v2
+name: osint
+description: OSINT Investigation Platform — Kubernetes Helm Chart
+type: application
+version: 1.0.0
+appVersion: "2.0.0"
+
+keywords:
+  - osint
+  - security
+  - pentest
+  - investigation
+
+maintainers:
+  - name: OSINT Platform Team

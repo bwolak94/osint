@@ -130,3 +130,43 @@
     font-size: 13px;
   }
 }
+
+/* ── Phase 3: Deep Work Mode ─────────────────────────────── */
+[data-theme="deep-work"] {
+  --bg-base:           oklch(10% 0.005 240);
+  --bg-surface:        oklch(17% 0.008 240);
+  --bg-elevated:       oklch(14% 0.007 240);
+  --bg-overlay:        oklch(20% 0.009 240);
+  --border-subtle:     rgba(255,255,255,0.04);
+  --border-default:    rgba(255,255,255,0.08);
+  --border-strong:     rgba(255,255,255,0.15);
+  --text-primary:      oklch(95% 0.005 240);
+  --text-secondary:    oklch(65% 0.01 240);
+  --text-tertiary:     oklch(45% 0.01 240);
+  --brand-500:         oklch(75% 0.15 140);
+  --brand-400:         oklch(80% 0.15 140);
+  --shadow-glow:       0 0 20px oklch(75% 0.15 140 / 0.25);
+  /* Layout */
+  --sidebar-width:     0px;
+  --chrome-opacity:    0.3;
+}
+
+/* ── Phase 3: Review Mode ────────────────────────────────── */
+[data-theme="review"] {
+  --bg-base:           oklch(96% 0.01 60);
+  --bg-surface:        oklch(99% 0.005 60);
+  --bg-elevated:       oklch(92% 0.015 60);
+  --bg-overlay:        oklch(88% 0.018 60);
+  --border-subtle:     rgba(0,0,0,0.05);
+  --border-default:    rgba(0,0,0,0.10);
+  --border-strong:     rgba(0,0,0,0.18);
+  --text-primary:      oklch(18% 0.01 60);
+  --text-secondary:    oklch(40% 0.01 60);
+  --text-tertiary:     oklch(55% 0.01 60);
+  --brand-500:         oklch(60% 0.20 30);
+  --brand-400:         oklch(65% 0.20 30);
+  --shadow-glow:       0 0 20px oklch(60% 0.20 30 / 0.15);
+  /* Layout */
+  --sidebar-width:     320px;
+  --chrome-opacity:    1;
+}

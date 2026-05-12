@@ -1,0 +1,17 @@
+id: 010
+name: Server-Side Request Forgery (SSRF)
+ptes_phase: exploitation
+wstg_id: WSTG-INPV-19
+mitre:
+  - T1090
+cwe: 918
+tools:
+  - nuclei
+template: nuclei -u {target} -t ssrf -j -silent -nt
+matchers:
+  - type: contains
+    value: "ssrf"
+severity: critical
+description: Detect SSRF vulnerabilities that allow an attacker to make server-side requests.
+risk: Critical
+tags: [ssrf, injection, cloud, metadata]

@@ -59,7 +59,7 @@ export function StealerResultsDisplay({ check }: Props) {
       <div className="grid gap-4 sm:grid-cols-3">
         {[
           { label: 'Infections Found', value: check.total_infections },
-          { label: 'Sources Checked', value: check.sources_checked.length },
+          { label: 'Sources Checked', value: (check.sources_checked ?? []).length },
           { label: 'Query Type', value: check.query_type.toUpperCase() },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-xl border px-4 py-3 text-center" style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-subtle)' }}>
@@ -86,7 +86,7 @@ export function StealerResultsDisplay({ check }: Props) {
       )}
 
       {/* Infections list */}
-      {check.infections.length > 0 && (
+      {(check.infections ?? []).length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -96,7 +96,7 @@ export function StealerResultsDisplay({ check }: Props) {
           </CardHeader>
           <CardBody>
             <div className="space-y-3">
-              {check.infections.map((infection, i) => (
+              {(check.infections ?? []).map((infection, i) => (
                 <InfectionCard key={i} infection={infection} />
               ))}
             </div>

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon, Copy, FileText, MessageSquare, Send, Timer, Brain, CheckCircle, AlertTriangle, Lightbulb, MapPin } from "lucide-react";
+import { ArrowLeft, Play, Pause, Network, Download, Clock, Activity, Users, Scan, Loader2, ChevronDown, ChevronRight, Building2, User as UserIcon, Copy, FileText, MessageSquare, Send, Timer, Brain, CheckCircle, AlertTriangle, Lightbulb, MapPin, Layers, ShieldAlert } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
@@ -17,12 +17,20 @@ import { apiClient } from "@/shared/api/client";
 import { toast } from "@/shared/components/Toast";
 import { TimelineTab } from "./TimelineTab";
 import { MapTab } from "./MapTab";
+import { InvestigationRiskScore } from "./components/InvestigationRiskScore";
+import { PivotRecommendationsPanel } from "./components/PivotRecommendationsPanel";
+import { STIXExportButton } from "./components/STIXExportButton";
+import { InvestigationTabErrorBoundary } from "./InvestigationTabErrorBoundary";
+import { AnnotationPanel } from "./components/AnnotationPanel";
+import { SimilarInvestigationsPanel } from "./components/SimilarInvestigationsPanel";
+import { NLQueryBar } from "./components/NLQueryBar";
+import { VulnFindingsPanel } from "./components/VulnFindingsPanel";
 
 const statusVariant: Record<string, "neutral" | "info" | "success" | "warning" | "danger"> = {
   draft: "neutral", running: "info", paused: "warning", completed: "success", archived: "danger",
 };
 
-type Tab = "overview" | "scans" | "identities" | "timeline" | "map" | "comments" | "summary";
+type Tab = "overview" | "scans" | "identities" | "timeline" | "map" | "comments" | "summary" | "annotations" | "similar" | "vulns";
 
 export function InvestigationDetailPage() {
   const { id } = useParams();
@@ -94,9 +102,9 @@ export function InvestigationDetailPage() {
     if (!id) return;
     try {
       const res = await apiClient.get(`/investigations/${id}/report`, { responseType: "blob" });
-      const contentType = res.headers["content-type"] || "application/pdf";
+      const contentType = String(res.headers["content-type"] ?? "application/pdf");
       const ext = contentType.includes("pdf") ? "pdf" : "html";
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: contentType }));
+      const url = window.URL.createObjectURL(new Blob([res.data as BlobPart], { type: contentType }));
       const a = document.createElement("a");
       a.href = url;
       a.download = `report-${id}.${ext}`;
@@ -125,6 +133,17 @@ export function InvestigationDetailPage() {
     prevStatusRef.current = currentStatus;
   }, [investigation?.status, refetchResults, queryClient, id]);
 
+  // Keyboard shortcut: Ctrl+Shift+R → full rescan
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "R") {
+        e.preventDefault();
+        if (!isRunning) handleRerun();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isRunning, handleRerun]);
 
   const tabs: { value: Tab; label: string; icon: typeof Activity }[] = [
     { value: "overview", label: "Overview", icon: Activity },
@@ -134,6 +153,9 @@ export function InvestigationDetailPage() {
     { value: "map", label: "Map", icon: MapPin },
     { value: "comments", label: "Comments", icon: MessageSquare },
     { value: "summary", label: "AI Summary", icon: Brain },
+    { value: "annotations", label: "Annotations", icon: MessageSquare },
+    { value: "similar", label: "Similar", icon: Layers },
+    { value: "vulns", label: "Vulnerabilities", icon: ShieldAlert },
   ];
 
   if (isLoading) {
@@ -179,7 +201,7 @@ export function InvestigationDetailPage() {
             <h1 className="truncate text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
               {investigation.title}
             </h1>
-            <Badge variant={statusVariant[investigation.status]} dot>{investigation.status}</Badge>
+            <Badge variant={(statusVariant[investigation.status] ?? "neutral") as "success" | "warning" | "danger" | "info" | "neutral" | "brand"} dot>{investigation.status}</Badge>
           </div>
           <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
             {investigation.description}
@@ -204,7 +226,11 @@ export function InvestigationDetailPage() {
           <Button variant="secondary" size="sm" leftIcon={<Network className="h-4 w-4" />} onClick={() => navigate(`/investigations/${id}/graph`)}>
             Graph
           </Button>
+          <Button variant="secondary" size="sm" leftIcon={<Clock className="h-4 w-4" />} onClick={() => navigate(`/investigations/${id}/forensic-timeline`)}>
+            Timeline
+          </Button>
           <Button variant="ghost" size="sm" leftIcon={<Download className="h-4 w-4" />} onClick={handleExport}>Export</Button>
+          {id && <STIXExportButton investigationId={id} />}
           <Button variant="ghost" size="sm" leftIcon={<FileText className="h-4 w-4" />} onClick={handleDownloadReport}>Report</Button>
         </div>
       </div>
@@ -223,8 +249,11 @@ export function InvestigationDetailPage() {
         />
       )}
 
-      {/* Tab navigation */}
-      <div className="flex gap-1 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+      {/* Tab navigation — sticky so it stays visible on long pages */}
+      <div
+        className="sticky top-0 z-20 flex gap-1 border-b backdrop-blur-sm"
+        style={{ borderColor: "var(--border-subtle)", background: "var(--bg-base, rgba(15,15,20,0.85))" }}
+      >
         {tabs.map((t) => (
           <button
             key={t.value}
@@ -251,7 +280,14 @@ export function InvestigationDetailPage() {
 
       {/* Tab content */}
       {tab === "overview" && (
+        <InvestigationTabErrorBoundary tabName="Overview">
         <div className="space-y-4">
+          {/* NL Query Bar */}
+          <NLQueryBar />
+
+          {/* Risk score */}
+          {id && <InvestigationRiskScore investigationId={id} />}
+
           {/* Stats cards */}
           <div className="grid grid-cols-4 gap-3">
             {[
@@ -272,6 +308,9 @@ export function InvestigationDetailPage() {
             ))}
           </div>
 
+          {/* AI Pivot Recommendations */}
+          {id && <PivotRecommendationsPanel investigationId={id} />}
+
           {/* Seeds */}
           <Card>
             <CardHeader><h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Seed Inputs</h3></CardHeader>
@@ -287,6 +326,7 @@ export function InvestigationDetailPage() {
             </CardBody>
           </Card>
         </div>
+        </InvestigationTabErrorBoundary>
       )}
 
       {tab === "scans" && (
@@ -348,18 +388,39 @@ export function InvestigationDetailPage() {
                                 <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                                   {displayKeys.map((key) => {
                                     const val = r.raw_data[key];
-                                    // Bank accounts rendered as a list of copyable badges
-                                    if (key === "bank_accounts" && Array.isArray(val)) {
+                                    // Arrays: render as wrapped badges list
+                                    if (Array.isArray(val)) {
                                       return (
                                         <div key={key} className="col-span-2">
                                           <p className="text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>
                                             {key.replace(/_/g, " ")}
                                           </p>
-                                          <div className="flex flex-wrap gap-1">
-                                            {val.map((acc: string) => (
-                                              <DataBadge key={acc} value={acc} />
-                                            ))}
-                                          </div>
+                                          {val.length === 0 ? (
+                                            <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>—</span>
+                                          ) : typeof val[0] === "object" ? (
+                                            <pre className="text-xs font-mono rounded p-2 overflow-x-auto max-h-40" style={{ background: "var(--bg-overlay)", color: "var(--text-secondary)" }}>
+                                              {JSON.stringify(val, null, 2)}
+                                            </pre>
+                                          ) : (
+                                            <div className="flex flex-wrap gap-1">
+                                              {val.map((item: unknown, i: number) => (
+                                                <DataBadge key={i} value={String(item)} />
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+                                    // Objects: render as JSON
+                                    if (val !== null && typeof val === "object") {
+                                      return (
+                                        <div key={key} className="col-span-2">
+                                          <p className="text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>
+                                            {key.replace(/_/g, " ")}
+                                          </p>
+                                          <pre className="text-xs font-mono rounded p-2 overflow-x-auto max-h-40" style={{ background: "var(--bg-overlay)", color: "var(--text-secondary)" }}>
+                                            {JSON.stringify(val, null, 2)}
+                                          </pre>
                                         </div>
                                       );
                                     }
@@ -368,7 +429,7 @@ export function InvestigationDetailPage() {
                                         <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
                                           {key.replace(/_/g, " ")}
                                         </span>
-                                        <DataBadge value={String(val)} />
+                                        <DataBadge value={String(val ?? "—")} />
                                       </div>
                                     );
                                   })}
@@ -394,7 +455,7 @@ export function InvestigationDetailPage() {
               const dataKeys = Object.keys(ident.data || {}).filter(
                 (k) => !["bank_accounts", "found"].includes(k)
               );
-              const bankAccounts: string[] = ident.data?.bank_accounts ?? [];
+              const bankAccounts: string[] = (ident.data?.bank_accounts as string[] | undefined) ?? [];
               return (
                 <Card key={ident.id}>
                   <CardBody>
@@ -640,6 +701,32 @@ export function InvestigationDetailPage() {
             <EmptyState title="No summary available" description="Summary will be available once scan results are collected." />
           )}
         </div>
+      )}
+
+      {tab === "annotations" && id && (
+        <InvestigationTabErrorBoundary tabName="Annotations">
+          <Card>
+            <CardBody>
+              <AnnotationPanel investigationId={id} />
+            </CardBody>
+          </Card>
+        </InvestigationTabErrorBoundary>
+      )}
+
+      {tab === "similar" && id && (
+        <InvestigationTabErrorBoundary tabName="Similar">
+          <Card>
+            <CardBody>
+              <SimilarInvestigationsPanel currentInvestigationId={id} />
+            </CardBody>
+          </Card>
+        </InvestigationTabErrorBoundary>
+      )}
+
+      {tab === "vulns" && (
+        <InvestigationTabErrorBoundary tabName="Vulnerabilities">
+          <VulnFindingsPanel scanResults={scanResults} />
+        </InvestigationTabErrorBoundary>
       )}
     </div>
   );

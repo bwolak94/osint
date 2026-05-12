@@ -4,7 +4,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Shield, Mail, Lock, Eye, EyeOff, Network, Search, Globe } from "lucide-react";
-import { motion } from "framer-motion";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { useAuthStore } from "@/features/auth/store";
@@ -43,15 +42,19 @@ export function LoginPage() {
       setTimeout(() => setShake(false), 500);
 
       if (err instanceof ApiError) {
-        if (err.status === 423) {
+        if (err.status === 401) {
+          setFormError("Invalid email or password");
+        } else if (err.status === 423) {
           setFormError("Account temporarily locked. Try again in 15 minutes.");
         } else if (err.status === 429) {
           setFormError("Too many attempts. Please wait before trying again.");
+        } else if (err.status === 0 || err.status >= 500) {
+          setFormError("Cannot reach the server. Check that the backend is running.");
         } else {
-          setFormError("Invalid email or password");
+          setFormError(err.message || "Login failed");
         }
       } else {
-        setFormError("An unexpected error occurred");
+        setFormError("Cannot reach the server. Check your connection.");
       }
     }
   };
@@ -106,10 +109,9 @@ export function LoginPage() {
 
       {/* Right: Login form */}
       <div className="flex flex-1 items-center justify-center px-6">
-        <motion.div
+        <div
           className="w-full max-w-sm space-y-8"
-          animate={shake ? { x: [0, -10, 10, -10, 10, 0] } : {}}
-          transition={{ duration: 0.4 }}
+          style={shake ? { animation: "shake 0.4s ease-in-out" } : undefined}
         >
           {/* Mobile logo */}
           <div className="text-center lg:hidden">
@@ -131,7 +133,7 @@ export function LoginPage() {
               type="email"
               placeholder="you@example.com"
               prefixIcon={<Mail className="h-4 w-4" />}
-              error={errors.email?.message}
+              {...(errors.email?.message ? { error: errors.email.message } : {})}
               autoFocus
               {...register("email")}
             />
@@ -152,7 +154,7 @@ export function LoginPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 }
-                error={errors.password?.message}
+                {...(errors.password?.message ? { error: errors.password.message } : {})}
                 {...register("password")}
               />
               <div className="text-right">
@@ -192,8 +194,17 @@ export function LoginPage() {
               Create one
             </Link>
           </p>
-        </motion.div>
+        </div>
       </div>
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-10px); }
+          40% { transform: translateX(10px); }
+          60% { transform: translateX(-10px); }
+          80% { transform: translateX(10px); }
+        }
+      `}</style>
     </div>
   );
 }

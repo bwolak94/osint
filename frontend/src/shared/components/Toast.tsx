@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { X, CheckCircle2, AlertTriangle, AlertCircle, Info } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -74,28 +73,23 @@ export function ToastContainer() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2" style={{ maxWidth: 380 }}>
-      <AnimatePresence>
-        {toasts.map((t) => {
-          const Icon = icons[t.type];
-          const color = colors[t.type];
-          return (
-            <motion.div
-              key={t.id}
-              initial={{ opacity: 0, x: 50, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 50, scale: 0.95 }}
-              className="flex items-start gap-2 rounded-lg border px-4 py-3 shadow-lg"
-              style={{ background: color.bg, borderColor: `${color.border}30` }}
-            >
-              <Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: color.text }} />
-              <p className="flex-1 text-sm" style={{ color: color.text }}>{t.message}</p>
-              <button onClick={() => dismiss(t.id)} className="shrink-0">
-                <X className="h-3.5 w-3.5" style={{ color: color.text }} />
-              </button>
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+      {toasts.map((t) => {
+        const Icon = icons[t.type];
+        const color = colors[t.type];
+        return (
+          <div
+            key={t.id}
+            className="flex items-start gap-2 rounded-lg border px-4 py-3 shadow-lg animate-in slide-in-from-right-4 fade-in duration-200"
+            style={{ background: color.bg, borderColor: `${color.border}30` }}
+          >
+            <Icon className="mt-0.5 h-4 w-4 shrink-0" style={{ color: color.text }} />
+            <p className="flex-1 text-sm" style={{ color: color.text }}>{t.message}</p>
+            <button onClick={() => dismiss(t.id)} className="shrink-0">
+              <X className="h-3.5 w-3.5" style={{ color: color.text }} />
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }

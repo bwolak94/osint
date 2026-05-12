@@ -1,0 +1,14 @@
+{
+  "title": "Kalendarz",
+  "draft_schedule": "Proponowany harmonogram",
+  "approved": "Zatwierdzone",
+  "conflict": "Wykryto konflikt",
+  "free_slots": "Wolne sloty",
+  "no_slots": "Brak wolnych slotów w ciągu 7 dni.",
+  "cognitive_load": "Obciążenie poznawcze",
+  "peak_focus": "Szczytowa koncentracja",
+  "approve_schedule": "Zatwierdź harmonogram",
+  "regenerate": "Generuj ponownie",
+  "why_this_slot": "Dlaczego ten slot?",
+  "overload_warning": "Wykryto przeciążenie — rozważ przeniesienie zadań"
+}

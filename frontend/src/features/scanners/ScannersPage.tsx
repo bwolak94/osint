@@ -1,6 +1,6 @@
 import {
   Mail, AtSign, Building2, FileSearch, Receipt, Globe, Shield,
-  CheckCircle2, Clock, Database, Users, CreditCard, MapPin, Hash, Search,
+  CheckCircle2, Clock, Users, MapPin, Search,
   Wifi, Phone, Lock, AlertTriangle, Chrome, Linkedin, Twitter, Facebook, Instagram,
 } from "lucide-react";
 import { Card, CardBody } from "@/shared/components/Card";

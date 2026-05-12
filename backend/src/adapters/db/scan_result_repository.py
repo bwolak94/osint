@@ -36,12 +36,20 @@ class SqlAlchemyScanResultRepository:
             return None
         return self._to_entity(model)
 
-    async def get_by_investigation(self, investigation_id: UUID) -> list[ScanResult]:
+    async def get_by_investigation(
+        self,
+        investigation_id: UUID,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[ScanResult]:
         stmt = (
             select(ScanResultModel)
             .where(ScanResultModel.investigation_id == investigation_id)
             .order_by(ScanResultModel.created_at.desc())
+            .offset(offset)
         )
+        if limit is not None:
+            stmt = stmt.limit(limit)
         result = await self._session.execute(stmt)
         return [self._to_entity(m) for m in result.scalars().all()]
 

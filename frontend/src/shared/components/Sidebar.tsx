@@ -27,9 +27,47 @@ import {
   Network,
   ShieldAlert,
   Globe2,
+  ScanLine,
+  Network as NetworkIcon,
+  UserSearch,
+  KeyRound,
+  MapPin,
+  Brain,
+  ClipboardCheck,
+  BarChart3,
+  Swords,
+  Library,
+  Sparkles,
+  Bell,
+  GitBranch,
+  Flag,
+  FileOutput,
+  Scale,
+  Plug,
+  Eye,
+  Database,
+  Fingerprint,
+  Bitcoin,
+  Building2,
+  Phone,
+  GitMerge,
+  Archive,
+  Terminal,
+  RefreshCw,
+  Lock,
+  Clock,
+  Timer,
+  Rss,
+  Zap,
+  PackageCheck,
+  FlaskConical,
+  ShoppingBag,
+  Radio,
+  Gauge,
+  Puzzle,
+  Layers,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -57,9 +95,21 @@ function isNavGroup(entry: NavEntry): entry is NavGroup {
 
 const mainNav: NavEntry[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/hub", label: "AI Hub", icon: Sparkles },
   { to: "/investigations", label: "Investigations", icon: Search },
+  { to: "/campaigns", label: "Campaigns", icon: Flag },
+  { to: "/investigation-diff", label: "Diff & Merge", icon: GitBranch },
   { to: "/scanners", label: "Scanners", icon: Radar },
+  { to: "/custom-scanner", label: "Custom Scanners", icon: Cpu },
   { to: "/playbooks", label: "Playbooks", icon: BookOpen },
+  { to: "/world-monitor", label: "World Monitor", icon: Globe2 },
+  { to: "/deep-research", label: "Deep Research", icon: FlaskConical },
+  { to: "/digital-footprint", label: "Footprint Score", icon: Fingerprint },
+  { to: "/correlation", label: "Correlation Engine", icon: GitMerge },
+  { to: "/multi-graph", label: "Multi-Graph Analysis", icon: Layers },
+  { to: "/evidence-locker", label: "Evidence Locker", icon: Archive },
+  { to: "/secure-notes", label: "Secure Notes", icon: Lock },
+  { to: "/collaboration", label: "Collaboration", icon: Users },
   {
     key: "file-forensics",
     label: "File Forensics",
@@ -78,6 +128,8 @@ const mainNav: NavEntry[] = [
       { to: "/domain-permutation", label: "Domain Permutation", icon: Globe },
       { to: "/cloud-exposure", label: "Cloud Exposure", icon: Cloud },
       { to: "/wigle", label: "WiGLE", icon: Wifi },
+      { to: "/passive-dns", label: "Passive DNS", icon: Database },
+      { to: "/cert-transparency", label: "Cert Transparency", icon: Shield },
     ],
   },
   {
@@ -88,6 +140,17 @@ const mainNav: NavEntry[] = [
       { to: "/email-headers", label: "Email Headers", icon: Mail },
       { to: "/stealer-logs", label: "Stealer Logs", icon: AlertTriangle },
       { to: "/supply-chain", label: "Supply Chain", icon: Package },
+      { to: "/credential-intel", label: "Credential Intel", icon: KeyRound },
+      { to: "/threat-actors", label: "Threat Actors", icon: Shield },
+      { to: "/watchlist", label: "Watchlist", icon: Bell },
+      { to: "/dark-web", label: "Dark Web Monitor", icon: Eye },
+      { to: "/crypto-trace", label: "Crypto Tracing", icon: Bitcoin },
+      { to: "/corporate-intel", label: "Corporate Intel", icon: Building2 },
+      { to: "/brand-protection", label: "Brand Protection", icon: ShieldAlert },
+      { to: "/ioc-feed", label: "IOC Feed", icon: Radio },
+      { to: "/attack-surface", label: "Attack Surface", icon: Gauge },
+      { to: "/threat-feed", label: "Threat Feed", icon: Rss },
+      { to: "/canary-tokens", label: "Canary Tokens", icon: Zap },
     ],
   },
   {
@@ -96,6 +159,77 @@ const mainNav: NavEntry[] = [
     icon: Globe2,
     children: [
       { to: "/fediverse", label: "Fediverse", icon: Users },
+      { to: "/socmint", label: "SOCMINT", icon: UserSearch },
+      { to: "/phone-intel", label: "Phone Intel", icon: Phone },
+      { to: "/social-graph", label: "Social Graph", icon: Network },
+    ],
+  },
+  {
+    key: "tech-recon",
+    label: "Tech Recon",
+    icon: ScanLine,
+    children: [
+      { to: "/domain-intel", label: "Domain Intel", icon: Search },
+      { to: "/tech-recon", label: "Infra Recon", icon: NetworkIcon },
+      { to: "/network-topology", label: "Network Topology", icon: Network },
+    ],
+  },
+  {
+    key: "imint",
+    label: "IMINT / GEOINT",
+    icon: MapPin,
+    children: [
+      { to: "/imint", label: "Image & Geo Intel", icon: MapPin },
+    ],
+  },
+  {
+    key: "pentest",
+    label: "Pentest",
+    icon: Shield,
+    children: [
+      { to: "/pentest/engagements", label: "Engagements", icon: Layers },
+      { to: "/pentest/targets", label: "Targets", icon: Globe },
+      { to: "/pentest/dashboard", label: "Dashboard", icon: BarChart3 },
+      { to: "/pentest/findings", label: "Findings", icon: ShieldAlert },
+      { to: "/pentest/compliance", label: "Compliance", icon: ClipboardCheck },
+      { to: "/pentest/bas", label: "Attack Simulation", icon: Swords },
+      { to: "/pentest/finding-library", label: "Finding Library", icon: Library },
+      { to: "/pentest/attack-planner", label: "Attack Planner", icon: Brain },
+      { to: "/pentest/attack-flow", label: "Attack Flow", icon: Zap },
+      { to: "/pentest/marketplace", label: "Scenario Marketplace", icon: ShoppingBag },
+      { to: "/mitre-attack", label: "MITRE ATT&CK", icon: Swords },
+      { to: "/report-builder", label: "Report Builder", icon: FileOutput },
+      { to: "/vuln-management", label: "Vuln Management", icon: ShieldAlert },
+      { to: "/phishing", label: "Phishing Sim", icon: Mail },
+      { to: "/exploit-chain", label: "Exploit Chains", icon: Swords },
+      { to: "/pentest/wireless-auditor", label: "Wireless Auditor", icon: Wifi },
+      { to: "/c2-integration", label: "C2 Integration", icon: Terminal },
+      { to: "/methodology", label: "Methodology", icon: ClipboardCheck },
+      { to: "/retest", label: "Retest Engine", icon: RefreshCw },
+      { to: "/client-portal", label: "Client Portal", icon: Globe },
+      { to: "/time-tracking", label: "Time Tracking", icon: Clock },
+      { to: "/sla", label: "SLA Dashboard", icon: Timer },
+      { to: "/ai-debrief", label: "AI Debrief", icon: Brain },
+      { to: "/knowledge-base", label: "Knowledge Base", icon: BookOpen },
+      { to: "/client-handoff", label: "Client Handoff", icon: PackageCheck },
+    ],
+  },
+  {
+    key: "legal",
+    label: "Compliance & Legal",
+    icon: Scale,
+    children: [
+      { to: "/gdpr", label: "GDPR Requests", icon: Scale },
+    ],
+  },
+  { to: "/scanner-quota", label: "Scanner Quota", icon: Gauge },
+  { to: "/browser-extension", label: "Browser Extension", icon: Puzzle },
+  {
+    key: "integrations",
+    label: "Integrations",
+    icon: Plug,
+    children: [
+      { to: "/maltego", label: "Maltego", icon: Plug },
     ],
   },
 ];
@@ -123,7 +257,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return open;
   };
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(getDefaultOpen);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem('sidebar-groups')
+      if (stored) return { ...getDefaultOpen(), ...JSON.parse(stored) as Record<string, boolean> }
+    } catch { /* storage unavailable */ }
+    return getDefaultOpen()
+  });
 
   const tierColors: Record<string, string> = {
     free: "text-text-tertiary",
@@ -132,7 +272,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   };
 
   function toggleGroup(key: string) {
-    setOpenGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+    setOpenGroups((prev) => {
+      const next = { ...prev, [key]: !prev[key] }
+      try { localStorage.setItem('sidebar-groups', JSON.stringify(next)) } catch { /* storage unavailable */ }
+      return next
+    })
   }
 
   function renderItem(item: NavItem, indent = false) {
@@ -189,31 +333,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             style={{ color: "var(--text-tertiary)" }}
           />
         </button>
-        <AnimatePresence initial={false}>
-          {isOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              className="overflow-hidden"
-            >
-              <div className="mt-0.5 space-y-0.5 border-l ml-5 pl-1" style={{ borderColor: "var(--border-subtle)" }}>
-                {group.children.map((child) => renderItem(child, true))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {isOpen && (
+          <div className="overflow-hidden mt-0.5 space-y-0.5 border-l ml-5 pl-1" style={{ borderColor: "var(--border-subtle)" }}>
+            {group.children.map((child) => renderItem(child, true))}
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <motion.aside
-      animate={{ width: collapsed ? 64 : 240 }}
-      transition={{ duration: 0.2 }}
-      className="flex flex-col border-r overflow-hidden"
+    <aside
+      className="flex flex-col border-r overflow-hidden transition-[width] duration-200"
       style={{
+        width: collapsed ? 64 : 240,
         background: "var(--bg-surface)",
         borderColor: "var(--border-subtle)",
       }}
@@ -277,6 +410,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
           {!collapsed && <span>Sign Out</span>}
         </button>
       </div>
-    </motion.aside>
+    </aside>
   );
 }

@@ -17,19 +17,25 @@ export function ConfidenceIndicator({ value, showLabel = true }: ConfidenceIndic
   return (
     <div className="flex items-center gap-2">
       <div
+        role="meter"
+        aria-valuenow={percentage}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={`Confidence: ${percentage}% (${label})`}
         className="h-1.5 w-16 overflow-hidden rounded-full"
         style={{ background: "var(--bg-elevated)" }}
       >
         <div
+          aria-hidden="true"
           className="h-full rounded-full transition-all"
           style={{ width: `${percentage}%`, background: color }}
         />
       </div>
-      <span className="text-xs font-mono" style={{ color }}>
+      <span className="text-xs font-mono" style={{ color }} aria-hidden="true">
         {percentage}%
       </span>
       {showLabel && (
-        <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+        <span className="text-xs" style={{ color: "var(--text-tertiary)" }} aria-hidden="true">
           {label}
         </span>
       )}

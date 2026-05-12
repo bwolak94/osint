@@ -1,8 +1,9 @@
+import { useEffect, useRef, useState } from "react";
 import { Card, CardBody, CardHeader } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
 import { ProgressBar } from "@/shared/components/ProgressBar";
 import { ScannerBadge } from "@/shared/components/osint/ScannerBadge";
-import { Wifi, WifiOff, Radio } from "lucide-react";
+import { Radio, WifiOff, Clock } from "lucide-react";
 import type { WSMessage } from "./useInvestigationWebSocket";
 
 interface ScanProgressPanelProps {
@@ -23,11 +24,58 @@ function EventIcon({ type }: { type: string }) {
   return <span style={{ color: "var(--info-500)" }}>&#9889;</span>;
 }
 
+function useEtaEstimate(completed: number, total: number): string | null {
+  const startTimeRef = useRef<number>(Date.now());
+  const lastCompletedRef = useRef<number>(0);
+  const [eta, setEta] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (completed === 0 || total === 0 || completed >= total) {
+      setEta(null);
+      return;
+    }
+    // Only update when progress changes
+    if (completed === lastCompletedRef.current) return;
+    lastCompletedRef.current = completed;
+
+    const elapsedMs = Date.now() - startTimeRef.current;
+    const rate = completed / elapsedMs; // tasks per ms
+    if (rate <= 0) return;
+
+    const remaining = total - completed;
+    const etaMs = remaining / rate;
+
+    if (etaMs < 5000) {
+      setEta("< 5s");
+    } else if (etaMs < 60000) {
+      setEta(`~${Math.round(etaMs / 1000)}s`);
+    } else {
+      setEta(`~${Math.round(etaMs / 60000)}m`);
+    }
+  }, [completed, total]);
+
+  return eta;
+}
+
 export function ScanProgressPanel({
-  completed, total, percentage, currentScanner,
+  completed, total, percentage: _percentage, currentScanner,
   nodesDiscovered, edgesDiscovered, events, connected,
 }: ScanProgressPanelProps) {
+  const eta = useEtaEstimate(completed, total);
+
   return (
+    <>
+      {!connected && (
+        <div
+          className="flex items-center gap-2 rounded-lg border px-3 py-2 text-xs"
+          style={{ background: "var(--warning-950)", borderColor: "var(--warning-500)", color: "var(--warning-400)" }}
+          role="status"
+          aria-live="polite"
+        >
+          <WifiOff className="h-3.5 w-3.5 shrink-0" />
+          Live feed disconnected — reconnecting automatically…
+        </div>
+      )}
     <Card>
       <CardHeader className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -46,12 +94,18 @@ export function ScanProgressPanel({
       </CardHeader>
       <CardBody className="space-y-4">
         {/* Overall progress */}
-        <div>
+        <div className="space-y-1">
           <ProgressBar
             value={completed}
             max={total || 1}
             label={`${completed}/${total} tasks completed`}
           />
+          {eta && (
+            <div className="flex items-center gap-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
+              <Clock className="h-3 w-3" />
+              ETA: {eta}
+            </div>
+          )}
         </div>
 
         {/* Current scanner */}
@@ -97,5 +151,6 @@ export function ScanProgressPanel({
         )}
       </CardBody>
     </Card>
+    </>
   );
 }

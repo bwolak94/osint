@@ -1,0 +1,19 @@
+id: 014
+name: JWT Token Attacks
+ptes_phase: exploitation
+wstg_id: WSTG-SESS-10
+mitre:
+  - T1550.001
+cwe: 347
+tools:
+  - nuclei
+template: nuclei -u {target} -t jwt -j -silent -nt
+matchers:
+  - type: contains
+    value: "jwt"
+  - type: contains
+    value: "alg:none"
+severity: critical
+description: Test JWT tokens for alg:none attack, weak secret, and signature bypass.
+risk: Critical
+tags: [jwt, auth, token, bypass]

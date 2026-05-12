@@ -34,5 +34,30 @@ services:
       - "9002:9000"
       - "9003:9001"
 
+  worker:
+    environment:
+      - DEBUG=true
+    develop:
+      watch:
+        # Sync Python source into the Playwright container; restart worker process on change
+        - action: sync+restart
+          path: ./backend/src
+          target: /app/src
+        - action: rebuild
+          path: ./backend/pyproject.toml
+
+  worker-light:
+    volumes:
+      - ./backend/src:/app/src
+    environment:
+      - DEBUG=true
+    develop:
+      watch:
+        - action: sync+restart
+          path: ./backend/src
+          target: /app/src
+        - action: rebuild
+          path: ./backend/pyproject.toml
+
   flower:
     profiles: []

@@ -22,7 +22,15 @@ minio = "^7.2"
 python-jose = { extras = ["cryptography"], version = "^3.3" }
 passlib = { extras = ["bcrypt"], version = "^1.7" }
 httpx = "^0.28"
+anthropic = "^0.49"
 structlog = "^25.1"
+python-multipart = "^0.0.20"
+pyyaml = "^6.0"
+qdrant-client = {extras = ["fastembed"], version = "^1.13"}
+openai = "^1.0"
+tavily-python = "^0.3"
+langgraph = "^0.2"
+langchain-core = "^0.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3"
@@ -44,6 +52,12 @@ line-length = 120
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "ANN", "B", "A", "SIM"]
 ignore = ["ANN101", "ANN102"]
+
+# STDIO BANNED: RCE vulnerability (April 2026)
+# mcp.client.stdio and mcp.server.stdio are prohibited in this codebase.
+# All MCP integrations must use HTTP/SSE transport exclusively.
+# See backend/.ruff_mcp_stdio_ban.py for rationale.
+banned-module-level-imports = ["mcp.client.stdio", "mcp.server.stdio"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]

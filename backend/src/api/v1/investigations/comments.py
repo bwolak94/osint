@@ -3,6 +3,7 @@
 from typing import Annotated
 from uuid import UUID, uuid4
 
+from fastapi.responses import Response
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -85,7 +86,7 @@ async def create_comment(
     )
 
 
-@router.delete("/{investigation_id}/comments/{comment_id}", status_code=204)
+@router.delete("/{investigation_id}/comments/{comment_id}", status_code=204, response_model=None)
 async def delete_comment(
     investigation_id: UUID,
     comment_id: UUID,

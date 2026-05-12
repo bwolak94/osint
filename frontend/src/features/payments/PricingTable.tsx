@@ -145,7 +145,8 @@ export function PricingTable({ currentTier, onUpgrade }: PricingTableProps) {
   );
 }
 
-function FeatureList({ features, tier }: { features: typeof features; tier: string }) {
+type FeatureItem = { name: string; [key: string]: string | boolean }
+function FeatureList({ features, tier }: { features: FeatureItem[]; tier: string }) {
   return (
     <ul className="space-y-2 border-t pt-4" style={{ borderColor: "var(--border-subtle)" }}>
       {features.map((f) => {

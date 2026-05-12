@@ -17,7 +17,7 @@ interface ParsedKey {
 function parseShortcut(raw: string): ParsedKey {
   const parts = raw.toLowerCase().split("+");
   const modifiers = new Set(parts.slice(0, -1));
-  const key = parts[parts.length - 1];
+  const key = parts[parts.length - 1] ?? "";
   return {
     ctrl: modifiers.has("ctrl") || modifiers.has("cmd"),
     shift: modifiers.has("shift"),

@@ -1,9 +1,9 @@
 """Application configuration loaded from environment variables."""
 
-import warnings
 from functools import lru_cache
+from urllib.parse import urlparse
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     # JWT / Auth
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 15
+    jwt_access_token_expire_minutes: int = 30
     jwt_refresh_token_expire_minutes: int = 10080  # 7 days
     jwt_refresh_token_expire_days: int = 7
 
@@ -96,6 +96,30 @@ class Settings(BaseSettings):
 
     # CORS
     cors_origins: list[str] = ["http://localhost:8080", "http://localhost:5173", "http://localhost:3000"]
+    cors_allow_methods: list[str] = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    cors_allow_headers: list[str] = [
+        "Authorization",
+        "Content-Type",
+        "X-Correlation-ID",
+        "X-Request-ID",
+        "Accept",
+        "Origin",
+    ]
+
+    # HITL (Human-in-the-loop) gate
+    hitl_timeout_minutes: int = 30
+    hitl_poll_interval_seconds: int = 5
+
+    # Scanner settings
+    scanner_default_timeout_seconds: int = 120
+    scanner_rate_limit_counts_as_failure: bool = False  # don't trip CB on rate limits
+
+    # Circuit breaker (Redis-backed)
+    circuit_breaker_failure_threshold: int = 5
+    circuit_breaker_recovery_timeout_seconds: int = 300
+
+    # Anomaly detection
+    anomaly_result_threshold: int = 50  # flag scanners returning more than this many results
 
     # Notification webhooks
     slack_webhook_url: str = ""
@@ -129,6 +153,10 @@ class Settings(BaseSettings):
     jira_email: str = ""
     jira_api_token: str = ""
     jira_project_key: str = ""
+
+    # Database connection pool (passed to SQLAlchemy create_async_engine)
+    db_pool_size: int = 20
+    db_pool_max_overflow: int = 10
 
     # Security
     pii_encryption_key: str = ""
@@ -180,18 +208,139 @@ class Settings(BaseSettings):
     default_scan_result_retention_days: int = 90
     cold_archive_bucket: str = "osint-cold-archive"
 
+    # PentAI LLM configuration (Ollama)
+    pentest_llm_planner_model: str = "llama3.2:3b"
+    pentest_llm_reporter_model: str = "llama3.2:3b"
+    ollama_host: str = "http://ollama:11434"
+
+    # GitHub integration (format: "owner/repo")
+    github_repo: str = ""
+
+    # Pentest active poisoning (disabled by default for safety)
+    pentest_enable_active_poisoning: bool = False
+
+    # SMTP — used for phishing simulation email delivery
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "pentest@localhost"
+
+    # ── Hub AI Productivity ───────────────────────────────────────────────────
+    qdrant_url: str = "http://qdrant:6333"
+    qdrant_api_key: str = ""
+    qdrant_collection_knowledge: str = "knowledge"
+
+    # LangSmith observability (optional — set to enable tracing)
+    langchain_tracing_v2: bool = False
+    langchain_api_key: str = ""
+    langchain_project: str = "hub-production"
+    langchain_endpoint: str = "https://api.smith.langchain.com"
+
+    # LangSmith observability (Phase 1.6)
+    langsmith_api_key: str | None = None
+    langsmith_project: str = "hub-agent"
+    langsmith_tracing_enabled: bool = False
+
+    # Hub task settings
+    hub_task_ttl_seconds: int = 3600
+    hub_max_steps: int = 10
+    hub_sandbox_image: str = "hub-agent-sandbox:hardened"
+    hub_sandbox_network: str = "sandbox-net"
+    hub_sandbox_timeout_seconds: int = 300
+
+    # Tavily (Phase 2 — web research)
+    tavily_api_key: str = ""
+
+    # Google Calendar MCP (Phase 3 — HTTP/SSE only, STDIO banned)
+    google_calendar_mcp_url: str = "https://mcp.googleapis.com/calendar/sse"
+    google_calendar_oauth_token: str = ""
+
+    @field_validator("redis_url")
+    @classmethod
+    def _validate_redis_url(cls, v: str) -> str:
+        if not v.startswith(("redis://", "rediss://", "unix://")):
+            raise ValueError("REDIS_URL must start with redis://, rediss://, or unix://")
+        return v
+
+    @field_validator("neo4j_uri")
+    @classmethod
+    def _validate_neo4j_uri(cls, v: str) -> str:
+        if not v.startswith(("bolt://", "bolt+s://", "neo4j://", "neo4j+s://")):
+            raise ValueError("NEO4J_URI must start with bolt:// or neo4j://")
+        return v
+
+    @field_validator("postgres_host")
+    @classmethod
+    def _validate_postgres_host(cls, v: str) -> str:
+        if not v:
+            raise ValueError("POSTGRES_HOST must not be empty")
+        return v
+
+    @model_validator(mode="after")
+    def _validate_postgres_dsn_format(self) -> "Settings":
+        parsed = urlparse(self.postgres_dsn)
+        if not parsed.hostname:
+            raise ValueError(f"Invalid PostgreSQL DSN: hostname missing in '{self.postgres_dsn}'")
+        return self
+
     @model_validator(mode="after")
     def _check_secrets(self) -> "Settings":
         if not self.debug and self.jwt_secret_key == "change-me-in-production":
-            warnings.warn(
-                "SECURITY WARNING: JWT_SECRET_KEY is using the default value. "
-                "Set a unique JWT_SECRET_KEY environment variable for production.",
-                stacklevel=2,
+            raise ValueError(
+                "SECURITY ERROR: JWT_SECRET_KEY is using the default value. "
+                "Set a unique JWT_SECRET_KEY environment variable for production."
             )
+        if not self.debug and len(self.jwt_secret_key) < 32:
+            raise ValueError(
+                "SECURITY ERROR: JWT_SECRET_KEY is too short. "
+                "Use at least 32 characters for adequate security."
+            )
+        if not self.debug and self.pii_encryption_key and len(self.pii_encryption_key) < 32:
+            raise ValueError(
+                "SECURITY ERROR: PII_ENCRYPTION_KEY is too short. "
+                "Use at least 32 bytes for adequate security."
+            )
+        if not self.debug and self.neo4j_password == "neo4j":
+            raise ValueError(
+                "SECURITY ERROR: NEO4J_PASSWORD is using the default value. "
+                "Set a strong NEO4J_PASSWORD in production."
+            )
+        if not self.debug and self.minio_access_key == "minioadmin":
+            raise ValueError(
+                "SECURITY ERROR: MINIO_ACCESS_KEY is using the default value. "
+                "Set a strong MINIO_ACCESS_KEY in production."
+            )
+        if not self.debug and self.minio_secret_key == "minioadmin":
+            raise ValueError(
+                "SECURITY ERROR: MINIO_SECRET_KEY is using the default value. "
+                "Set a strong MINIO_SECRET_KEY in production."
+            )
+        if not self.debug:
+            localhost_origins = [
+                o for o in self.cors_origins
+                if "localhost" in o or "127.0.0.1" in o
+            ]
+            if localhost_origins:
+                raise ValueError(
+                    f"SECURITY ERROR: CORS_ORIGINS contains localhost entries in production: "
+                    f"{localhost_origins}. Remove them or set DEBUG=true."
+                )
         return self
 
 
-@lru_cache
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """Return a cached Settings instance."""
     return Settings()
+
+
+def reset_settings() -> None:
+    """Clear the cached Settings instance.
+
+    Useful in tests that patch environment variables after module import:
+        monkeypatch.setenv("DEBUG", "true")
+        reset_settings()
+        settings = get_settings()  # picks up the patched env
+    """
+    get_settings.cache_clear()

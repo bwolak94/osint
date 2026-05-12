@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Card, CardBody, CardHeader } from "@/shared/components/Card";
+import { Card, CardBody } from "@/shared/components/Card";
 import { Button } from "@/shared/components/Button";
 import { Badge } from "@/shared/components/Badge";
 import { ProgressBar } from "@/shared/components/ProgressBar";
-import { Check, Zap, Building2, CreditCard } from "lucide-react";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { PricingTable } from "./PricingTable";
 import { PaymentModal } from "./PaymentModal";

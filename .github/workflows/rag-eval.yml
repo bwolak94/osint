@@ -1,0 +1,29 @@
+name: RAG Evaluation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  rag-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Run RAG Evaluation
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          cd backend
+          python -m pytest tests/integration/rag_eval/ -v \
+            --eval-fail-below faithfulness=0.90 \
+            --eval-fail-below relevance=0.85 \
+            --eval-fail-below context_recall=0.82

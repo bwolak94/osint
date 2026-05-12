@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { User, Shield, Bell, Key, Lock, AlertTriangle, Link2 } from "lucide-react";
+import { User, Shield, Bell, Key, Lock, Link2 } from "lucide-react";
 import { Badge } from "@/shared/components/Badge";
-import { useAuth } from "@/shared/hooks/useAuth";
 import { ProfileSettings } from "./ProfileSettings";
 import { SecuritySettings } from "./SecuritySettings";
 import { NotificationSettings } from "./NotificationSettings";

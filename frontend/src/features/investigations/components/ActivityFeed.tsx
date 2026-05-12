@@ -238,7 +238,7 @@ export function ActivityFeed({ investigationId }: ActivityFeedProps) {
                 >
                   <UserAvatar
                     name={entry.user_name}
-                    avatarUrl={entry.user_avatar}
+                    {...(entry.user_avatar !== undefined ? { avatarUrl: entry.user_avatar } : {})}
                   />
                   <div className="flex-1 min-w-0">
                     <p

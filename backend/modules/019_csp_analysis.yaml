@@ -1,0 +1,21 @@
+id: 019
+name: Content Security Policy Analysis
+ptes_phase: vulnerability_analysis
+wstg_id: WSTG-CLNT-12
+mitre:
+  - T1189
+cwe: 693
+tools:
+  - httpx
+  - nuclei
+template: httpx -u {target} -include-response-header Content-Security-Policy -json
+matchers:
+  - type: missing_header
+    name: "Content-Security-Policy"
+  - type: header_value
+    name: "Content-Security-Policy"
+    contains: "unsafe-inline"
+severity: medium
+description: Analyze CSP headers for missing or weak policies enabling XSS attacks.
+risk: Medium
+tags: [csp, headers, xss, defense]

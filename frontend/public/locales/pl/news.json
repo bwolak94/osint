@@ -1,0 +1,22 @@
+{
+  "title": "Aktualności",
+  "pipeline_running_1": "Analizuję {{count}} źródło",
+  "pipeline_running_2": "Analizuję {{count}} źródła",
+  "pipeline_running_5": "Analizuję {{count}} źródeł",
+  "pipeline_running_many": "Analizuję {{count}} źródeł",
+  "pipeline_done_1": "Gotowe — znaleziono {{count}} artykuł",
+  "pipeline_done_2": "Gotowe — znaleziono {{count}} artykuły",
+  "pipeline_done_5": "Gotowe — znaleziono {{count}} artykułów",
+  "pipeline_done_many": "Gotowe — znaleziono {{count}} artykułów",
+  "no_articles": "Nie znaleziono artykułów. Spróbuj innego zapytania.",
+  "credibility": "Wiarygodność",
+  "relevance": "Trafność",
+  "action_signal": "Wykryto sygnał działania",
+  "duplicate": "Duplikat",
+  "search_placeholder": "Szukaj tematów, wydarzeń…",
+  "source": "Źródło",
+  "published": "Opublikowano",
+  "read_more": "Czytaj więcej",
+  "summary": "Podsumowanie",
+  "tags": "Tagi"
+}

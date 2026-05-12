@@ -1,0 +1,17 @@
+id: 001
+name: TCP Port Scan
+ptes_phase: intelligence_gathering
+wstg_id: WSTG-INFO-09
+mitre:
+  - T1046
+cwe: null
+tools:
+  - nmap
+template: nmap -sV -p- --open -T4 {target}
+matchers:
+  - type: regex
+    pattern: "\\d+/(tcp|udp)\\s+open"
+severity: info
+description: Enumerate open TCP/UDP ports and identify running services.
+risk: Low
+tags: [recon, network, ports]

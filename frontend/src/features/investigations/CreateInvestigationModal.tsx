@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { X, Plus, Trash2, Tag, ArrowRight, ArrowLeft, Zap, CheckSquare, FileText } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { X, Plus, Trash2, Tag, ArrowRight, ArrowLeft, Zap, FileText, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/shared/components/Button";
 import { Input } from "@/shared/components/Input";
 import { Badge } from "@/shared/components/Badge";
 import { useCreateInvestigation } from "./hooks";
+import { apiClient } from "@/shared/api/client";
 
 interface Props {
   onClose: () => void;
@@ -21,121 +22,31 @@ const seedTypes = [
   { value: "phone", label: "Phone" },
   { value: "ip_address", label: "IP Address" },
   { value: "url", label: "URL" },
-  { value: "company_name", label: "Company" },
   { value: "domain", label: "Domain" },
 ] as const;
 
-// Scanner definitions with supported input types
-const AVAILABLE_SCANNERS = [
-  {
-    name: "holehe",
-    label: "Holehe",
-    description: "Check email registration across 120+ services (Instagram, Twitter, Spotify, etc.)",
-    inputTypes: ["email"],
-  },
-  {
-    name: "maigret",
-    label: "Maigret",
-    description: "Find username presence across 3000+ websites",
-    inputTypes: ["username"],
-  },
-  {
-    name: "vat_status",
-    label: "VAT Status",
-    description: "Check VAT registration status and bank accounts (Polish Biala Lista API)",
-    inputTypes: ["nip"],
-  },
-  {
-    name: "playwright_krs",
-    label: "KRS Scraper",
-    description: "Scrape KRS company registry for board members and registration data",
-    inputTypes: ["nip"],
-  },
-  {
-    name: "playwright_ceidg",
-    label: "CEIDG Scraper",
-    description: "Search CEIDG for sole proprietorship data",
-    inputTypes: ["nip"],
-  },
-  {
-    name: "whois",
-    label: "WHOIS Lookup",
-    description: "Domain ownership, registrar, nameservers, and registration dates",
-    inputTypes: ["domain"],
-  },
-  {
-    name: "dns_lookup",
-    label: "DNS Records",
-    description: "A, MX, NS, TXT records and IP resolution",
-    inputTypes: ["domain"],
-  },
-  {
-    name: "shodan",
-    label: "Shodan",
-    description: "Open ports, services, vulnerabilities, and host intelligence",
-    inputTypes: ["ip_address", "domain"],
-  },
-  {
-    name: "geoip",
-    label: "IP Geolocation",
-    description: "Geographic location, ISP, and ASN data for IP addresses",
-    inputTypes: ["ip_address"],
-  },
-  {
-    name: "cert_transparency",
-    label: "Certificate Transparency",
-    description: "Subdomain discovery via SSL/TLS certificate logs",
-    inputTypes: ["domain"],
-  },
-  {
-    name: "hibp",
-    label: "Have I Been Pwned",
-    description: "Data breach exposure check for email addresses (requires API key)",
-    inputTypes: ["email"],
-  },
-  {
-    name: "phone_lookup",
-    label: "Phone Lookup",
-    description: "Phone number validation, carrier, and line type detection",
-    inputTypes: ["phone"],
-  },
-  {
-    name: "virustotal",
-    label: "VirusTotal",
-    description: "Threat intelligence for domains, IPs, and URLs (requires API key)",
-    inputTypes: ["domain", "ip_address", "url"],
-  },
-  {
-    name: "google_account",
-    label: "Google Account",
-    description: "Check Google services linked to an email (Calendar, Workspace, Gravatar)",
-    inputTypes: ["email"],
-  },
-  {
-    name: "linkedin",
-    label: "LinkedIn",
-    description: "Find LinkedIn profiles via direct URL check and Google dork search",
-    inputTypes: ["username", "email"],
-  },
-  {
-    name: "twitter",
-    label: "Twitter/X",
-    description: "Check Twitter/X profile existence and extract metadata",
-    inputTypes: ["username"],
-  },
-  {
-    name: "facebook",
-    label: "Facebook",
-    description: "Check Facebook profile existence via public URL",
-    inputTypes: ["username"],
-  },
-  {
-    name: "instagram",
-    label: "Instagram",
-    description: "Extract Instagram profile data — bio, followers, posts",
-    inputTypes: ["username"],
-  },
-] as const;
+// Scanner input type hints — used to filter applicable scanners for seed types.
+// Keys must match scanner_name values returned by the backend registry.
+const SCANNER_INPUT_HINTS: Record<string, string[]> = {
+  holehe: ["email"],
+  maigret: ["username"],
+  vat_status: ["nip"],
+  playwright_krs: ["nip"],
+  playwright_ceidg: ["nip"],
+  whois: ["domain"],
+  dns_lookup: ["domain"],
+  shodan: ["ip_address", "domain"],
+  geoip: ["ip_address"],
+  cert_transparency: ["domain"],
+  hibp: ["email"],
+  phone_lookup: ["phone"],
+  virustotal: ["domain", "ip_address", "url"],
+  google_account: ["email"],
+  linkedin: ["username", "email"],
+  twitter: ["username"],
+  facebook: ["username"],
+  instagram: ["username"],
+};
 
 const schema = z.object({
   title: z.string().min(3, "Min 3 characters").max(200),
@@ -157,8 +68,8 @@ function isValidNIP(nip: string): boolean {
   if (cleaned.length !== 10 || !/^\d+$/.test(cleaned)) return false;
   const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];
   const digits = cleaned.split("").map(Number);
-  const sum = weights.reduce((acc, w, i) => acc + w * digits[i], 0);
-  return sum % 11 === digits[9];
+  const sum = weights.reduce((acc, w, i) => acc + w * (digits[i] ?? 0), 0);
+  return sum % 11 === (digits[9] ?? -1);
 }
 
 const templates = [
@@ -177,6 +88,17 @@ export function CreateInvestigationModal({ onClose }: Props) {
   const [bulkText, setBulkText] = useState("");
   const navigate = useNavigate();
   const createMutation = useCreateInvestigation();
+
+  const { data: availableScannersData, isLoading: scannersLoading } = useQuery({
+    queryKey: ["available-scanners"],
+    queryFn: async () => {
+      const res = await apiClient.get<{ scanners: string[]; total: number }>(
+        "/scan-profiles/available-scanners"
+      );
+      return res.data;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
 
   const { register, control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -221,10 +143,19 @@ export function CreateInvestigationModal({ onClose }: Props) {
   // Determine which scanners are applicable based on seed input types
   const applicableScanners = useMemo(() => {
     const seedInputTypes = new Set(seeds.map((s) => s.type));
-    return AVAILABLE_SCANNERS.filter((scanner) =>
-      scanner.inputTypes.some((t) => seedInputTypes.has(t))
-    );
-  }, [seeds]);
+    const registryNames = availableScannersData?.scanners ?? [];
+    return registryNames
+      .map((name) => ({
+        name,
+        label: name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        inputTypes: SCANNER_INPUT_HINTS[name] ?? [],
+      }))
+      .filter((scanner) =>
+        scanner.inputTypes.length === 0
+          ? true // show scanners with no hint (accept all input types)
+          : scanner.inputTypes.some((t) => seedInputTypes.has(t))
+      );
+  }, [seeds, availableScannersData]);
 
   // When moving to step 3, auto-select all applicable scanners if none are selected
   const goToStep3 = () => {
@@ -260,10 +191,10 @@ export function CreateInvestigationModal({ onClose }: Props) {
     try {
       const result = await createMutation.mutateAsync({
         title: data.title,
-        description: data.description,
+        ...(data.description ? { description: data.description } : {}),
         seed_inputs: data.seeds.map((s) => ({ type: s.type, value: s.value })),
         tags: data.tags,
-        enabled_scanners: data.enabledScanners.length > 0 ? data.enabledScanners : undefined,
+        ...(data.enabledScanners.length > 0 ? { enabled_scanners: data.enabledScanners } : {}),
       });
       onClose();
       navigate(`/investigations/${result.id}`);
@@ -276,11 +207,7 @@ export function CreateInvestigationModal({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.15 }}
+      <div
         className="w-full max-w-lg rounded-xl border shadow-lg"
         style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
         onClick={(e) => e.stopPropagation()}
@@ -297,9 +224,9 @@ export function CreateInvestigationModal({ onClose }: Props) {
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
-            <AnimatePresence mode="wait">
+            <>
               {step === 1 && (
-                <motion.div key="s1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
+                <div className="space-y-4">
                   {/* Template selector */}
                   <div>
                     <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Start from a template</label>
@@ -326,7 +253,7 @@ export function CreateInvestigationModal({ onClose }: Props) {
                     </div>
                   </div>
 
-                  <Input label="Title" placeholder="Investigation #1 — XYZ Company" error={errors.title?.message} {...register("title")} autoFocus />
+                  <Input label="Title" placeholder="Investigation #1 — XYZ Company" {...(errors.title?.message ? { error: errors.title.message } : {})} {...register("title")} autoFocus />
                   <div>
                     <label className="mb-1.5 block text-sm font-medium" style={{ color: "var(--text-secondary)" }}>Description (optional)</label>
                     <textarea
@@ -365,11 +292,11 @@ export function CreateInvestigationModal({ onClose }: Props) {
                       </div>
                     )}
                   </div>
-                </motion.div>
+                </div>
               )}
 
               {step === 2 && (
-                <motion.div key="s2" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-3">
+                <div className="space-y-3">
                   <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
                     Seed Inputs ({fields.length}/10)
                   </p>
@@ -441,11 +368,11 @@ export function CreateInvestigationModal({ onClose }: Props) {
                       </div>
                     </div>
                   )}
-                </motion.div>
+                </div>
               )}
 
               {step === 3 && (
-                <motion.div key="s3" initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-3">
+                <div className="space-y-3">
                   <p className="text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
                     Select Scanners
                   </p>
@@ -453,7 +380,11 @@ export function CreateInvestigationModal({ onClose }: Props) {
                     Only scanners compatible with your seed input types are shown. Deselect any you want to skip.
                   </p>
 
-                  {applicableScanners.length === 0 ? (
+                  {scannersLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-5 w-5 animate-spin" style={{ color: "var(--text-tertiary)" }} />
+                    </div>
+                  ) : applicableScanners.length === 0 ? (
                     <div className="rounded-md p-4 text-center text-sm" style={{ background: "var(--bg-elevated)", color: "var(--text-tertiary)" }}>
                       No scanners available for the selected seed input types.
                     </div>
@@ -483,9 +414,6 @@ export function CreateInvestigationModal({ onClose }: Props) {
                                 </span>
                                 <Badge variant="neutral" size="sm">{scanner.name}</Badge>
                               </div>
-                              <p className="mt-0.5 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                                {scanner.description}
-                              </p>
                               <div className="mt-1 flex gap-1">
                                 {scanner.inputTypes.map((t) => (
                                   <Badge key={t} variant="info" size="sm">{t}</Badge>
@@ -506,9 +434,9 @@ export function CreateInvestigationModal({ onClose }: Props) {
                     </div>
                     <Zap className="ml-auto h-4 w-4" style={{ color: "var(--brand-400)" }} />
                   </label>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
+            </>
 
             {formError && (
               <div
@@ -546,7 +474,7 @@ export function CreateInvestigationModal({ onClose }: Props) {
             )}
           </div>
         </form>
-      </motion.div>
+      </div>
     </div>
   );
 }

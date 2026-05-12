@@ -74,7 +74,7 @@ export function WigleResults({ scan }: Props) {
               </tr>
             </thead>
             <tbody>
-              {scan.results.map((net, i) => (
+              {(scan.results ?? []).map((net, i) => (
                 <tr
                   key={i}
                   className="border-b transition-colors hover:bg-bg-overlay"

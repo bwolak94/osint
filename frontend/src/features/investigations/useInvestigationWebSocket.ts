@@ -82,9 +82,11 @@ export function useInvestigationWebSocket(investigationId: string | undefined, e
 
     ws.onclose = () => {
       setConnected(false);
-      // Exponential backoff reconnect
+      // Jittered exponential backoff: base * 2^n + random(0..1000ms), cap 30s
       if (enabled) {
-        const delay = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
+        const base = Math.min(1000 * 2 ** reconnectAttempts.current, 30000);
+        const jitter = Math.floor(Math.random() * 1000);
+        const delay = base + jitter;
         reconnectAttempts.current++;
         reconnectTimeout.current = setTimeout(connect, delay);
       }

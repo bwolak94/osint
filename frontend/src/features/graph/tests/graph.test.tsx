@@ -1,9 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { describe, it, expect } from "vitest";
 
 // Test graph types
-import type { OsintNodeData, OsintEdgeData, NodeType, LayoutType } from "../types";
+import type { OsintNodeData, OsintEdgeData, NodeType } from "../types";
 
 // Test layout algorithms
 import { useGraphLayout } from "../useGraphLayout";
@@ -120,8 +118,8 @@ describe("useGraphLayout", () => {
     ];
 
     const laid = result.current.applyLayout(nodes, [], "manual");
-    expect(laid[0].position).toEqual({ x: 10, y: 20 });
-    expect(laid[1].position).toEqual({ x: 30, y: 40 });
+    expect(laid[0]!.position).toEqual({ x: 10, y: 20 });
+    expect(laid[1]!.position).toEqual({ x: 30, y: 40 });
   });
 
   it("empty nodes returns empty array", () => {
@@ -166,13 +164,13 @@ describe("Node Filters", () => {
       mockNode("1", "person", "High"),
       mockNode("2", "email", "Low"),
     ];
-    nodes[0].data.confidence = 0.9;
-    nodes[1].data.confidence = 0.2;
+    nodes[0]!.data.confidence = 0.9;
+    nodes[1]!.data.confidence = 0.2;
 
     const minConfidence = 0.5;
     const filtered = nodes.filter((n) => n.data.confidence >= minConfidence);
     expect(filtered).toHaveLength(1);
-    expect(filtered[0].data.label).toBe("High");
+    expect(filtered[0]!.data.label).toBe("High");
   });
 
   it("combined type + confidence filter", () => {

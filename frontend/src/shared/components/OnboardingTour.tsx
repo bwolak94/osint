@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/shared/components/Button";
-import { motion, AnimatePresence } from "framer-motion";
 
 interface TourStep {
   target: string;  // CSS selector
@@ -34,14 +33,12 @@ export function OnboardingTour() {
   if (!active) return null;
 
   const current = tourSteps[step];
+  if (!current) return null;
 
   return (
     <div className="fixed inset-0 z-50">
       <div className="fixed inset-0 bg-black/40" />
-      <motion.div
-        key={step}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
+      <div
         className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm rounded-xl border p-5 shadow-2xl"
         style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
       >
@@ -67,7 +64,7 @@ export function OnboardingTour() {
             <Button size="sm" onClick={complete}>Get Started</Button>
           )}
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

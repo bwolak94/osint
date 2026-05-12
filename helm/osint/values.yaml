@@ -1,0 +1,196 @@
+# Default values for the OSINT platform Helm chart.
+# Override these in your values-production.yaml.
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: ""
+
+# ---------------------------------------------------------------------------
+# API (FastAPI)
+# ---------------------------------------------------------------------------
+api:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/yourorg/osint-api
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+  env:
+    DATABASE_URL: ""           # Override via secret
+    REDIS_URL: ""
+    JWT_SECRET_KEY: ""
+    JWT_REFRESH_SECRET_KEY: ""
+    OTEL_ENABLED: "false"
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+    SSO_ENABLED: "false"
+    GEOFENCE_ALLOWED_COUNTRIES: ""
+  service:
+    type: ClusterIP
+    port: 8000
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+# ---------------------------------------------------------------------------
+# Frontend (Nginx SPA)
+# ---------------------------------------------------------------------------
+frontend:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/yourorg/osint-frontend
+    tag: "2.0.0"
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "200m"
+      memory: "128Mi"
+  service:
+    type: ClusterIP
+    port: 80
+
+# ---------------------------------------------------------------------------
+# Celery workers
+# ---------------------------------------------------------------------------
+worker:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/yourorg/osint-api
+    tag: "2.0.0"
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+  queues: "heavy,graph"
+
+workerLight:
+  replicaCount: 2
+  queues: "light,pentest_light"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+# ---------------------------------------------------------------------------
+# Ingress
+# ---------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: osint.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend: api
+        - path: /
+          pathType: Prefix
+          backend: frontend
+  tls:
+    - secretName: osint-tls
+      hosts:
+        - osint.example.com
+
+# ---------------------------------------------------------------------------
+# PostgreSQL (Bitnami subchart — disable to use external DB)
+# ---------------------------------------------------------------------------
+postgresql:
+  enabled: true
+  auth:
+    database: osint
+    username: osint
+    password: ""   # Set via --set or sealed secret
+  primary:
+    persistence:
+      enabled: true
+      size: 20Gi
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+
+# ---------------------------------------------------------------------------
+# Redis (Bitnami subchart)
+# ---------------------------------------------------------------------------
+redis:
+  enabled: true
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: false
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+# ---------------------------------------------------------------------------
+# MinIO (object storage)
+# ---------------------------------------------------------------------------
+minio:
+  enabled: true
+  rootUser: minioadmin
+  rootPassword: ""   # Set via sealed secret
+  persistence:
+    enabled: true
+    size: 50Gi
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+
+# ---------------------------------------------------------------------------
+# Neo4j (graph database)
+# ---------------------------------------------------------------------------
+neo4j:
+  enabled: true
+  neo4j:
+    password: ""   # Set via sealed secret
+  volumes:
+    data:
+      mode: defaultStorageClass
+
+# ---------------------------------------------------------------------------
+# OpenTelemetry Collector
+# ---------------------------------------------------------------------------
+otelCollector:
+  enabled: false
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.97.0"
+
+# ---------------------------------------------------------------------------
+# n8n workflow automation
+# ---------------------------------------------------------------------------
+n8n:
+  enabled: false
+  image:
+    repository: n8nio/n8n
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 5678

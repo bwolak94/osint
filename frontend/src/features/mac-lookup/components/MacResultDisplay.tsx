@@ -74,7 +74,7 @@ export function MacResultDisplay({ lookup }: Props) {
       </div>
 
       {/* Raw data */}
-      {Object.keys(lookup.raw_data).length > 0 && (
+      {Object.keys(lookup.raw_data ?? {}).length > 0 && (
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -85,7 +85,7 @@ export function MacResultDisplay({ lookup }: Props) {
           <CardBody>
             <table className="w-full text-sm">
               <tbody>
-                {Object.entries(lookup.raw_data).map(([k, v]) => (
+                {Object.entries(lookup.raw_data ?? {}).map(([k, v]) => (
                   <tr key={k} className="border-b last:border-0" style={{ borderColor: 'var(--border-subtle)' }}>
                     <td className="py-1.5 pr-4 font-mono text-xs" style={{ color: 'var(--text-tertiary)', width: '40%' }}>{k}</td>
                     <td className="py-1.5 font-medium" style={{ color: 'var(--text-primary)' }}>{v !== null && v !== undefined ? String(v) : '—'}</td>

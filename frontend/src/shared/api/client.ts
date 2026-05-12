@@ -1,98 +1,123 @@
-import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
+import { useAuthStore } from "@/features/auth/store";
+import { AUTH_STORAGE_KEY } from "@/features/auth/constants";
 
-export class ApiError extends Error {
+export { AUTH_STORAGE_KEY };
+
+// ── ApiError (generic so callers get typed error payloads) ───────────────────
+export class ApiError<T = unknown> extends Error {
   status: number;
-  data: unknown;
+  data: T;
 
-  constructor(status: number, message: string, data?: unknown) {
+  constructor(status: number, message: string, data?: T) {
     super(message);
     this.name = "ApiError";
     this.status = status;
-    this.data = data;
+    this.data = data as T;
   }
 }
 
+// ── Axios client ──────────────────────────────────────────────────────────────
 const apiClient = axios.create({
   baseURL: "/api/v1",
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
 });
 
-// Request interceptor: attach access token
+// ── Mutable refresh state (encapsulated object, not bare module globals) ──────
+const refreshState = {
+  isRefreshing: false,
+  isRedirectingToLogin: false,
+  failedQueue: [] as Array<{
+    resolve: (token: string) => void;
+    reject: (error: unknown) => void;
+  }>,
+};
+
+function processQueue(error: unknown, token: string | null): void {
+  refreshState.failedQueue.forEach((prom) => {
+    if (error) prom.reject(error);
+    else if (token) prom.resolve(token);
+  });
+  refreshState.failedQueue = [];
+}
+
+function redirectToLogin(): void {
+  if (refreshState.isRedirectingToLogin || window.location.pathname.startsWith("/login")) return;
+  refreshState.isRedirectingToLogin = true;
+  useAuthStore.getState().logout();
+  // Belt-and-suspenders: clear persisted store directly so a page reload cannot
+  // rehydrate stale auth state before AuthInitializer runs.
+  try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch { /* ignore */ }
+  window.location.href = "/login";
+}
+
+// Dedicated client for the refresh call — bypasses the main interceptors to
+// prevent re-entry and avoids sending the expired Bearer token.
+const _refreshClient = axios.create({ withCredentials: true });
+
+// ── Request interceptor: attach access token ──────────────────────────────────
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  // Dynamic import to avoid circular deps
-  const token = getAccessToken();
+  const token = useAuthStore.getState().accessToken;
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Response interceptor: handle 401 with refresh
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (error: unknown) => void;
-}> = [];
+// ── Shared token refresh — deduplicates concurrent callers ───────────────────
+// Both the 401 interceptor and useAuthInit use this so only one refresh call
+// is ever in-flight at a time (important with rotating refresh tokens).
+export async function performTokenRefresh(): Promise<string> {
+  if (refreshState.isRefreshing) {
+    // Another refresh is already in-flight — wait for it to finish.
+    return new Promise<string>((resolve, reject) => {
+      refreshState.failedQueue.push({ resolve, reject });
+    });
+  }
 
-function processQueue(error: unknown, token: string | null) {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else if (token) prom.resolve(token);
-  });
-  failedQueue = [];
+  refreshState.isRefreshing = true;
+  try {
+    const { data } = await _refreshClient.post<{ access_token: string }>(
+      "/api/v1/auth/refresh",
+      null,
+    );
+    const newToken = data.access_token;
+    useAuthStore.getState().setAccessToken(newToken);
+    processQueue(null, newToken);
+    return newToken;
+  } catch (err) {
+    processQueue(err, null);
+    throw err;
+  } finally {
+    refreshState.isRefreshing = false;
+  }
 }
 
+// ── Response interceptor: handle 401 with token refresh ──────────────────────
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({
-            resolve: (token: string) => {
-              if (originalRequest.headers) {
-                originalRequest.headers.Authorization = `Bearer ${token}`;
-              }
-              resolve(apiClient(originalRequest));
-            },
-            reject,
-          });
-        });
-      }
-
       originalRequest._retry = true;
-      isRefreshing = true;
 
       try {
-        const { data } = await axios.post("/api/v1/auth/refresh", null, {
-          withCredentials: true,
-        });
-        const newToken = data.access_token;
-        setAccessToken(newToken);
-        processQueue(null, newToken);
+        const newToken = await performTokenRefresh();
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${newToken}`;
         }
         return apiClient(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
-        clearAuth();
-        window.location.href = "/login";
+        redirectToLogin();
         return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
       }
     }
 
-    // Any unhandled 401 — clear auth and redirect to login
+    // Retried request also got 401 — session fully expired.
     if (error.response?.status === 401) {
-      clearAuth();
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
-      }
+      redirectToLogin();
       return Promise.reject(error);
     }
 
@@ -105,29 +130,5 @@ apiClient.interceptors.response.use(
   },
 );
 
-// Token accessors — read/write from in-memory zustand store (not localStorage)
-function getAccessToken(): string | null {
-  try {
-    const { useAuthStore } = require("@/features/auth/store");
-    return useAuthStore.getState().accessToken;
-  } catch {
-    return null;
-  }
-}
-
-function setAccessToken(token: string): void {
-  try {
-    const { useAuthStore } = require("@/features/auth/store");
-    useAuthStore.getState().setAccessToken(token);
-  } catch {}
-}
-
-function clearAuth(): void {
-  try {
-    const { useAuthStore } = require("@/features/auth/store");
-    useAuthStore.getState().logout();
-  } catch {}
-}
-
-export { apiClient };
+export { apiClient, _refreshClient };
 export default apiClient;

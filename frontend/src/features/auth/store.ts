@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { AUTH_STORAGE_KEY } from "./constants";
 
 interface User {
   id: string;
@@ -8,6 +9,7 @@ interface User {
   subscription_tier: string;
   is_active: boolean;
   is_email_verified: boolean;
+  tos_accepted_at?: string | null;
 }
 
 interface AuthState {
@@ -32,10 +34,12 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, accessToken: null, isAuthenticated: false }),
     }),
     {
-      name: "auth-storage",
+      name: AUTH_STORAGE_KEY,
+      // accessToken is intentionally NOT persisted — it lives in memory only.
+      // On page reload the token is gone; AuthInitializer does a silent refresh
+      // using the httpOnly refresh cookie to get a fresh one without a 401.
       partialize: (state) => ({
         user: state.user,
-        accessToken: state.accessToken,
         isAuthenticated: state.isAuthenticated,
       }),
     },

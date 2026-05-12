@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -109,7 +109,7 @@ describe("Badge", () => {
 
   it("renders success variant", () => {
     const { container } = render(<Badge variant="success">OK</Badge>);
-    expect(container.firstChild?.className).toContain("text-success-500");
+    expect((container.firstChild as Element)?.className).toContain("text-success-500");
   });
 
   it("renders dot indicator", () => {
@@ -130,7 +130,7 @@ describe("Card", () => {
 
   it("has hover class when hover prop set", () => {
     const { container } = render(<Card hover>Hoverable</Card>);
-    expect(container.firstChild?.className).toContain("hover:shadow-glow");
+    expect((container.firstChild as Element)?.className).toContain("hover:shadow-glow");
   });
 
   it("renders with header and body", () => {

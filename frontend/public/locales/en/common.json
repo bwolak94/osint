@@ -1,0 +1,22 @@
+{
+  "save": "Save",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "edit": "Edit",
+  "create": "Create",
+  "update": "Update",
+  "confirm": "Confirm",
+  "close": "Close",
+  "back": "Back",
+  "next": "Next",
+  "loading": "Loading…",
+  "error": "Error",
+  "success": "Success",
+  "no_results": "No results found",
+  "search_placeholder": "Search…",
+  "approve": "Approve",
+  "reject": "Reject",
+  "sign_out": "Sign Out",
+  "dashboard": "Dashboard",
+  "settings": "Settings"
+}

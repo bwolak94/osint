@@ -2,7 +2,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger" | "outline";
-type Size = "sm" | "md" | "lg";
+type Size = "sm" | "md" | "lg" | "icon";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
@@ -29,6 +29,7 @@ const sizeStyles: Record<Size, string> = {
   sm: "h-8 px-3 text-xs gap-1.5 rounded-sm",
   md: "h-9 px-4 text-sm gap-2 rounded-md",
   lg: "h-11 px-6 text-sm gap-2 rounded-md",
+  icon: "h-9 w-9 rounded-md",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(

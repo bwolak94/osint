@@ -29,7 +29,7 @@ pnpm-debug.log*
 
 # Secrets
 .env.local
-
+docs/
 # Python
 __pycache__/
 *.pyc

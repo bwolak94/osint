@@ -59,7 +59,7 @@ class CreateInvestigationRequest(BaseModel):
 class UpdateInvestigationRequest(BaseModel):
     title: str | None = Field(None, min_length=3, max_length=200)
     description: str | None = Field(None, max_length=2000)
-    tags: list[str] | None = None
+    tags: list[str] = Field(default_factory=list)
 
 
 class ScanProgressSchema(BaseModel):

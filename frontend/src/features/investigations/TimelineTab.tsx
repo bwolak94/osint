@@ -1,7 +1,7 @@
-import { Card, CardBody } from "@/shared/components/Card";
+import { useMemo, useState } from "react";
 import { Badge } from "@/shared/components/Badge";
 import { ScannerBadge } from "@/shared/components/osint/ScannerBadge";
-import { Clock, CheckCircle2, AlertCircle, Search } from "lucide-react";
+import { Clock, CheckCircle2, AlertCircle, Search, Filter, X } from "lucide-react";
 
 interface TimelineEvent {
   id: string;
@@ -19,6 +19,9 @@ interface TimelineTabProps {
 }
 
 export function TimelineTab({ investigation, scanResults }: TimelineTabProps) {
+  const [scannerFilter, setScannerFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+
   // Build timeline events from investigation and scan results
   const events: TimelineEvent[] = [];
 
@@ -55,6 +58,22 @@ export function TimelineTab({ investigation, scanResults }: TimelineTabProps) {
   // Sort by timestamp
   events.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
+  // Unique scanners for filter
+  const availableScanners = useMemo(
+    () => [...new Set(scanResults.map((r) => r.scanner_name).filter(Boolean))],
+    [scanResults],
+  );
+
+  const filteredEvents = useMemo(() => {
+    return events.filter((e) => {
+      if (scannerFilter !== "all" && e.scanner !== scannerFilter) return false;
+      if (typeFilter !== "all" && e.type !== typeFilter) return false;
+      return true;
+    });
+  }, [events, scannerFilter, typeFilter]);
+
+  const hasActiveFilters = scannerFilter !== "all" || typeFilter !== "all";
+
   const iconMap = {
     investigation_created: Search,
     scan_completed: CheckCircle2,
@@ -72,11 +91,58 @@ export function TimelineTab({ investigation, scanResults }: TimelineTabProps) {
   };
 
   return (
-    <div className="space-y-0">
-      {events.map((event, i) => {
+    <div className="space-y-4">
+      {/* Filter bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Filter className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="rounded-md border px-2 py-1 text-xs"
+          style={{ background: "var(--bg-elevated)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+        >
+          <option value="all">All events</option>
+          <option value="scan_completed">Completed scans</option>
+          <option value="scan_failed">Failed scans</option>
+          <option value="investigation_created">Created</option>
+          <option value="investigation_completed">Completed</option>
+        </select>
+
+        {availableScanners.length > 0 && (
+          <select
+            value={scannerFilter}
+            onChange={(e) => setScannerFilter(e.target.value)}
+            className="rounded-md border px-2 py-1 text-xs"
+            style={{ background: "var(--bg-elevated)", borderColor: "var(--border-default)", color: "var(--text-primary)" }}
+          >
+            <option value="all">All scanners</option>
+            {availableScanners.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        )}
+
+        {hasActiveFilters && (
+          <button
+            onClick={() => { setScannerFilter("all"); setTypeFilter("all"); }}
+            className="flex items-center gap-1 text-xs transition-colors hover:underline"
+            style={{ color: "var(--text-tertiary)" }}
+          >
+            <X className="h-3 w-3" /> Clear
+          </button>
+        )}
+
+        <span className="ml-auto text-xs" style={{ color: "var(--text-tertiary)" }}>
+          {filteredEvents.length} event{filteredEvents.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Timeline */}
+      <div className="space-y-0">
+      {filteredEvents.map((event, i) => {
         const Icon = iconMap[event.type] ?? Clock;
         const color = colorMap[event.type] ?? "var(--text-tertiary)";
-        const isLast = i === events.length - 1;
+        const isLast = i === filteredEvents.length - 1;
 
         return (
           <div key={event.id} className="flex gap-4">
@@ -110,6 +176,7 @@ export function TimelineTab({ investigation, scanResults }: TimelineTabProps) {
           </div>
         );
       })}
+      </div>
     </div>
   );
 }

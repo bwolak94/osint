@@ -1,7 +1,7 @@
 import { apiClient } from '@/shared/api/client'
 import type { FediverseScan, FediverseListResponse } from './types'
 
-const BASE = '/api/v1/fediverse'
+const BASE = '/fediverse'
 
 export const scanFediverse = (query: string): Promise<FediverseScan> =>
   apiClient.post<FediverseScan>(`${BASE}/`, { query }).then((r) => r.data)

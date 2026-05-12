@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from src.api.v1.auth.dependencies import get_current_user
@@ -13,71 +13,63 @@ from src.api.v1.auth.dependencies import get_current_user
 log = structlog.get_logger()
 router = APIRouter()
 
-DEFAULT_SECTIONS = [
-    {"type": "header", "label": "Report Header", "config": {"show_logo": True, "show_date": True}},
-    {"type": "executive_summary", "label": "Executive Summary", "config": {"max_length": 500}},
-    {"type": "findings_table", "label": "Key Findings", "config": {"columns": ["scanner", "finding", "severity"]}},
-    {"type": "identity_cards", "label": "Resolved Identities", "config": {"show_confidence": True}},
-    {"type": "scan_results", "label": "Detailed Scan Results", "config": {"group_by": "scanner"}},
-    {"type": "graph_snapshot", "label": "Relationship Graph", "config": {"layout": "force-directed"}},
-    {"type": "timeline", "label": "Investigation Timeline", "config": {}},
-    {"type": "risk_assessment", "label": "Risk Assessment", "config": {"show_score": True}},
-    {"type": "recommendations", "label": "Recommendations", "config": {}},
-    {"type": "appendix", "label": "Raw Data Appendix", "config": {"include_raw": False}},
+# Sections match the frontend ReportSection interface:
+# { id, name, description, required, order }
+_DEFAULT_SECTIONS: list[dict[str, Any]] = [
+    {"id": "header",            "name": "Report Header",         "description": "Title page with logo, date, and classification banner.", "required": True,  "order": 0},
+    {"id": "executive_summary", "name": "Executive Summary",     "description": "High-level overview of findings for non-technical stakeholders.", "required": True, "order": 1},
+    {"id": "findings_table",    "name": "Key Findings",          "description": "Tabular summary of all findings grouped by scanner.", "required": False, "order": 2},
+    {"id": "identity_cards",    "name": "Resolved Identities",   "description": "Identity cards for discovered persons, emails, and usernames.", "required": False, "order": 3},
+    {"id": "scan_results",      "name": "Detailed Scan Results", "description": "Full output of each scanner run during the investigation.", "required": False, "order": 4},
+    {"id": "graph_snapshot",    "name": "Relationship Graph",    "description": "Force-directed graph showing entity relationships.", "required": False, "order": 5},
+    {"id": "timeline",          "name": "Investigation Timeline","description": "Chronological timeline of all events and scan results.", "required": False, "order": 6},
+    {"id": "risk_assessment",   "name": "Risk Assessment",       "description": "Risk score breakdown and severity distribution.", "required": False, "order": 7},
+    {"id": "recommendations",   "name": "Recommendations",       "description": "Actionable next steps based on the investigation findings.", "required": False, "order": 8},
+    {"id": "appendix",          "name": "Raw Data Appendix",     "description": "Full raw scanner output for technical reviewers.", "required": False, "order": 9},
 ]
 
 
+# Frontend expects: { id, name, sections: string[], created_at }
 class ReportTemplateCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=500)
-    description: str = ""
-    sections: list[dict] = []
-    branding: dict = {}
+    sections: list[str] = []
 
 
 class ReportTemplateResponse(BaseModel):
     id: str
     name: str
-    description: str
-    sections: list[dict]
-    branding: dict
-    is_default: bool
+    sections: list[str]
     created_at: str
-
-
-class ReportTemplateListResponse(BaseModel):
-    templates: list[ReportTemplateResponse]
-    total: int
 
 
 class ReportBuildRequest(BaseModel):
     investigation_id: str
     template_id: str | None = None
-    sections: list[dict] | None = None
-    format: str = Field("html", pattern="^(pdf|html|json|csv)$")
-    title: str = "Investigation Report"
+    sections: list[str] = []
+    format: str = Field("pdf", pattern="^(pdf|html|docx)$")
+    title: str | None = None
+    classification: str | None = None
 
 
 class ReportBuildResponse(BaseModel):
     report_id: str
     status: str
-    format: str
-    download_url: str | None
 
 
-@router.get("/report-builder/sections")
+@router.get("/report-builder/sections", response_model=list[dict[str, Any]])
 async def list_available_sections(
     current_user: Any = Depends(get_current_user),
-) -> dict[str, Any]:
-    """List all available report sections."""
-    return {"sections": DEFAULT_SECTIONS}
+) -> list[dict[str, Any]]:
+    """Return available report sections as a flat array."""
+    return _DEFAULT_SECTIONS
 
 
-@router.get("/report-builder/templates", response_model=ReportTemplateListResponse)
+@router.get("/report-builder/templates", response_model=list[ReportTemplateResponse])
 async def list_report_templates(
     current_user: Any = Depends(get_current_user),
-) -> ReportTemplateListResponse:
+) -> list[ReportTemplateResponse]:
     """List custom report templates."""
-    return ReportTemplateListResponse(templates=[], total=0)
+    return []
 
 
 @router.post("/report-builder/templates", response_model=ReportTemplateResponse, status_code=201)
@@ -90,10 +82,7 @@ async def create_report_template(
     return ReportTemplateResponse(
         id=secrets.token_hex(16),
         name=body.name,
-        description=body.description,
-        sections=body.sections or DEFAULT_SECTIONS,
-        branding=body.branding,
-        is_default=False,
+        sections=body.sections,
         created_at=now,
     )
 
@@ -114,10 +103,4 @@ async def build_report(
     """Build a report for an investigation."""
     report_id = secrets.token_hex(16)
     log.info("Report build started", report_id=report_id, investigation_id=body.investigation_id)
-
-    return ReportBuildResponse(
-        report_id=report_id,
-        status="building",
-        format=body.format,
-        download_url=None,  # Will be populated when build completes
-    )
+    return ReportBuildResponse(report_id=report_id, status="queued")
