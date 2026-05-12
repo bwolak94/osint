@@ -1,7 +1,7 @@
 import { apiClient } from '@/shared/api/client'
 import type { WigleScan, WigleListResponse } from './types'
 
-const BASE = '/api/v1/wigle'
+const BASE = '/wigle'
 
 export const wigleApi = {
   searchWigle: (query: string, queryType: string): Promise<WigleScan> =>

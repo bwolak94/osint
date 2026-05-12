@@ -169,6 +169,7 @@ const mainNav: NavEntry[] = [
     label: "Tech Recon",
     icon: ScanLine,
     children: [
+      { to: "/domain-intel", label: "Domain Intel", icon: Search },
       { to: "/tech-recon", label: "Infra Recon", icon: NetworkIcon },
       { to: "/network-topology", label: "Network Topology", icon: Network },
     ],

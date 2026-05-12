@@ -388,18 +388,39 @@ export function InvestigationDetailPage() {
                                 <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                                   {displayKeys.map((key) => {
                                     const val = r.raw_data[key];
-                                    // Bank accounts rendered as a list of copyable badges
-                                    if (key === "bank_accounts" && Array.isArray(val)) {
+                                    // Arrays: render as wrapped badges list
+                                    if (Array.isArray(val)) {
                                       return (
                                         <div key={key} className="col-span-2">
                                           <p className="text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>
                                             {key.replace(/_/g, " ")}
                                           </p>
-                                          <div className="flex flex-wrap gap-1">
-                                            {val.map((acc: string) => (
-                                              <DataBadge key={acc} value={acc} />
-                                            ))}
-                                          </div>
+                                          {val.length === 0 ? (
+                                            <span className="text-xs" style={{ color: "var(--text-tertiary)" }}>—</span>
+                                          ) : typeof val[0] === "object" ? (
+                                            <pre className="text-xs font-mono rounded p-2 overflow-x-auto max-h-40" style={{ background: "var(--bg-overlay)", color: "var(--text-secondary)" }}>
+                                              {JSON.stringify(val, null, 2)}
+                                            </pre>
+                                          ) : (
+                                            <div className="flex flex-wrap gap-1">
+                                              {val.map((item: unknown, i: number) => (
+                                                <DataBadge key={i} value={String(item)} />
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    }
+                                    // Objects: render as JSON
+                                    if (val !== null && typeof val === "object") {
+                                      return (
+                                        <div key={key} className="col-span-2">
+                                          <p className="text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>
+                                            {key.replace(/_/g, " ")}
+                                          </p>
+                                          <pre className="text-xs font-mono rounded p-2 overflow-x-auto max-h-40" style={{ background: "var(--bg-overlay)", color: "var(--text-secondary)" }}>
+                                            {JSON.stringify(val, null, 2)}
+                                          </pre>
                                         </div>
                                       );
                                     }
@@ -408,7 +429,7 @@ export function InvestigationDetailPage() {
                                         <span className="text-xs font-medium" style={{ color: "var(--text-tertiary)" }}>
                                           {key.replace(/_/g, " ")}
                                         </span>
-                                        <DataBadge value={String(val)} />
+                                        <DataBadge value={String(val ?? "—")} />
                                       </div>
                                     );
                                   })}

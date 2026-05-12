@@ -651,7 +651,7 @@ interface RbacAuditEntry {
 function RbacAuditLog() {
   const { data: log = [], isLoading, refetch } = useQuery<RbacAuditEntry[]>({
     queryKey: ['rbac', 'audit-log'],
-    queryFn: async () => (await apiClient.get('/api/v1/rbac/audit-log')).data,
+    queryFn: async () => (await apiClient.get('/rbac/audit-log')).data,
     refetchInterval: 30_000,
   })
 
@@ -714,16 +714,16 @@ function RbacTab() {
 
   const { data: roles = [] } = useQuery<RoleInfo[]>({
     queryKey: ['rbac', 'roles'],
-    queryFn: async () => (await apiClient.get('/api/v1/rbac/roles')).data,
+    queryFn: async () => (await apiClient.get('/rbac/roles')).data,
   })
   const { data: users = [] } = useQuery<AdminUser[]>({
     queryKey: ['rbac', 'users'],
-    queryFn: async () => (await apiClient.get('/api/v1/rbac/users')).data,
+    queryFn: async () => (await apiClient.get('/rbac/users')).data,
   })
 
   const assignRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
-      await apiClient.put(`/api/v1/rbac/users/${userId}/role`, { role })
+      await apiClient.put(`/rbac/users/${userId}/role`, { role })
     },
     onSuccess: () => {
       toast.success('Role updated')
@@ -846,7 +846,7 @@ function ScenariosTab() {
 
   const { data: scenarios = [], isLoading } = useQuery<MarketplaceScenario[]>({
     queryKey: ['marketplace-scenarios', 'all', 'all'],
-    queryFn: async () => (await apiClient.get('/api/v1/marketplace/scenarios')).data,
+    queryFn: async () => (await apiClient.get('/marketplace/scenarios')).data,
   })
 
   const categoryCount = scenarios.reduce<Record<string, number>>((acc, s) => {
@@ -939,11 +939,11 @@ function ToolsTab() {
 
   const { data: tools = [], isLoading } = useQuery<CustomTool[]>({
     queryKey: ['custom-tools'],
-    queryFn: async () => (await apiClient.get('/api/v1/tools/custom')).data,
+    queryFn: async () => (await apiClient.get('/tools/custom')).data,
   })
 
   const create = useMutation({
-    mutationFn: async () => apiClient.post('/api/v1/tools/custom', form),
+    mutationFn: async () => apiClient.post('/tools/custom', form),
     onSuccess: () => {
       toast.success('Tool registered')
       setShowForm(false)
@@ -954,7 +954,7 @@ function ToolsTab() {
   })
 
   const remove = useMutation({
-    mutationFn: async (id: string) => apiClient.delete(`/api/v1/tools/custom/${id}`),
+    mutationFn: async (id: string) => apiClient.delete(`/tools/custom/${id}`),
     onSuccess: () => {
       toast.success('Tool removed')
       qc.invalidateQueries({ queryKey: ['custom-tools'] })
@@ -963,7 +963,7 @@ function ToolsTab() {
 
   const testTool = useMutation({
     mutationFn: async (id: string) => {
-      const r = await apiClient.post(`/api/v1/tools/custom/${id}/test`)
+      const r = await apiClient.post(`/tools/custom/${id}/test`)
       return r.data
     },
     onSuccess: (data) => toast.success(`Exit code: ${data.exit_code} · ${data.duration_ms}ms`),
@@ -1097,7 +1097,7 @@ interface N8nExecution {
 function N8nExecutionLog() {
   const { data: executions = [], isLoading, refetch } = useQuery<N8nExecution[]>({
     queryKey: ['n8n-executions'],
-    queryFn: async () => (await apiClient.get('/api/v1/workflows/n8n/executions')).data,
+    queryFn: async () => (await apiClient.get('/workflows/n8n/executions')).data,
     refetchInterval: 5_000,
   })
 
@@ -1157,14 +1157,14 @@ function WorkflowsTab() {
 
   const { data: workflows = [] } = useQuery<WorkflowInfo[]>({
     queryKey: ['n8n-workflows'],
-    queryFn: async () => (await apiClient.get('/api/v1/workflows/n8n')).data,
+    queryFn: async () => (await apiClient.get('/workflows/n8n')).data,
   })
 
   const trigger = useMutation({
     mutationFn: async ({ name }: { name: string }) => {
       let parsed: unknown = {}
       try { parsed = JSON.parse(payload) } catch { /* ignore */ }
-      const r = await apiClient.post('/api/v1/workflows/n8n/trigger', { workflow_name: name, payload: parsed })
+      const r = await apiClient.post('/workflows/n8n/trigger', { workflow_name: name, payload: parsed })
       return r.data
     },
     onSuccess: (data) => {
@@ -1243,16 +1243,16 @@ function GdprTab() {
 
   const { data: requests = [], isLoading } = useQuery<ErasureRequest[]>({
     queryKey: ['gdpr', 'erasure-requests'],
-    queryFn: async () => (await apiClient.get('/api/v1/gdpr/erasure-requests')).data,
+    queryFn: async () => (await apiClient.get('/gdpr/erasure-requests')).data,
   })
 
   const { data: policy = [] } = useQuery({
     queryKey: ['gdpr', 'retention'],
-    queryFn: async () => (await apiClient.get('/api/v1/gdpr/retention-policy')).data,
+    queryFn: async () => (await apiClient.get('/gdpr/retention-policy')).data,
   })
 
   const execute = useMutation({
-    mutationFn: async (id: string) => apiClient.post(`/api/v1/gdpr/erasure-requests/${id}/execute`),
+    mutationFn: async (id: string) => apiClient.post(`/gdpr/erasure-requests/${id}/execute`),
     onSuccess: () => {
       toast.success('Erasure executed — user data deleted')
       qc.invalidateQueries({ queryKey: ['gdpr', 'erasure-requests'] })

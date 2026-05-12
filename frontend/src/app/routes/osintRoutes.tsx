@@ -18,6 +18,7 @@ const SupplyChainPage = lazy(() => import("@/features/supply-chain").then((m) =>
 const FediversePage = lazy(() => import("@/features/fediverse").then((m) => ({ default: m.FediversePage })));
 const WiglePage = lazy(() => import("@/features/wigle").then((m) => ({ default: m.WiglePage })));
 const TechReconPage = lazy(() => import("@/features/tech-recon").then((m) => ({ default: m.TechReconPage })));
+const DomainIntelPage = lazy(() => import("@/features/domain-intel/DomainIntelPage").then((m) => ({ default: m.default })));
 const SocmintPage = lazy(() => import("@/features/socmint").then((m) => ({ default: m.SocmintPage })));
 const CredentialIntelPage = lazy(() => import("@/features/credential-intel").then((m) => ({ default: m.CredentialIntelPage })));
 const ImintPage = lazy(() => import("@/features/imint").then((m) => ({ default: m.ImintPage })));
@@ -65,6 +66,7 @@ export const osintRoutes: RouteObject[] = [
   { path: "fediverse", element: <Lazy name="Fediverse"><FediversePage /></Lazy> },
   { path: "wigle", element: <Lazy name="WiGLE"><WiglePage /></Lazy> },
   { path: "tech-recon", element: <Lazy name="Tech Recon"><TechReconPage /></Lazy> },
+  { path: "domain-intel", element: <Lazy name="Domain Intel"><DomainIntelPage /></Lazy> },
   { path: "socmint", element: <Lazy name="SOCMINT"><SocmintPage /></Lazy> },
   { path: "credential-intel", element: <Lazy name="Credential Intel"><CredentialIntelPage /></Lazy> },
   { path: "imint", element: <Lazy name="IMINT"><ImintPage /></Lazy> },

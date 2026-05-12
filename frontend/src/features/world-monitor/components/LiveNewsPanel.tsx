@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
-import { Clock, ExternalLink, RefreshCw, Rss, Twitter } from 'lucide-react'
-import { useNews, usePosts } from '../hooks'
+import { useCallback, useMemo, useState } from 'react'
+import { Clock, ExternalLink, RefreshCw, Rss, Twitter, Zap } from 'lucide-react'
+import { useNews, useNewsStream, usePosts } from '../hooks'
 import { NewsDetailModal } from './NewsDetailModal'
 import type { NewsCategory, NewsItem, PostItem } from '../types'
-import { formatDistanceToNowStrict, subMinutes, subHours, subDays } from 'date-fns'
+import { formatDistanceToNowStrict, subMinutes } from 'date-fns'
 
 type AnyItem = NewsItem | PostItem
 type Mode = 'news' | 'social'
@@ -105,12 +105,26 @@ export function LiveNewsPanel() {
   const [activeCategory, setCategory] = useState<NewsCategory | null>(null)
   const [timeWindow, setTimeWindow]   = useState<number | null>(null)
   const [selectedItem, setSelected]   = useState<AnyItem | null>(null)
+  // Items pushed via SSE that haven't yet appeared in the next poll cycle
+  const [streamedItems, setStreamedItems] = useState<NewsItem[]>([])
+  const [streamCount, setStreamCount]     = useState(0)
 
   // Category is sent to backend (uses per-category Redis key); time filter is client-side only
   const { data: newsData, isLoading: newsLoading, refetch: refetchNews, isFetching: newsFetching } = useNews(activeCategory, 1, 200)
   // Prefetch counts for each tab using the full unfiltered set
   const { data: allNewsData } = useNews(null, 1, 500)
   const { data: postsData, isLoading: postsLoading, refetch: refetchPosts, isFetching: postsFetching } = usePosts()
+
+  // Wire up SSE stream — appends new items instantly without waiting for poll
+  const handleNewItem = useCallback((item: NewsItem) => {
+    setStreamedItems((prev) => {
+      // Skip duplicates
+      if (prev.some((p) => p.id === item.id)) return prev
+      setStreamCount((c) => c + 1)
+      return [item, ...prev].slice(0, 100) // keep ring buffer small
+    })
+  }, [])
+  useNewsStream(handleNewItem)
 
   const isLoading = mode === 'news' ? newsLoading : postsLoading
   const isFetching = mode === 'news' ? newsFetching : postsFetching
@@ -123,12 +137,20 @@ export function LiveNewsPanel() {
       return cutoff ? all.filter(p => new Date(p.published_at) >= cutoff) : all
     }
 
-    let all: AnyItem[] = newsData?.items ?? []
+    // Merge SSE-streamed items with polled items; deduplicate by id
+    const polled: NewsItem[] = newsData?.items ?? []
+    const seenIds = new Set(polled.map((i) => i.id))
+    const streamed = streamedItems.filter(
+      (i) =>
+        !seenIds.has(i.id) &&
+        (activeCategory === null || i.category === activeCategory),
+    )
+    let all: AnyItem[] = [...streamed, ...polled]
     if (cutoff) {
       all = all.filter(item => new Date(item.published_at) >= cutoff)
     }
     return all
-  }, [mode, newsData, postsData, timeWindow])
+  }, [mode, newsData, postsData, streamedItems, activeCategory, timeWindow])
 
   // Tab counts come from the balanced all-categories response
   const tabCounts = useMemo(() => {
@@ -155,6 +177,16 @@ export function LiveNewsPanel() {
             {!isLoading && (
               <span className="rounded-full px-1.5 py-0.5 text-[9px] font-medium" style={{ background: '#10b98120', color: '#10b981' }}>
                 {items.length}
+              </span>
+            )}
+            {streamCount > 0 && (
+              <span
+                className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold"
+                style={{ background: 'rgba(99,102,241,0.15)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)' }}
+                title="Items received via live stream"
+              >
+                <Zap className="h-2 w-2" />
+                +{streamCount}
               </span>
             )}
           </div>

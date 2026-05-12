@@ -113,7 +113,7 @@ def _make_campaign(name: str, description: str, tags: list[str], tlp_level: str,
 # ---------------------------------------------------------------------------
 
 
-@router.post("/campaigns", response_model=CampaignResponse, status_code=201)
+@router.post("/", response_model=CampaignResponse, status_code=201)
 async def create_campaign(
     body: CampaignCreate,
     current_user: Any = Depends(get_current_user),
@@ -124,7 +124,7 @@ async def create_campaign(
     return _make_campaign(body.name, body.description, body.tags, body.tlp_level, user_id)
 
 
-@router.get("/campaigns", response_model=CampaignListResponse)
+@router.get("/", response_model=CampaignListResponse)
 async def list_campaigns(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
@@ -134,7 +134,7 @@ async def list_campaigns(
     return CampaignListResponse(campaigns=[], total=0, skip=skip, limit=limit)
 
 
-@router.get("/campaigns/{campaign_id}", response_model=CampaignResponse)
+@router.get("/{campaign_id}", response_model=CampaignResponse)
 async def get_campaign(
     campaign_id: str,
     current_user: Any = Depends(get_current_user),
@@ -155,7 +155,7 @@ async def get_campaign(
     )
 
 
-@router.patch("/campaigns/{campaign_id}", response_model=CampaignResponse)
+@router.patch("/{campaign_id}", response_model=CampaignResponse)
 async def update_campaign(
     campaign_id: str,
     body: CampaignUpdate,
@@ -178,7 +178,7 @@ async def update_campaign(
     )
 
 
-@router.delete("/campaigns/{campaign_id}", status_code=204, response_model=None)
+@router.delete("/{campaign_id}", status_code=204, response_model=None)
 async def delete_campaign(
     campaign_id: str,
     current_user: Any = Depends(get_current_user),
@@ -187,7 +187,7 @@ async def delete_campaign(
     log.info("Campaign deleted", campaign_id=campaign_id)
 
 
-@router.post("/campaigns/{campaign_id}/investigations", status_code=201)
+@router.post("/{campaign_id}/investigations", status_code=201)
 async def add_investigation_to_campaign(
     campaign_id: str,
     body: AddInvestigationBody,
@@ -198,7 +198,7 @@ async def add_investigation_to_campaign(
     return {"status": "added", "campaign_id": campaign_id, "investigation_id": body.investigation_id}
 
 
-@router.delete("/campaigns/{campaign_id}/investigations/{investigation_id}", status_code=204, response_model=None)
+@router.delete("/{campaign_id}/investigations/{investigation_id}", status_code=204, response_model=None)
 async def remove_investigation_from_campaign(
     campaign_id: str,
     investigation_id: str,
@@ -208,7 +208,7 @@ async def remove_investigation_from_campaign(
     log.info("Investigation removed from campaign", campaign_id=campaign_id, investigation_id=investigation_id)
 
 
-@router.get("/campaigns/{campaign_id}/graph", response_model=MergedGraphResponse)
+@router.get("/{campaign_id}/graph", response_model=MergedGraphResponse)
 async def get_campaign_merged_graph(
     campaign_id: str,
     current_user: Any = Depends(get_current_user),
@@ -222,7 +222,7 @@ async def get_campaign_merged_graph(
     )
 
 
-@router.get("/campaigns/{campaign_id}/similar", response_model=SimilarInvestigationsResponse)
+@router.get("/{campaign_id}/similar", response_model=SimilarInvestigationsResponse)
 async def get_similar_investigations(
     campaign_id: str,
     current_user: Any = Depends(get_current_user),

@@ -13,17 +13,21 @@
  *   │  BOTTOM: Map Legend · AI Insights                                 │
  *   └────────────────────────────────────────────────────────────────────┘
  */
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Globe2, Radio, Clock, ChevronDown, Maximize2,
+  Globe2, Radio, Clock, ChevronDown, Maximize2, Camera, Rss, Brain, X,
 } from 'lucide-react'
 import { useWorldMonitorBootstrap, useNews, useWorldMonitorHealth, useMapEvents } from './hooks'
 import { ThreatIndicator } from './components/ThreatIndicator'
 import { LayerPanel } from './components/LayerPanel'
 import { LiveNewsPanel } from './components/LiveNewsPanel'
+import { LiveCamerasPanel } from './components/LiveCamerasPanel'
 import { AiInsights } from './components/AiInsights'
+import { BreakingNewsTicker } from './components/BreakingNewsTicker'
 import { LAYER_CONFIGS, MOCK_EVENTS, type LayerKey, type MapEvent } from './mapTypes'
 import type { MapEventItem } from './types'
+
+type RightPanel = 'news' | 'cameras' | 'insights'
 
 // Lazy-load Leaflet map (heavy, contains DOM side effects)
 const WorldMap = lazy(() =>
@@ -82,9 +86,29 @@ export function WorldMonitorDashboard() {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d')
   const [region, setRegion] = useState('Global')
   const [mapFullscreen, setMapFullscreen] = useState(false)
+  const [rightPanel, setRightPanel] = useState<RightPanel>('news')
+
+  // Live event alerts — show popup for new high-severity map events
+  const [alertQueue, setAlertQueue] = useState<MapEvent[]>([])
+  const seenEventIds = useRef(new Set<string>())
 
   const totalCached = bootstrap?.news?.total_cached ?? 0
   const latestNews = newsData?.items ?? bootstrap?.news?.items ?? []
+
+  // Alert on new high-severity events (fires when eventsData changes)
+  useEffect(() => {
+    if (!eventsData?.events) return
+    const newAlerts: MapEvent[] = []
+    for (const ev of eventsData.events) {
+      if (ev.severity === 'high' && !seenEventIds.current.has(ev.id)) {
+        seenEventIds.current.add(ev.id)
+        newAlerts.push(toMapEvent(ev))
+      }
+    }
+    if (newAlerts.length > 0) {
+      setAlertQueue((prev) => [...newAlerts.slice(0, 3), ...prev].slice(0, 5))
+    }
+  }, [eventsData])
 
   // Use real events from API; fall back to bootstrap events, then to mock data
   const liveEvents: MapEvent[] = (
@@ -269,22 +293,82 @@ export function WorldMonitorDashboard() {
           </div>
         </div>
 
-        {/* Right: Panels column */}
+        {/* Right: Tabbed panel column */}
         <div className="flex w-[340px] shrink-0 flex-col">
-          {/* News feed — upper 60% */}
+          {/* Tab selector */}
           <div
-            className="min-h-0 flex-[3]"
-            style={{ borderBottom: '1px solid rgba(55,65,81,0.4)' }}
+            className="flex shrink-0 border-b"
+            style={{ borderColor: 'rgba(55,65,81,0.4)', background: 'rgba(10,11,20,0.95)' }}
           >
-            <LiveNewsPanel />
+            {([
+              { key: 'news',     label: 'NEWS',    icon: Rss },
+              { key: 'cameras',  label: 'CAMERAS', icon: Camera },
+              { key: 'insights', label: 'AI',      icon: Brain },
+            ] as { key: RightPanel; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setRightPanel(key)}
+                className="flex flex-1 items-center justify-center gap-1.5 py-2 text-[10px] font-bold tracking-widest transition-colors"
+                style={{
+                  color: rightPanel === key ? '#10b981' : '#4b5563',
+                  borderBottom: rightPanel === key ? '2px solid #10b981' : '2px solid transparent',
+                }}
+              >
+                <Icon className="h-3 w-3" />
+                {label}
+              </button>
+            ))}
           </div>
 
-          {/* AI Insights — lower 40% */}
-          <div className="min-h-0 flex-[2]">
-            <AiInsights latestNews={latestNews} />
+          {/* Panel content */}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            {rightPanel === 'news'     && <LiveNewsPanel />}
+            {rightPanel === 'cameras'  && <LiveCamerasPanel />}
+            {rightPanel === 'insights' && <AiInsights latestNews={latestNews} />}
           </div>
         </div>
       </div>
+
+      {/* ── BREAKING NEWS TICKER ──────────────────────────────────────── */}
+      <BreakingNewsTicker items={latestNews} />
+
+      {/* ── HIGH-SEVERITY EVENT ALERTS ────────────────────────────────── */}
+      {alertQueue.length > 0 && (
+        <div className="pointer-events-none fixed bottom-8 right-4 z-[9000] flex flex-col gap-2">
+          {alertQueue.map((alert) => (
+            <div
+              key={alert.id}
+              className="pointer-events-auto flex items-start gap-2.5 rounded-lg px-3 py-2.5 shadow-xl"
+              style={{
+                background: 'rgba(10,11,20,0.97)',
+                border: '1px solid rgba(239,68,68,0.5)',
+                maxWidth: 320,
+                boxShadow: '0 0 20px rgba(239,68,68,0.15)',
+              }}
+            >
+              <span
+                className="mt-0.5 h-2 w-2 shrink-0 rounded-full"
+                style={{ background: '#ef4444', animation: 'wm-ping 1.5s infinite', boxShadow: '0 0 6px #ef4444' }}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-[9px] font-black tracking-widest mb-0.5" style={{ color: '#ef4444' }}>
+                  HIGH SEVERITY EVENT
+                </p>
+                <p className="text-[11px] leading-snug" style={{ color: '#e5e7eb' }}>{alert.title}</p>
+                <p className="text-[9px] mt-0.5" style={{ color: '#6b7280' }}>
+                  {alert.layer.toUpperCase()} · {new Date(alert.timestamp).toUTCString().slice(17, 25)} UTC
+                </p>
+              </div>
+              <button
+                onClick={() => setAlertQueue((q) => q.filter((a) => a.id !== alert.id))}
+                className="shrink-0 rounded p-0.5 hover:bg-white/10 transition-colors"
+              >
+                <X className="h-3 w-3" style={{ color: '#6b7280' }} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Pulse animation */}
       <style>{`

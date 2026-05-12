@@ -10,7 +10,7 @@ import type {
   WifiInterface,
 } from "./types";
 
-const BASE = "/api/v1/wireless-auditor";
+const BASE = "/wireless-auditor";
 
 export const wirelessAuditorApi = {
   getStatus: (): Promise<HardwareStatus> =>

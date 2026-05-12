@@ -16,12 +16,12 @@ import asyncio
 import json
 import time
 from datetime import datetime, timezone
-from typing import Annotated, Any
+from typing import Annotated, Any, AsyncGenerator
 
 import redis.asyncio as aioredis
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from src.api.v1.auth.dependencies import get_current_user
 from src.core.domain.entities.user import User
@@ -301,6 +301,71 @@ async def get_map_events(
         "last_updated": meta.get("last_run"),
         "source_counts": meta.get("source_counts", {}),
     })
+
+
+# ── /stream ───────────────────────────────────────────────────────────────────
+
+@router.get("/stream")
+async def stream_news(
+    request: Request,
+    redis: RedisClient,
+    _user: CurrentUser,
+) -> StreamingResponse:
+    """SSE endpoint — pushes new news items as they arrive in Redis.
+
+    Checks the Redis list every 20 s; emits `event: news` for each new item
+    (newest-first order reversed so oldest arrives first).  Sends a heartbeat
+    comment every cycle when no new items are found to keep the connection open
+    through proxies.  The ``X-Accel-Buffering: no`` header disables nginx
+    output-buffering so events reach the browser immediately.
+    """
+
+    async def _gen() -> AsyncGenerator[str, None]:
+        last_id: str | None = None
+        try:
+            seed = await get_list_json(redis, KEY_LATEST, 0, 0)
+            if seed:
+                last_id = seed[0].get("id")
+        except Exception:
+            pass
+
+        yield ": connected\n\n"
+
+        while True:
+            if await request.is_disconnected():
+                break
+            await asyncio.sleep(20)
+            if await request.is_disconnected():
+                break
+
+            try:
+                items = await get_list_json(redis, KEY_LATEST, 0, 19)
+                new_items: list[dict[str, Any]] = []
+                for item in items:
+                    if item.get("id") == last_id:
+                        break
+                    new_items.append(item)
+
+                if new_items:
+                    last_id = items[0].get("id") if items else last_id
+                    for item in reversed(new_items):
+                        yield f"event: news\ndata: {json.dumps(item)}\n\n"
+                else:
+                    yield f": heartbeat {int(time.time())}\n\n"
+
+            except Exception as exc:
+                log.warning("wm_sse_error", error=str(exc))
+                yield ": error\n\n"
+
+    return StreamingResponse(
+        _gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ── /bootstrap ────────────────────────────────────────────────────────────────

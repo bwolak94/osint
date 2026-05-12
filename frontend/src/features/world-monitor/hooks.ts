@@ -1,6 +1,8 @@
+import { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchBootstrap, fetchCategories, fetchHealth, fetchMapEvents, fetchNews, fetchPosts } from './api'
-import type { NewsCategory } from './types'
+import type { NewsCategory, NewsItem } from './types'
+import { useAuthStore } from '@/features/auth/store'
 
 const KEYS = {
   bootstrap: ['world-monitor', 'bootstrap'] as const,
@@ -76,6 +78,73 @@ export function usePosts(platform: 'x' | 'truthsocial' | null = null) {
     refetchInterval: 5 * 60 * 1000,
     retry: 1,
   })
+}
+
+/**
+ * SSE hook — opens a persistent connection to /worldmonitor/api/stream and
+ * calls `onNewItem` for every `event: news` message received.
+ * Automatically reconnects after 30 s on error / disconnect.
+ */
+export function useNewsStream(onNewItem: (item: NewsItem) => void): void {
+  const cbRef = useRef(onNewItem)
+  cbRef.current = onNewItem
+
+  useEffect(() => {
+    let active = true
+    const ac = new AbortController()
+
+    async function connect(): Promise<void> {
+      const token = useAuthStore.getState().accessToken
+      try {
+        const res = await fetch('/worldmonitor/api/stream', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          signal: ac.signal,
+        })
+        if (!res.ok || !res.body) return
+
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buf = ''
+        let evtName = ''
+        let evtData = ''
+
+        while (active) {
+          const { done, value } = await reader.read()
+          if (done) break
+
+          buf += decoder.decode(value, { stream: true })
+          const lines = buf.split('\n')
+          buf = lines.pop() ?? ''
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) {
+              evtName = line.slice(7).trim()
+            } else if (line.startsWith('data: ')) {
+              evtData = line.slice(6)
+            } else if (line === '') {
+              if (evtName === 'news' && evtData) {
+                try {
+                  cbRef.current(JSON.parse(evtData) as NewsItem)
+                } catch { /* ignore malformed */ }
+              }
+              evtName = ''
+              evtData = ''
+            }
+          }
+        }
+      } catch {
+        if (!active) return
+        await new Promise<void>((r) => setTimeout(r, 30_000))
+        if (active) void connect()
+      }
+    }
+
+    void connect()
+    return () => {
+      active = false
+      ac.abort()
+    }
+  }, [])
 }
 
 export function useMapEvents(layer: string | null = null) {
