@@ -75,32 +75,28 @@ services:
           path: ./backend/pyproject.toml
 
   worker:
-    image: mcr.microsoft.com/playwright/python:v1.50.0-noble
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
     restart: unless-stopped
     ipc: host
     shm_size: 2gb
-    user: pwuser
-    working_dir: /app
-    volumes:
-      - ./backend:/app
     env_file:
       - .env
-    command: celery -A src.workers.celery_app worker --loglevel=info
+    command: ["python", "-m", "celery", "-A", "src.workers.celery_app", "worker", "--loglevel=info", "--queues=heavy", "--concurrency=2"]
     networks:
       - backend-net
     depends_on:
-      api:
-        condition: service_healthy
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "celery -A src.workers.celery_app inspect ping --timeout 5 || exit 1"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "python -m celery -A src.workers.celery_app inspect ping --destination celery@$$HOSTNAME --timeout 5 2>/dev/null | grep -q 'pong' || exit 1"]
+      interval: 60s
+      timeout: 15s
       retries: 3
-      start_period: 30s
-    profiles:
-      - worker
+      start_period: 60s
 
   worker-light:
     build:

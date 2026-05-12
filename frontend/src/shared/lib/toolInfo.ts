@@ -343,4 +343,37 @@ Campaign-level reporting generates an executive summary covering the full scope 
     short: 'Queries historical DNS resolution records to reveal past IP addresses, name servers, and domain relationships.',
     details: `See Passive DNS tool description above.`,
   },
+
+  'instagram-intel': {
+    short: 'Searches and analyses public Instagram profiles by username or full name.',
+    details: `Instagram Intel gathers publicly visible profile data from Instagram without requiring an account or API token.
+
+Supported search modes:
+• **Username** — looks up a profile directly by its Instagram handle (e.g. \`cristiano\`)
+• **Full Name** — searches for matching public profiles via a search engine dork
+• **User ID** — resolves a numeric Instagram UID to a full profile record
+
+For each discovered profile the tool collects: display name, username, biography, profile picture URL, follower count, following count, post count, verification status, private account flag, external link, and category.
+
+Data is sourced exclusively from public Instagram pages and OG tags — no private data, no API keys required. Results reflect only what any unauthenticated visitor can see.
+
+Use this tool to map a subject's Instagram presence as part of a broader SOCMINT investigation, verify a claimed identity, or cross-reference account details.`,
+  },
+
+  'facebook-intel': {
+    short: 'Searches and analyses public Facebook profiles by name, username, profile ID, email, or phone number.',
+    details: `Facebook Intel gathers publicly visible profile data from Facebook — the world's largest social network — without requiring a Facebook account or access token.
+
+Supported search modes:
+• **Name** — searches Facebook's public people directory for matching profiles
+• **Username / Vanity URL** — looks up a profile directly by its custom URL slug (e.g. \`zuck\`)
+• **Profile ID** — resolves a numeric Facebook UID to a full profile record
+• **Email / Phone** — pivots the contact identifier through Facebook's public search index to discover linked accounts
+
+For each discovered profile the tool collects: display name, profile and cover photo URLs, bio/about text, location and hometown, employer(s), educational institutions, follower and friend counts, page category, and verification status.
+
+Data is sourced exclusively from public Graph API fields and publicly rendered HTML — no private data, no authentication tokens. Results reflect only what any unauthenticated visitor can see on the platform.
+
+Use this tool to map a subject's Facebook presence as part of a broader SOCMINT investigation, verify a claimed identity, or pivot from a known identifier to additional account details.`,
+  },
 };

@@ -158,6 +158,8 @@ const mainNav: NavEntry[] = [
     label: "Social OSINT",
     icon: Globe2,
     children: [
+      { to: "/facebook-intel", label: "Facebook Intel", icon: Users },
+      { to: "/instagram-intel", label: "Instagram Intel", icon: Users },
       { to: "/fediverse", label: "Fediverse", icon: Users },
       { to: "/socmint", label: "SOCMINT", icon: UserSearch },
       { to: "/phone-intel", label: "Phone Intel", icon: Phone },

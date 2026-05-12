@@ -1,0 +1,42 @@
+# Playwright-enabled Celery heavy worker
+# Starts from the official Playwright Python image (pre-installed Chromium + deps)
+# then installs the project's Python dependencies on top.
+
+FROM mcr.microsoft.com/playwright/python:v1.50.0-noble
+
+ENV POETRY_VERSION=1.8.5 \
+    POETRY_HOME="/opt/poetry" \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_NO_INTERACTION=1
+
+# Build tools needed by some Python packages (pycairo etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl gcc g++ pkg-config libcairo2-dev && \
+    curl -sSL https://install.python-poetry.org | python3 - && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PATH="$POETRY_HOME/bin:$PATH"
+
+WORKDIR /app
+
+COPY pyproject.toml poetry.lock* ./
+RUN poetry install --only main --no-root
+
+COPY . .
+RUN poetry install --only main
+
+# Install playwright into the venv and point it at the pre-installed browsers
+# bundled in the base image (avoids re-downloading ~300 MB of Chromium).
+RUN .venv/bin/pip install --no-cache-dir playwright
+
+# The base image already has Chromium at /ms-playwright; tell our venv's
+# playwright where to find it instead of re-downloading.
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
+# Verify the venv playwright can find the pre-installed Chromium.
+RUN .venv/bin/playwright install chromium 2>/dev/null || true
+
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1

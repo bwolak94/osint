@@ -56,6 +56,8 @@ celery_app.conf.update(
         "src.workers.tasks.scanner_tasks.maigret_scan_task": {"queue": "light"},
         "src.workers.tasks.scanner_tasks.vat_scan_task": {"queue": "light"},
         "src.workers.tasks.scanner_tasks.playwright_scan_task": {"queue": "heavy"},
+        "facebook_intel.scrape": {"queue": "heavy"},
+        "instagram_intel.scrape": {"queue": "heavy"},
         "hub.run_agent": {"queue": "light"},
         "hub.resume_agent": {"queue": "light"},
         "news.scrape_all": {"queue": "light"},
@@ -165,6 +167,12 @@ import src.workers.tasks.hub_tasks  # noqa: E402, F401
 
 # Explicitly import news scraper task so it is registered with Celery beat
 import src.workers.tasks.news_scraper_task  # noqa: E402, F401
+
+# Register Facebook Intel heavy task
+import src.workers.tasks.facebook_intel_task  # noqa: E402, F401
+
+# Register Instagram Intel heavy task
+import src.workers.tasks.instagram_intel_task  # noqa: E402, F401
 
 # Register observability signal handlers (failure pub/sub, arg redaction, correlation ID)
 import src.workers.celery_signals  # noqa: E402, F401

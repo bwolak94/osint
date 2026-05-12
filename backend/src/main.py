@@ -109,6 +109,8 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.stealer_logs.router", "router", "/api/v1/stealer-logs", ["stealer-logs"]),
     ("src.api.v1.supply_chain.router", "router", "/api/v1/supply-chain", ["supply-chain"]),
     ("src.api.v1.fediverse.router", "router", "/api/v1/fediverse", ["fediverse"]),
+    ("src.api.v1.facebook_intel.router", "router", "/api/v1/facebook-intel", ["facebook-intel"]),
+    ("src.api.v1.instagram_intel.router", "router", "/api/v1/instagram-intel", ["instagram-intel"]),
     ("src.api.v1.wigle.router", "router", "/api/v1/wigle", ["wigle"]),
     ("src.api.v1.tech_recon.router", "router", "/api/v1/tech-recon", ["tech-recon"]),
     ("src.api.v1.socmint.router", "router", "/api/v1/socmint", ["socmint"]),

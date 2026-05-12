@@ -1,0 +1,1 @@
+export { InstagramIntelPage } from './InstagramIntelPage'

@@ -16,6 +16,8 @@ const CloudExposurePage = lazy(() => import("@/features/cloud-exposure").then((m
 const StealerLogsPage = lazy(() => import("@/features/stealer-logs").then((m) => ({ default: m.StealerLogsPage })));
 const SupplyChainPage = lazy(() => import("@/features/supply-chain").then((m) => ({ default: m.SupplyChainPage })));
 const FediversePage = lazy(() => import("@/features/fediverse").then((m) => ({ default: m.FediversePage })));
+const FacebookIntelPage = lazy(() => import("@/features/facebook-intel").then((m) => ({ default: m.FacebookIntelPage })));
+const InstagramIntelPage = lazy(() => import("@/features/instagram-intel").then((m) => ({ default: m.InstagramIntelPage })));
 const WiglePage = lazy(() => import("@/features/wigle").then((m) => ({ default: m.WiglePage })));
 const TechReconPage = lazy(() => import("@/features/tech-recon").then((m) => ({ default: m.TechReconPage })));
 const DomainIntelPage = lazy(() => import("@/features/domain-intel/DomainIntelPage").then((m) => ({ default: m.default })));
@@ -64,6 +66,8 @@ export const osintRoutes: RouteObject[] = [
   { path: "stealer-logs", element: <Lazy name="Stealer Logs"><StealerLogsPage /></Lazy> },
   { path: "supply-chain", element: <Lazy name="Supply Chain"><SupplyChainPage /></Lazy> },
   { path: "fediverse", element: <Lazy name="Fediverse"><FediversePage /></Lazy> },
+  { path: "facebook-intel", element: <Lazy name="Facebook Intel"><FacebookIntelPage /></Lazy> },
+  { path: "instagram-intel", element: <Lazy name="Instagram Intel"><InstagramIntelPage /></Lazy> },
   { path: "wigle", element: <Lazy name="WiGLE"><WiglePage /></Lazy> },
   { path: "tech-recon", element: <Lazy name="Tech Recon"><TechReconPage /></Lazy> },
   { path: "domain-intel", element: <Lazy name="Domain Intel"><DomainIntelPage /></Lazy> },

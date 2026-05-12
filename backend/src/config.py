@@ -186,6 +186,11 @@ class Settings(BaseSettings):
     slack_signing_secret: str = ""      # Slack request signature verification
     greynoise_api_key: str = ""         # GreyNoise Community API key
 
+    # Facebook Intel — optional authenticated session
+    # Export cookies from a logged-in browser session as a JSON array and paste here.
+    # Without this, only public pages / search results are accessible.
+    fb_session_cookies: str = ""        # JSON array of cookie dicts (name/value/domain/path)
+
     # IP enrichment / DNS scanner API keys (batch 3)
     urlscan_api_key: str = ""           # urlscan.io — optional, unlocks higher rate limits
     viewdns_api_key: str = ""           # viewdns.info — required for JSON API
