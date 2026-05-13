@@ -66,6 +66,7 @@ import {
   Gauge,
   Puzzle,
   Layers,
+  Car,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 
@@ -160,12 +161,15 @@ const mainNav: NavEntry[] = [
     children: [
       { to: "/facebook-intel", label: "Facebook Intel", icon: Users },
       { to: "/instagram-intel", label: "Instagram Intel", icon: Users },
+      { to: "/linkedin-intel", label: "LinkedIn Intel", icon: Users },
+      { to: "/github-intel", label: "GitHub Intel", icon: GitBranch },
       { to: "/fediverse", label: "Fediverse", icon: Users },
       { to: "/socmint", label: "SOCMINT", icon: UserSearch },
       { to: "/phone-intel", label: "Phone Intel", icon: Phone },
       { to: "/social-graph", label: "Social Graph", icon: Network },
     ],
   },
+  { to: "/vehicle-osint", label: "Vehicle OSINT", icon: Car },
   {
     key: "tech-recon",
     label: "Tech Recon",

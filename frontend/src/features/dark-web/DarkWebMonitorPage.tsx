@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AlertTriangle, Search, Shield, Eye, Clock } from "lucide-react";
+import { AlertTriangle, Search, Shield, Eye, Clock, ChevronDown, ChevronUp, Copy, Check } from "lucide-react";
 import { useDarkWebScan } from "./hooks";
 import type { DarkWebMention } from "./types";
 import { Badge } from "@/shared/components/Badge";
@@ -29,10 +29,35 @@ const riskOrder: Record<string, number> = {
   low: 3,
 };
 
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <button
+      onClick={handleCopy}
+      className="ml-1 inline-flex items-center rounded p-0.5 transition-colors hover:bg-bg-overlay"
+      title="Copy"
+    >
+      {copied ? (
+        <Check className="h-3 w-3" style={{ color: "var(--brand-400)" }} />
+      ) : (
+        <Copy className="h-3 w-3" style={{ color: "var(--text-tertiary)" }} />
+      )}
+    </button>
+  );
+}
+
 function MentionCard({ mention }: { mention: DarkWebMention }) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div
-      className="rounded-lg border p-4"
+      className="rounded-lg border"
       style={{
         background: "var(--bg-surface)",
         borderColor:
@@ -41,52 +66,124 @@ function MentionCard({ mention }: { mention: DarkWebMention }) {
             : "var(--border-default)",
       }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2 mb-2">
-            <Badge variant={(riskVariant[mention.risk_level] ?? "neutral") as "success" | "warning" | "danger" | "info" | "neutral" | "brand"} size="sm">
-              {mention.risk_level.toUpperCase()}
-            </Badge>
-            <Badge variant="neutral" size="sm">
-              {sourceLabel[mention.source] ?? mention.source}
-            </Badge>
+      {/* Main row */}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <Badge variant={(riskVariant[mention.risk_level] ?? "neutral") as "success" | "warning" | "danger" | "info" | "neutral" | "brand"} size="sm">
+                {mention.risk_level.toUpperCase()}
+              </Badge>
+              <Badge variant="neutral" size="sm">
+                {sourceLabel[mention.source] ?? mention.source}
+              </Badge>
+            </div>
+            <p className="text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>
+              {mention.title}
+            </p>
+            <p className="text-xs font-mono" style={{ color: "var(--text-secondary)" }}>
+              {mention.snippet}
+            </p>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="flex items-center gap-1 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                <Clock className="h-3 w-3" />
+                {new Date(mention.first_seen).toLocaleDateString()}
+              </span>
+              <span className="font-mono text-xs" style={{ color: "var(--text-tertiary)" }}>
+                #{mention.url_hash.slice(0, 8)}
+              </span>
+            </div>
           </div>
-          <p
-            className="text-sm font-medium mb-1"
-            style={{ color: "var(--text-primary)" }}
-          >
-            {mention.title}
-          </p>
-          <p
-            className="text-xs font-mono"
+
+          {/* Expand toggle */}
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="flex shrink-0 items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors hover:bg-bg-overlay"
             style={{ color: "var(--text-secondary)" }}
           >
-            {mention.snippet}
-          </p>
-          <div className="flex items-center gap-3 mt-2">
-            <span
-              className="flex items-center gap-1 text-xs"
-              style={{ color: "var(--text-tertiary)" }}
-            >
-              <Clock className="h-3 w-3" />
-              {new Date(mention.first_seen).toLocaleDateString()}
-            </span>
-            <span
-              className="font-mono text-xs"
-              style={{ color: "var(--text-tertiary)" }}
-            >
-              #{mention.url_hash.slice(0, 8)}
-            </span>
-          </div>
+            {expanded ? (
+              <>Hide <ChevronUp className="h-3.5 w-3.5" /></>
+            ) : (
+              <>View data <ChevronDown className="h-3.5 w-3.5" /></>
+            )}
+          </button>
         </div>
+
+        {mention.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {mention.tags.map((t) => (
+              <Badge key={t} variant="neutral" size="sm">{t}</Badge>
+            ))}
+          </div>
+        )}
       </div>
-      {mention.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {mention.tags.map((t) => (
-            <Badge key={t} variant="neutral" size="sm">
-              {t}
-            </Badge>
-          ))}
+
+      {/* Expanded details */}
+      {expanded && (
+        <div
+          className="border-t px-4 pb-4 pt-3 space-y-3"
+          style={{ borderColor: "var(--border-subtle)" }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-tertiary)" }}>
+            Full Record
+          </p>
+          <div className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2">
+            {[
+              { label: "Record ID", value: mention.id },
+              { label: "Source", value: sourceLabel[mention.source] ?? mention.source },
+              { label: "Risk Level", value: mention.risk_level.toUpperCase() },
+              { label: "Query", value: mention.query },
+              { label: "First Seen", value: new Date(mention.first_seen).toLocaleString() },
+              { label: "Last Seen", value: new Date(mention.last_seen).toLocaleString() },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <span className="block font-medium" style={{ color: "var(--text-tertiary)" }}>{label}</span>
+                <span className="flex items-center" style={{ color: "var(--text-primary)" }}>
+                  {value}
+                  <CopyButton text={value} />
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Full snippet */}
+          <div>
+            <span className="block text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>
+              Snippet
+            </span>
+            <div
+              className="rounded-md p-3 font-mono text-xs leading-relaxed"
+              style={{ background: "var(--bg-overlay)", color: "var(--text-secondary)" }}
+            >
+              {mention.snippet}
+            </div>
+          </div>
+
+          {/* URL hash */}
+          <div>
+            <span className="block text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>
+              URL Hash (SHA-256)
+            </span>
+            <div
+              className="flex items-center gap-2 rounded-md px-3 py-2 font-mono text-xs break-all"
+              style={{ background: "var(--bg-overlay)", color: "var(--text-secondary)" }}
+            >
+              <span className="flex-1">{mention.url_hash}</span>
+              <CopyButton text={mention.url_hash} />
+            </div>
+          </div>
+
+          {/* Tags */}
+          {mention.tags.length > 0 && (
+            <div>
+              <span className="block text-xs font-medium mb-1" style={{ color: "var(--text-tertiary)" }}>Tags</span>
+              <div className="flex flex-wrap gap-1">
+                {mention.tags.map((t) => (
+                  <Badge key={t} variant="neutral" size="sm">{t}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

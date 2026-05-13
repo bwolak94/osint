@@ -58,6 +58,9 @@ celery_app.conf.update(
         "src.workers.tasks.scanner_tasks.playwright_scan_task": {"queue": "heavy"},
         "facebook_intel.scrape": {"queue": "heavy"},
         "instagram_intel.scrape": {"queue": "heavy"},
+        "linkedin_intel.scrape": {"queue": "heavy"},
+        "github_intel.fetch": {"queue": "light"},
+        "vehicle_osint.fetch": {"queue": "light"},
         "hub.run_agent": {"queue": "light"},
         "hub.resume_agent": {"queue": "light"},
         "news.scrape_all": {"queue": "light"},
@@ -173,6 +176,15 @@ import src.workers.tasks.facebook_intel_task  # noqa: E402, F401
 
 # Register Instagram Intel heavy task
 import src.workers.tasks.instagram_intel_task  # noqa: E402, F401
+
+# Register LinkedIn Intel heavy task
+import src.workers.tasks.linkedin_intel_task  # noqa: E402, F401
+
+# Register GitHub Intel light task
+import src.workers.tasks.github_intel_task  # noqa: E402, F401
+
+# Register Vehicle OSINT light task
+import src.workers.tasks.vehicle_osint_task  # noqa: E402, F401
 
 # Register observability signal handlers (failure pub/sub, arg redaction, correlation ID)
 import src.workers.celery_signals  # noqa: E402, F401
