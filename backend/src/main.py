@@ -152,6 +152,16 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.hub_tasks.router", "router", "/api/v1", ["hub-tasks"]),
     ("src.api.v1.knowledge.router", "router", "/api/v1", ["knowledge"]),
     ("src.api.v1.threat_actors", "router", "/api/v1", ["threat-actors"]),
+    # ── Web Attack Tools (Batch 1) ────────────────────────────────────────────
+    ("src.api.v1.web_attack_tools.router", "router", "/api/v1/web-attack-tools", ["web-attack-tools"]),
+    # ── Auth & Vuln Tools (Batch 2) ───────────────────────────────────────────
+    ("src.api.v1.auth_vuln_tools.router", "router", "/api/v1/auth-vuln-tools", ["auth-vuln-tools"]),
+    # ── AD & Infrastructure Tools (Batch 3) ──────────────────────────────────
+    ("src.api.v1.ad_infra_tools.router", "router", "/api/v1/ad-infra-tools", ["ad-infra-tools"]),
+    # ── Advanced Scanners (Batch 4 — Improvement 1) ───────────────────────────
+    ("src.api.v1.advanced_scanners.router", "router", "", ["advanced-scanners"]),
+    # ── AD Credential Attacks (Batch 4 — Improvement 4) ──────────────────────
+    ("src.api.v1.ad_cred_attacks.router", "router", "", ["ad-cred-attacks"]),
     # ── OSINT scanners & analysis ─────────────────────────────────────────────
     ("src.api.v1.scanner_health", "router", "/api/v1", ["scanners"]),
     ("src.api.v1.dark_web", "router", "", ["dark-web"]),

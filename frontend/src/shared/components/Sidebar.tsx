@@ -72,6 +72,7 @@ import {
   ShieldOff,
   ClipboardList,
   Skull,
+  Sliders,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 
@@ -230,6 +231,18 @@ const mainNav: NavEntry[] = [
       { to: "/phishing", label: "Phishing Sim", icon: Mail },
       { to: "/exploit-chain", label: "Exploit Chains", icon: Swords },
       { to: "/pentest/wireless-auditor", label: "Wireless Auditor", icon: Wifi },
+      { to: "/pentest/web-attack-tools", label: "Web Attack Tools", icon: Swords },
+      { to: "/pentest/auth-vuln-tools", label: "Auth & Vuln Tools", icon: KeyRound },
+      { to: "/pentest/ad-infra-tools", label: "AD & Infra Tools", icon: Network },
+      { to: "/pentest/advanced-scanners", label: "Advanced Scanners", icon: Zap },
+      { to: "/pentest/ad-cred-attacks", label: "AD Cred Attacks", icon: Hash },
+      { to: "/pentest/cvss-calculator", label: "CVSS Calculator", icon: Gauge },
+      { to: "/pentest/nuclei-templates", label: "Nuclei Templates", icon: Layers },
+      { to: "/pentest/payload-generator", label: "Payload Generator", icon: Terminal },
+      { to: "/pentest/audit-log", label: "Audit Log", icon: ClipboardList },
+      { to: "/pentest/session", label: "Session Findings", icon: Layers },
+      { to: "/pentest/retest-diff", label: "Retest Diff", icon: GitBranch },
+      { to: "/pentest/scan-profiles", label: "Scan Profiles", icon: Sliders },
       { to: "/c2-integration", label: "C2 Integration", icon: Terminal },
       { to: "/methodology", label: "Methodology", icon: ClipboardCheck },
       { to: "/retest", label: "Retest Engine", icon: RefreshCw },
