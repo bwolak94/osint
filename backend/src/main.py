@@ -205,6 +205,17 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.scheduled_rescan", "router", "/api/v1", ["scheduled-rescan"]),
     ("src.api.v1.pivot_recommendations", "router", "/api/v1", ["pivot-recommendations"]),
     ("src.api.v1.attack_flow", "router", "/api/v1", ["attack-flow"]),
+
+    # ── New OSINT tools (batch 3) ────────────────────────────────────────────
+    ("src.api.v1.malware_hash.router", "router", "/api/v1/malware-hash", ["malware-hash"]),
+    ("src.api.v1.asn_intel.router", "router", "/api/v1/asn-intel", ["asn-intel"]),
+    ("src.api.v1.email_pivot.router", "router", "/api/v1/email-pivot", ["email-pivot"]),
+    ("src.api.v1.http_fingerprint.router", "router", "/api/v1/http-fingerprint", ["http-fingerprint"]),
+    ("src.api.v1.exploit_intel.router", "router", "/api/v1/exploit-intel", ["exploit-intel"]),
+    ("src.api.v1.subdomain_takeover.router", "router", "/api/v1/subdomain-takeover", ["subdomain-takeover"]),
+    ("src.api.v1.paste_monitor.router", "router", "/api/v1/paste-monitor", ["paste-monitor"]),
+    ("src.api.v1.ransomware_tracker.router", "router", "/api/v1/ransomware-tracker", ["ransomware-tracker"]),
+    ("src.api.v1.username_scanner.router", "router", "/api/v1/username-scanner", ["username-scanner"]),
 ]
 
 

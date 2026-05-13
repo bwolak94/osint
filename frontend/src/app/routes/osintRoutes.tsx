@@ -53,6 +53,15 @@ const MultiInvestigationGraphPage = lazy(() => import("@/features/multi-graph/Mu
 const BrowserExtensionPage = lazy(() => import("@/features/browser-extension/BrowserExtensionPage").then((m) => ({ default: m.BrowserExtensionPage })));
 const MitreAttackMatrixPage = lazy(() => import("@/features/mitre-attack").then((m) => ({ default: m.MitreAttackMatrix })));
 const WorldMonitorPage = lazy(() => import("@/features/world-monitor/WorldMonitorPage").then((m) => ({ default: m.WorldMonitorDashboard })));
+const MalwareHashPage = lazy(() => import("@/features/malware-hash").then((m) => ({ default: m.MalwareHashPage })));
+const AsnIntelPage = lazy(() => import("@/features/asn-intel").then((m) => ({ default: m.AsnIntelPage })));
+const EmailPivotPage = lazy(() => import("@/features/email-pivot").then((m) => ({ default: m.EmailPivotPage })));
+const HttpFingerprintPage = lazy(() => import("@/features/http-fingerprint").then((m) => ({ default: m.HttpFingerprintPage })));
+const ExploitIntelPage = lazy(() => import("@/features/exploit-intel").then((m) => ({ default: m.ExploitIntelPage })));
+const SubdomainTakeoverPage = lazy(() => import("@/features/subdomain-takeover").then((m) => ({ default: m.SubdomainTakeoverPage })));
+const PasteMonitorPage = lazy(() => import("@/features/paste-monitor").then((m) => ({ default: m.PasteMonitorPage })));
+const RansomwareTrackerPage = lazy(() => import("@/features/ransomware-tracker").then((m) => ({ default: m.RansomwareTrackerPage })));
+const UsernameScannerPage = lazy(() => import("@/features/username-scanner").then((m) => ({ default: m.UsernameScannerPage })));
 
 export const osintRoutes: RouteObject[] = [
   { path: "investigations", element: <Lazy name="Investigations"><InvestigationsPage /></Lazy> },
@@ -107,4 +116,13 @@ export const osintRoutes: RouteObject[] = [
   { path: "browser-extension", element: <Lazy name="Browser Extension"><BrowserExtensionPage /></Lazy> },
   { path: "mitre-attack", element: <Lazy name="MITRE ATT&CK"><MitreAttackMatrixPage /></Lazy> },
   { path: "world-monitor", element: <Lazy name="World Monitor"><WorldMonitorPage /></Lazy> },
+  { path: "malware-hash", element: <Lazy name="Malware Hash"><MalwareHashPage /></Lazy> },
+  { path: "asn-intel", element: <Lazy name="ASN Intel"><AsnIntelPage /></Lazy> },
+  { path: "email-pivot", element: <Lazy name="Email Pivot"><EmailPivotPage /></Lazy> },
+  { path: "http-fingerprint", element: <Lazy name="HTTP Fingerprint"><HttpFingerprintPage /></Lazy> },
+  { path: "exploit-intel", element: <Lazy name="CVE Intel"><ExploitIntelPage /></Lazy> },
+  { path: "subdomain-takeover", element: <Lazy name="Subdomain Takeover"><SubdomainTakeoverPage /></Lazy> },
+  { path: "paste-monitor", element: <Lazy name="Paste Monitor"><PasteMonitorPage /></Lazy> },
+  { path: "ransomware-tracker", element: <Lazy name="Ransomware Tracker"><RansomwareTrackerPage /></Lazy> },
+  { path: "username-scanner", element: <Lazy name="Username Scanner"><UsernameScannerPage /></Lazy> },
 ];

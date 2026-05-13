@@ -1,0 +1,1 @@
+export { AsnIntelPage } from "./AsnIntelPage";

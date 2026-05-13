@@ -1,0 +1,1 @@
+export { SubdomainTakeoverPage } from "./SubdomainTakeoverPage";

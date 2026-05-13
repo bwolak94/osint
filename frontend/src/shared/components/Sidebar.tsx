@@ -67,6 +67,11 @@ import {
   Puzzle,
   Layers,
   Car,
+  Hash,
+  AtSign,
+  ShieldOff,
+  ClipboardList,
+  Skull,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 
@@ -131,6 +136,9 @@ const mainNav: NavEntry[] = [
       { to: "/wigle", label: "WiGLE", icon: Wifi },
       { to: "/passive-dns", label: "Passive DNS", icon: Database },
       { to: "/cert-transparency", label: "Cert Transparency", icon: Shield },
+      { to: "/asn-intel", label: "ASN Intelligence", icon: Network },
+      { to: "/http-fingerprint", label: "HTTP Fingerprint", icon: ScanLine },
+      { to: "/subdomain-takeover", label: "Subdomain Takeover", icon: ShieldOff },
     ],
   },
   {
@@ -167,9 +175,22 @@ const mainNav: NavEntry[] = [
       { to: "/socmint", label: "SOCMINT", icon: UserSearch },
       { to: "/phone-intel", label: "Phone Intel", icon: Phone },
       { to: "/social-graph", label: "Social Graph", icon: Network },
+      { to: "/username-scanner", label: "Username Scanner", icon: UserSearch },
+      { to: "/email-pivot", label: "Email Pivot", icon: AtSign },
     ],
   },
   { to: "/vehicle-osint", label: "Vehicle OSINT", icon: Car },
+  {
+    key: "threat-tools",
+    label: "Threat Tools",
+    icon: ShieldAlert,
+    children: [
+      { to: "/malware-hash", label: "Malware Hash Lookup", icon: Hash },
+      { to: "/exploit-intel", label: "CVE / Exploit Intel", icon: Swords },
+      { to: "/ransomware-tracker", label: "Ransomware Tracker", icon: Skull },
+      { to: "/paste-monitor", label: "Paste Monitor", icon: ClipboardList },
+    ],
+  },
   {
     key: "tech-recon",
     label: "Tech Recon",

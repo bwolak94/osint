@@ -1,0 +1,1 @@
+export { PasteMonitorPage } from "./PasteMonitorPage";
