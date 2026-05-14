@@ -162,6 +162,20 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.advanced_scanners.router", "router", "", ["advanced-scanners"]),
     # ── AD Credential Attacks (Batch 4 — Improvement 4) ──────────────────────
     ("src.api.v1.ad_cred_attacks.router", "router", "", ["ad-cred-attacks"]),
+    # ── Web Exploit Tools (New Batch Features 1–7) ────────────────────────────
+    ("src.api.v1.web_exploit.router", "router", "", ["web-exploit"]),
+    # ── Post-Exploit Tools (New Batch Features 8–10) ─────────────────────────
+    ("src.api.v1.post_exploit.router", "router", "", ["post-exploit"]),
+    # ── Exploit Tools (Features 11-14: OAuth, Atomic, XXE/SSRF, AdaptixC2) ──
+    ("src.api.v1.exploit_tools.router", "router", "", ["exploit-tools"]),
+    # ── AD Attack Tools (Features 15-19: LDAP, Ligolo, ACL, PtH, ADCS) ──────
+    ("src.api.v1.ad_attack.router", "router", "", ["ad-attack"]),
+    # ── Batch 3: Cloud Pentest (Features 21-25) ───────────────────────────────
+    ("src.api.v1.cloud_pentest.router", "router", "", ["cloud-pentest"]),
+    # ── Batch 3: Wireless Pentest (Features 26-28) ────────────────────────────
+    ("src.api.v1.wireless_pentest.router", "router", "", ["wireless-pentest"]),
+    # ── Batch 3: Reporting Tools (Features 29-30) ─────────────────────────────
+    ("src.api.v1.reporting_tools.router", "router", "", ["reporting-tools"]),
     # ── OSINT scanners & analysis ─────────────────────────────────────────────
     ("src.api.v1.scanner_health", "router", "/api/v1", ["scanners"]),
     ("src.api.v1.dark_web", "router", "", ["dark-web"]),
