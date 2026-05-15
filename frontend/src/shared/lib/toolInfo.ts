@@ -376,4 +376,96 @@ Data is sourced exclusively from public Graph API fields and publicly rendered H
 
 Use this tool to map a subject's Facebook presence as part of a broader SOCMINT investigation, verify a claimed identity, or pivot from a known identifier to additional account details.`,
   },
+
+  'iab-monitor': {
+    short: 'Monitors Initial Access Broker marketplaces for listings matching your organization\'s domain or IP infrastructure.',
+    details: `The IAB Monitor scans dark web forums and access broker marketplaces for listings that match your target domain, organization name, or IP range. Initial Access Brokers (IABs) specialize in selling pre-compromised corporate network access — RDP sessions, VPN credentials, webshells, and domain admin access.
+
+Each listing is scored by risk level based on access type (domain admin vs. initial foothold), asking price, auction urgency, and IOC overlap with known threat actors.
+
+The tool surfaces: access type, victim sector and geography, employee count estimate, asking price (if listed), auction deadline, detected antivirus products, whether domain admin or full network access is included, and IOC overlap count.
+
+Use this to identify if your organization's infrastructure appears in IAB listings before threat actors can exploit the access.`,
+  },
+
+  'ransomware-attribution': {
+    short: 'Attributes ransomware incidents to known RaaS groups by correlating IOCs, TTPs, file extensions, and ransom note signatures.',
+    details: `The Ransomware Attribution Engine accepts file hashes, IP indicators, malicious domains, and ransom note fragments, then correlates them against a database of known Ransomware-as-a-Service (RaaS) groups including LockBit, BlackCat/ALPHV, Cl0p, Akira, and Play.
+
+Attribution confidence is calculated from: IOC overlap count, MITRE ATT&CK TTP matches, file extension signatures, encryption algorithm patterns, double-extortion behavior, and ransom note linguistic analysis.
+
+Results include: top attributed group with confidence score, all candidate groups ranked by confidence, matched TTPs with tactic and technique names, known file extensions, encryption algorithms, victim sector distribution, and negotiation style context.
+
+Use this during incident response to rapidly attribute an ongoing attack, brief stakeholders on the threat actor profile, and align defensive responses to the specific group's known behaviors.`,
+  },
+
+  'credential-risk': {
+    short: 'Scores email addresses for credential exposure risk: breach age, password reuse probability, MFA bypass likelihood, and cracking estimates.',
+    details: `The Credential Risk Scoring engine evaluates each email address against known breach databases and applies a multi-factor risk model to produce a 0–10 risk score.
+
+Scoring components: breach frequency (how many distinct breaches expose this address), password exposure count (how many breaches included the actual password), recency (how recently was the most recent breach), spray attack risk (likelihood the account is targeted in password spray campaigns), and password reuse probability.
+
+For each address the tool also estimates: the percentage chance the password has already been cracked (based on breach age and hash type), MFA bypass risk from SIM-swap and adversary-in-the-middle techniques, and generates prioritized mitigation steps.
+
+Use this for insider threat assessments, pre-breach exposure mapping, and identifying the highest-risk accounts in an organization before attackers do.`,
+  },
+
+  'shadow-it': {
+    short: 'Discovers unenumerated cloud assets and shadow IT infrastructure via Shodan, Censys, and certificate transparency pivoting.',
+    details: `Shadow IT Discovery fingerprints your organization's cloud footprint using the organization name and known domains as seeds, then discovers assets that aren't in your official asset register.
+
+The scanner identifies: S3 buckets, EC2 instances, RDS databases, Azure Blob storage, Azure VMs, GCP Storage buckets, Kubernetes clusters, and exposed services. For each asset it classifies the cloud provider, region, open ports, running services, and data sensitivity estimate.
+
+Misconfiguration detection covers: public S3 buckets with no ACL, RDS with public accessibility, security groups allowing 0.0.0.0/0 on port 22, anonymous Azure Blob access, exposed Docker daemon ports, default credentials, and expired SSL certificates.
+
+Use this to build an accurate external attack surface map and discover rogue cloud resources before external threat actors do.`,
+  },
+
+  'nuclei-generator': {
+    short: 'Generates production-ready Nuclei YAML templates from CVE IDs or vulnerability descriptions with matcher patterns and OAST support.',
+    details: `The Nuclei Template Generator creates Nuclei-compatible YAML scan templates from vulnerability information. Supported vulnerability types include: RCE, SQL injection, XSS, SSRF, LFI, IDOR, authentication bypass, and information disclosure.
+
+For each type the generator selects appropriate HTTP methods, target URL patterns, matcher types (word/regex/status), and automatically includes Interactsh OOB callbacks for blind vulnerabilities like RCE and SSRF.
+
+CVSS score is used to automatically set severity (critical ≥9.0, high ≥7.0, medium ≥4.0). When a CVE ID is provided, the template ID and NVD reference are auto-populated. Confidence scoring accounts for whether a specific target URL pattern was provided.
+
+Warnings are generated for: templates requiring Interactsh servers, missing CVE IDs that reduce attribution precision, and no URL pattern (best-guess path suffix).`,
+  },
+
+  'ad-attack-path': {
+    short: 'Visualizes Active Directory attack paths from BloodHound JSON with OSINT intelligence overlay including credential exposure and IAB flags.',
+    details: `The AD Attack Path Visualizer accepts BloodHound JSON exports or performs a demo analysis from a domain name, then maps attack paths from initial compromise to Domain Admin.
+
+The graph contains: User, Computer, Group, GPO, Domain, and OU nodes with risk scores. Edges represent BloodHound relationships: MemberOf, HasSession, AdminTo, DCSync, GenericAll, WriteDACL, Owns, ForceChangePassword, AllowedToDelegate, and GPLink.
+
+OSINT flags overlay identifies nodes with: credential_exposed (found in breach data), iab_listed (infrastructure appears in IAB listings), spray_target (high spray attack risk), kerberoastable, and asreproastable.
+
+Attack paths show: step count, estimated exploitation time, MITRE ATT&CK technique IDs with clickable ATT&CK links, and full chain description. Critical nodes (risk ≥ 0.85) are highlighted separately.
+
+Use this to prioritize AD hardening efforts and demonstrate attack path severity to stakeholders.`,
+  },
+
+  'cib-detector': {
+    short: 'Detects coordinated inauthentic behavior across social media: bot networks, synchronized posting, amplification rings, and sockpuppet clusters.',
+    details: `The CIB (Coordinated Inauthentic Behavior) Detector analyzes groups of social media accounts to identify synchronized, automated, or manipulated activity patterns.
+
+Account analysis includes: account age, follower/following ratios, post frequency, profile completeness, language switching patterns, and bot probability scoring. Suspicious signals detected include: AI-generated profile photos, narrow posting windows suggesting automation, purchased follower spikes, and username patterns matching known bot naming conventions.
+
+Clustering identifies: synchronized posting clusters (accounts posting the same content within short windows), amplification rings (retweet-only accounts), astroturfing networks (fake grassroots campaigns), and bot farms (infrastructure-sharing account groups).
+
+Each cluster includes: coordination type, posting correlation score, shared infrastructure (IP/hosting overlaps), narrative keywords, and confidence score.
+
+Use this to investigate disinformation campaigns, identify fake review networks, or verify the authenticity of social media narratives.`,
+  },
+
+  'geolocation': {
+    short: 'Triangulates subject location from social media posts, EXIF metadata, IP geolocation, Wi-Fi probes, and cell tower data into a timeline.',
+    details: `The Geolocation Triangulation tool extracts location signals from multiple data sources and builds a timeline of a subject's movements. Sources include: EXIF GPS coordinates from photos (±10m accuracy), social media posts with location tags or embedded geodata, IP address geolocation (±5km), Wi-Fi probe requests matching ISP infrastructure patterns, cell tower triangulation, and venue check-ins.
+
+Each signal is weighted by confidence (EXIF: 95%, check-ins: 90%, Wi-Fi: 80%, cell tower: 70%, IP: 60%, social posts: 50%) and clustered into location groups with visit counts, duration estimates, and location type classification (home, work, frequent location, transit).
+
+Privacy risk levels (critical/high/medium/low) are assigned based on signal count and location type identification. Critical risk indicates home and workplace have been identified with high confidence.
+
+Use this for physical security assessments, verifying claimed locations, or building movement timeline evidence in investigations.`,
+  },
 };

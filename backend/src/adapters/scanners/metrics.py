@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import threading
-import time
 from collections import defaultdict
-from typing import Any
 
 # ---------------------------------------------------------------------------
 # In-process histogram implementation (no external prometheus_client required)
@@ -21,6 +19,11 @@ _duration_buckets: dict[str, dict[float, int]] = defaultdict(lambda: {b: 0 for b
 _duration_sum: dict[str, float] = defaultdict(float)
 _duration_count: dict[str, int] = defaultdict(int)
 
+# Circuit breaker open event counter (#37)
+# Incremented every time a request is rejected because the breaker is open.
+# Allows alerting: if this counter grows, a scanner is persistently down.
+_cb_open_total: dict[str, int] = defaultdict(int)
+
 
 def record_scan_duration(scanner_name: str, duration_seconds: float) -> None:
     """Record a completed scan duration into the histogram."""
@@ -30,6 +33,28 @@ def record_scan_duration(scanner_name: str, duration_seconds: float) -> None:
         for bucket in _DURATION_BUCKETS:
             if duration_seconds <= bucket:
                 _duration_buckets[scanner_name][bucket] += 1
+
+
+def record_circuit_breaker_open(scanner_name: str) -> None:
+    """Increment the circuit-breaker-open counter for a scanner.
+
+    Called each time a scan request is rejected due to an open circuit breaker.
+    Surfaced in the /metrics endpoint so Prometheus/Grafana can alert on it.
+    """
+    with _lock:
+        _cb_open_total[scanner_name] += 1
+
+
+def prometheus_cb_open_text() -> str:
+    """Render circuit-breaker-open counters in Prometheus exposition format."""
+    lines = [
+        "# HELP osint_scanner_circuit_breaker_open_total Requests rejected by open circuit breaker",
+        "# TYPE osint_scanner_circuit_breaker_open_total counter",
+    ]
+    with _lock:
+        for scanner, count in _cb_open_total.items():
+            lines.append(f'osint_scanner_circuit_breaker_open_total{{scanner="{scanner}"}} {count}')
+    return "\n".join(lines)
 
 
 def prometheus_histogram_text() -> str:

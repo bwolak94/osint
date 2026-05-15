@@ -1,10 +1,19 @@
-"""MinIO storage adapter for file operations."""
+"""MinIO storage adapter for file operations.
 
+Provides both a high-level ``MinioStorageClient`` for application use and
+lower-level factory helpers (``build_minio_client``, ``ensure_bucket``) that
+``main.py`` lifespan uses so the Minio client is never constructed inline. (#10)
+"""
+
+import asyncio
 from io import BytesIO
 
+import structlog
 from minio import Minio
 
-from src.config import get_settings
+from src.config import Settings, get_settings
+
+log = structlog.get_logger(__name__)
 
 
 class MinioStorageClient:
@@ -59,3 +68,29 @@ class MinioStorageClient:
     def delete_file(self, object_name: str) -> None:
         """Delete a file from MinIO."""
         self._client.remove_object(self._bucket, object_name)
+
+
+# ---------------------------------------------------------------------------
+# Lifespan helpers — used by main.py to avoid inline construction. (#10)
+# ---------------------------------------------------------------------------
+
+
+def build_minio_client(settings: Settings) -> Minio:
+    """Return a configured Minio client from application settings."""
+    return Minio(
+        settings.minio_endpoint,
+        access_key=settings.minio_access_key,
+        secret_key=settings.minio_secret_key,
+        secure=settings.minio_secure,
+    )
+
+
+async def ensure_bucket(client: Minio, bucket: str) -> None:
+    """Create *bucket* if it does not already exist (runs in executor thread pool)."""
+    loop = asyncio.get_running_loop()
+    found = await loop.run_in_executor(None, client.bucket_exists, bucket)
+    if not found:
+        await loop.run_in_executor(None, client.make_bucket, bucket)
+        log.info("minio_bucket_created", bucket=bucket)
+    else:
+        log.debug("minio_bucket_exists", bucket=bucket)

@@ -1,5 +1,6 @@
 """SQLAlchemy implementations of repository ports."""
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import and_, select
@@ -114,6 +115,7 @@ class SqlAlchemyUserRepository(IUserRepository):
             locked_until=model.locked_until,
             last_login_at=model.last_login_at,
             created_at=model.created_at,
+            tos_accepted_at=model.tos_accepted_at,
         )
 
 
@@ -179,18 +181,33 @@ class SqlAlchemyInvestigationRepository(IInvestigationRepository):
             await self._session.flush()
 
     async def list_by_owner_cursor(
-        self, owner_id: UUID, cursor: UUID | None = None, limit: int = 20
+        self,
+        owner_id: UUID,
+        cursor: UUID | None = None,
+        cursor_created_at: datetime | None = None,
+        limit: int = 20,
     ) -> tuple[list[Investigation], bool]:
-        """Cursor-based pagination. Returns (items, has_next)."""
+        """Cursor-based pagination. Returns (items, has_next).
+
+        When *cursor_created_at* is supplied alongside *cursor*, the repository
+        applies keyset pagination directly without an extra DB round-trip to
+        resolve the cursor row.  Callers should encode both values in the
+        next_cursor token (see router for encoding/decoding logic).
+        """
         conditions = [InvestigationModel.owner_id == owner_id]
         if cursor is not None:
-            # Fetch the cursor item's created_at for comparison
-            cursor_model = await self._session.get(InvestigationModel, cursor)
-            if cursor_model is not None:
+            if cursor_created_at is None:
+                # Fallback: resolve cursor_created_at with an extra query.
+                # Prefer passing cursor_created_at to avoid this round-trip.
+                cursor_model = await self._session.get(InvestigationModel, cursor)
+                if cursor_model is not None:
+                    cursor_created_at = cursor_model.created_at
+
+            if cursor_created_at is not None:
                 conditions.append(
-                    (InvestigationModel.created_at < cursor_model.created_at)
+                    (InvestigationModel.created_at < cursor_created_at)
                     | (
-                        (InvestigationModel.created_at == cursor_model.created_at)
+                        (InvestigationModel.created_at == cursor_created_at)
                         & (InvestigationModel.id < cursor)
                     )
                 )

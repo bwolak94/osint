@@ -56,8 +56,12 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
-    jwt_refresh_token_expire_minutes: int = 10080  # 7 days
+    jwt_refresh_token_expire_minutes: int = 10080  # 7 days (must equal jwt_refresh_token_expire_days * 1440)
     jwt_refresh_token_expire_days: int = 7
+
+    # Mock data mode: when True, OSINT endpoints return deterministic demo data.
+    # Set OSINT_MOCK_DATA=false in production to require real data sources. (#13)
+    osint_mock_data: bool = True
 
     # WebAuthn
     webauthn_rp_id: str = "localhost"
@@ -162,6 +166,11 @@ class Settings(BaseSettings):
     pii_encryption_key: str = ""
     ip_allowlist: list[str] = []
     ip_allowlist_enabled: bool = False
+
+    # Metrics endpoint protection (#36)
+    # Set to a random secret; configure Prometheus to send it as Bearer token.
+    # Leave empty to allow unauthenticated access (safe in private networks).
+    metrics_api_key: str = ""
 
     # GitHub
     github_api_token: str = ""
@@ -283,6 +292,25 @@ class Settings(BaseSettings):
         return v
 
     @model_validator(mode="after")
+    def _validate_refresh_token_consistency(self) -> "Settings":
+        """Ensure the two refresh-token TTL fields agree with each other. (#7)
+
+        ``jwt_refresh_token_expire_minutes`` and ``jwt_refresh_token_expire_days``
+        are redundant but both used by different parts of the codebase. A mismatch
+        would cause tokens to expire at different times depending on which field a
+        caller reads, producing subtle authentication bugs.
+        """
+        expected_minutes = self.jwt_refresh_token_expire_days * 24 * 60
+        if self.jwt_refresh_token_expire_minutes != expected_minutes:
+            raise ValueError(
+                f"JWT_REFRESH_TOKEN_EXPIRE_MINUTES ({self.jwt_refresh_token_expire_minutes}) "
+                f"must equal JWT_REFRESH_TOKEN_EXPIRE_DAYS * 1440 "
+                f"({self.jwt_refresh_token_expire_days} * 1440 = {expected_minutes}). "
+                "Update one of the two values to make them consistent."
+            )
+        return self
+
+    @model_validator(mode="after")
     def _validate_postgres_dsn_format(self) -> "Settings":
         parsed = urlparse(self.postgres_dsn)
         if not parsed.hostname:
@@ -331,6 +359,15 @@ class Settings(BaseSettings):
                     f"SECURITY ERROR: CORS_ORIGINS contains localhost entries in production: "
                     f"{localhost_origins}. Remove them or set DEBUG=true."
                 )
+        # A wildcard origin combined with allow_credentials=True is forbidden by
+        # the CORS spec and will be silently rejected by all modern browsers.
+        # Raise at startup so the misconfiguration is caught immediately. (#11)
+        if "*" in self.cors_origins:
+            raise ValueError(
+                "SECURITY ERROR: CORS_ORIGINS contains '*' (wildcard). "
+                "Wildcard origin is incompatible with allow_credentials=True. "
+                "Specify explicit allowed origins instead."
+            )
         return self
 
 

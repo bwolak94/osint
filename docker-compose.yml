@@ -84,6 +84,10 @@ services:
     env_file:
       - .env
     command: ["python", "-m", "celery", "-A", "src.workers.celery_app", "worker", "--loglevel=info", "--queues=heavy", "--concurrency=2"]
+    # Allow up to 5 minutes for in-flight Playwright/heavy tasks to complete
+    # before Docker force-kills the container. task_acks_late=True means tasks
+    # not yet acked (mid-execution) are re-queued by Redis on SIGTERM. (#6)
+    stop_grace_period: 5m
     networks:
       - backend-net
     depends_on:
@@ -106,6 +110,7 @@ services:
     env_file:
       - .env
     command: ["python", "-m", "celery", "-A", "src.workers.celery_app", "worker", "--loglevel=info", "--queues=light,graph", "--concurrency=4"]
+    stop_grace_period: 2m
     networks:
       - backend-net
     depends_on:
@@ -152,6 +157,10 @@ services:
   flower:
     image: mher/flower:2.0
     restart: unless-stopped
+    # SECURITY NOTE (#35): Flower is only protected by HTTP Basic Auth, which
+    # is sent in plaintext. Do NOT expose port 5555 on a public interface.
+    # In production, place an nginx/Traefik reverse proxy with TLS in front of
+    # Flower, or restrict access via firewall rules to your monitoring network.
     command: celery flower --basic-auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-changeme-flower}
     ports:
       - "5555:5555"

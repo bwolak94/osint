@@ -23,13 +23,14 @@ class LogoutUseCase:
         self._refresh_repo = refresh_token_repo
 
     async def execute(self, command: LogoutCommand) -> None:
-        # Blacklist access token (TTL = remaining token lifetime)
+        # Blacklist access token via its jti (TTL = remaining token lifetime).
+        # Using jti instead of the full token string saves ~90 % Redis memory per entry.
         try:
             payload = self._token_service.decode_access_token(command.access_token)
             remaining = max(0, payload.exp - int(time.time()))
-            await self._blacklist.blacklist(command.access_token, ttl_seconds=remaining)
+            await self._blacklist.blacklist(payload.jti, ttl_seconds=remaining)
         except Exception:
-            pass  # Token already expired, nothing to blacklist
+            pass  # Token already expired or invalid — nothing to blacklist
 
         # Revoke refresh token if provided
         if command.refresh_token:

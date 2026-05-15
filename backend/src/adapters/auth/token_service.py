@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 import time
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from jose import jwt, JWTError
 
@@ -27,6 +27,10 @@ class JWTTokenService:
             "iat": now,
             "exp": now + self._access_ttl,
             "type": "access",
+            # jti is the unique token identifier used as the Redis blacklist key.
+            # Storing only the jti (a UUID) instead of the full JWT saves ~90 % of
+            # Redis memory per blacklisted token.
+            "jti": uuid4().hex,
         }
         return jwt.encode(payload, self._secret, algorithm=self._algorithm)
 
@@ -48,6 +52,7 @@ class JWTTokenService:
             role=payload["role"],
             subscription_tier=payload["tier"],
             exp=payload["exp"],
+            jti=payload.get("jti", ""),  # graceful fallback for tokens issued before jti was added
         )
 
     def hash_token(self, token: str) -> str:

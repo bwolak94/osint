@@ -1,6 +1,9 @@
 """CRUD and lifecycle router for investigations."""
 
 import asyncio
+import base64
+import json
+from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -386,20 +389,45 @@ async def create_investigation(
     return _build_response(investigation)
 
 
+def _encode_cursor(investigation_id: UUID, created_at: datetime) -> str:
+    """Encode cursor as base64 JSON containing both ID and created_at.
+
+    Embedding created_at in the cursor lets the repository apply keyset
+    pagination without an extra DB round-trip to resolve the cursor row.
+    """
+    payload = {"id": str(investigation_id), "ts": created_at.isoformat()}
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+
+
+def _decode_cursor(cursor_str: str) -> tuple[UUID, datetime] | tuple[None, None]:
+    """Decode a cursor string. Returns (None, None) if invalid (graceful degradation)."""
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(cursor_str.encode()))
+        cursor_id = UUID(payload["id"])
+        cursor_ts = datetime.fromisoformat(payload["ts"])
+        if cursor_ts.tzinfo is None:
+            cursor_ts = cursor_ts.replace(tzinfo=timezone.utc)
+        return cursor_id, cursor_ts
+    except Exception:
+        return None, None
+
+
 @router.get("/", response_model=InvestigationListResponse)
 async def list_investigations(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    cursor: UUID | None = Query(default=None, description="Last seen investigation ID for cursor pagination"),
+    cursor: str | None = Query(default=None, description="Opaque pagination cursor from previous response"),
     limit: int = Query(default=20, ge=1, le=100),
 ) -> InvestigationListResponse:
     """List investigations with cursor-based pagination."""
     repo = SqlAlchemyInvestigationRepository(db)
 
-    # Use cursor-based pagination
+    cursor_id, cursor_created_at = _decode_cursor(cursor) if cursor else (None, None)
+
     investigations, has_next = await repo.list_by_owner_cursor(
         current_user.id,
-        cursor=cursor,
+        cursor=cursor_id,
+        cursor_created_at=cursor_created_at,
         limit=limit,
     )
 
@@ -407,7 +435,8 @@ async def list_investigations(
 
     next_cursor: str | None = None
     if has_next and page:
-        next_cursor = str(page[-1].id)
+        last = page[-1]
+        next_cursor = _encode_cursor(last.id, last.updated_at or last.created_at)
 
     return InvestigationListResponse(
         items=[_build_response(inv) for inv in page],

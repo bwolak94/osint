@@ -7,13 +7,13 @@ export { AUTH_STORAGE_KEY };
 // ── ApiError (generic so callers get typed error payloads) ───────────────────
 export class ApiError<T = unknown> extends Error {
   status: number;
-  data: T;
+  data: T | undefined;  // (#26) undefined when server returns no body
 
   constructor(status: number, message: string, data?: T) {
     super(message);
     this.name = "ApiError";
     this.status = status;
-    this.data = data as T;
+    this.data = data;  // (#26) no 'as T' cast — preserve undefined at runtime
   }
 }
 
@@ -49,6 +49,11 @@ function redirectToLogin(): void {
   // Belt-and-suspenders: clear persisted store directly so a page reload cannot
   // rehydrate stale auth state before AuthInitializer runs.
   try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch { /* ignore */ }
+  // Save the intended destination so the user is returned there after login. (#25)
+  const intendedPath = window.location.pathname + window.location.search;
+  if (intendedPath !== "/" && !intendedPath.startsWith("/login")) {
+    try { sessionStorage.setItem("login_redirect", intendedPath); } catch { /* ignore */ }
+  }
   window.location.href = "/login";
 }
 

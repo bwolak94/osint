@@ -1,18 +1,48 @@
 """Basic Prometheus-compatible metrics endpoint."""
 
 import time
+from typing import Annotated
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from starlette.responses import PlainTextResponse
+
+from src.config import get_settings
 
 router = APIRouter()
 
 # Simple counters stored in module state
 _start_time = time.time()
 
+_bearer = HTTPBearer(auto_error=False)
+
+
+def _check_metrics_auth(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+    request: Request,
+) -> None:
+    """Guard the /metrics endpoint with an optional Bearer token.
+
+    If METRICS_API_KEY is not configured the endpoint is open (useful for
+    dev/local Prometheus scraping).  In production, set METRICS_API_KEY to a
+    random secret and configure Prometheus to send it as a Bearer token. (#36)
+    """
+    settings = get_settings()
+    api_key: str = getattr(settings, "metrics_api_key", "")
+    if not api_key:
+        return  # No key configured — allow unauthenticated access
+
+    token = credentials.credentials if credentials else None
+    if token != api_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing metrics API key",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
 
 @router.get("/metrics", response_class=PlainTextResponse)
-async def metrics(request: Request) -> str:
+async def metrics(request: Request, _: Annotated[None, Depends(_check_metrics_auth)]) -> str:
     """Return basic metrics in Prometheus exposition format."""
     uptime = time.time() - _start_time
 
@@ -55,6 +85,14 @@ async def metrics(request: Request) -> str:
         from src.adapters.scanners.metrics import prometheus_histogram_text
         lines.append("")
         lines.append(prometheus_histogram_text())
+    except Exception:
+        pass
+
+    # Circuit breaker open counters (#37)
+    try:
+        from src.adapters.scanners.metrics import prometheus_cb_open_text
+        lines.append("")
+        lines.append(prometheus_cb_open_text())
     except Exception:
         pass
 

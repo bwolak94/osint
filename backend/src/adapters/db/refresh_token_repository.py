@@ -45,14 +45,24 @@ class SqlAlchemyRefreshTokenRepository:
             user_agent=model.user_agent,
         )
 
-    async def revoke(self, token_hash: str) -> None:
+    async def revoke(self, token_hash: str) -> bool:
+        """Revoke the token with the given hash.
+
+        Returns:
+            ``True`` if a token was found and revoked; ``False`` if the hash
+            was not found (already expired/deleted) or already revoked.
+        """
         stmt = (
             update(RefreshTokenModel)
-            .where(RefreshTokenModel.token_hash == token_hash)
+            .where(
+                RefreshTokenModel.token_hash == token_hash,
+                RefreshTokenModel.is_revoked == False,  # noqa: E712
+            )
             .values(is_revoked=True, revoked_at=datetime.now(timezone.utc))
         )
-        await self._session.execute(stmt)
+        result = await self._session.execute(stmt)
         await self._session.flush()
+        return result.rowcount > 0
 
     async def revoke_family(self, family: str) -> None:
         stmt = (

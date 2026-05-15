@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { memo } from "react";
 import { Card } from "@/shared/components/Card";
 import { Badge } from "@/shared/components/Badge";
 import { ProgressBar } from "@/shared/components/ProgressBar";
@@ -12,6 +12,8 @@ interface InvestigationCardProps {
   progress?: number;
   tags: string[];
   createdAt: string;
+  /** Called when the card is clicked. Callers own navigation logic. */
+  onClick?: () => void;
 }
 
 const statusVariant: Record<string, "neutral" | "info" | "success" | "warning" | "danger"> = {
@@ -22,7 +24,9 @@ const statusVariant: Record<string, "neutral" | "info" | "success" | "warning" |
   archived: "danger",
 };
 
-export function InvestigationCard({
+// Wrapped in memo so that rendering one investigation (e.g. status change)
+// does not force re-render of every other card in the list. (#28)
+export const InvestigationCard = memo(function InvestigationCard({
   id,
   title,
   status,
@@ -30,11 +34,10 @@ export function InvestigationCard({
   progress,
   tags,
   createdAt,
+  onClick,
 }: InvestigationCardProps) {
-  const navigate = useNavigate();
-
   return (
-    <Card hover onClick={() => navigate(`/investigations/${id}`)}>
+    <Card hover onClick={onClick}>
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -83,4 +86,4 @@ export function InvestigationCard({
       </div>
     </Card>
   );
-}
+});

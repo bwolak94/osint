@@ -62,6 +62,14 @@ const SubdomainTakeoverPage = lazy(() => import("@/features/subdomain-takeover")
 const PasteMonitorPage = lazy(() => import("@/features/paste-monitor").then((m) => ({ default: m.PasteMonitorPage })));
 const RansomwareTrackerPage = lazy(() => import("@/features/ransomware-tracker").then((m) => ({ default: m.RansomwareTrackerPage })));
 const UsernameScannerPage = lazy(() => import("@/features/username-scanner").then((m) => ({ default: m.UsernameScannerPage })));
+const IABMonitorPage = lazy(() => import("@/features/iab-monitor/IABMonitorPage").then((m) => ({ default: m.IABMonitorPage })));
+const RansomwareAttributionPage = lazy(() => import("@/features/ransomware-attribution/RansomwareAttributionPage").then((m) => ({ default: m.RansomwareAttributionPage })));
+const CredentialRiskPage = lazy(() => import("@/features/credential-risk/CredentialRiskPage").then((m) => ({ default: m.CredentialRiskPage })));
+const ShadowITPage = lazy(() => import("@/features/shadow-it/ShadowITPage").then((m) => ({ default: m.ShadowITPage })));
+const NucleiGeneratorPage = lazy(() => import("@/features/nuclei-generator/NucleiGeneratorPage").then((m) => ({ default: m.NucleiGeneratorPage })));
+const ADAttackPathPage = lazy(() => import("@/features/ad-attack-path/ADAttackPathPage").then((m) => ({ default: m.ADAttackPathPage })));
+const CIBDetectorPage = lazy(() => import("@/features/cib-detector/CIBDetectorPage").then((m) => ({ default: m.CIBDetectorPage })));
+const GeolocationPage = lazy(() => import("@/features/geolocation/GeolocationPage").then((m) => ({ default: m.GeolocationPage })));
 
 export const osintRoutes: RouteObject[] = [
   { path: "investigations", element: <Lazy name="Investigations"><InvestigationsPage /></Lazy> },
@@ -125,4 +133,13 @@ export const osintRoutes: RouteObject[] = [
   { path: "paste-monitor", element: <Lazy name="Paste Monitor"><PasteMonitorPage /></Lazy> },
   { path: "ransomware-tracker", element: <Lazy name="Ransomware Tracker"><RansomwareTrackerPage /></Lazy> },
   { path: "username-scanner", element: <Lazy name="Username Scanner"><UsernameScannerPage /></Lazy> },
+  // Batch 4 — 30 new features
+  { path: "iab-monitor", element: <Lazy name="IAB Monitor"><IABMonitorPage /></Lazy> },
+  { path: "ransomware-attribution", element: <Lazy name="Ransomware Attribution"><RansomwareAttributionPage /></Lazy> },
+  { path: "credential-risk", element: <Lazy name="Credential Risk"><CredentialRiskPage /></Lazy> },
+  { path: "shadow-it", element: <Lazy name="Shadow IT"><ShadowITPage /></Lazy> },
+  { path: "nuclei-generator", element: <Lazy name="Nuclei Generator"><NucleiGeneratorPage /></Lazy> },
+  { path: "ad-attack-path", element: <Lazy name="AD Attack Path"><ADAttackPathPage /></Lazy> },
+  { path: "cib-detector", element: <Lazy name="CIB Detector"><CIBDetectorPage /></Lazy> },
+  { path: "geolocation", element: <Lazy name="Geolocation"><GeolocationPage /></Lazy> },
 ];

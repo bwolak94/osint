@@ -34,9 +34,10 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,
 
-    # Retry defaults
+    # Retry defaults — 10 s is fast enough for transient errors without making
+    # investigations appear stuck for a full minute before the first retry.
     task_max_retries=3,
-    task_default_retry_delay=60,
+    task_default_retry_delay=10,
 
     # Bulkhead pattern: route tasks to separate queues
     task_routes={
@@ -64,13 +65,20 @@ celery_app.conf.update(
         "hub.run_agent": {"queue": "light"},
         "hub.resume_agent": {"queue": "light"},
         "news.scrape_all": {"queue": "light"},
-        "src.workers.tasks.graph_tasks.*": {"queue": "graph"},
-        "src.workers.tasks.investigation_tasks.*": {"queue": "light"},
+        # Note: Celery routes by exact task name — glob patterns are not supported.
+        # Each task name must be listed explicitly.
+        "src.workers.tasks.graph_tasks.resolve_entities_task": {"queue": "graph"},
+        "src.workers.tasks.graph_tasks.build_graph_task": {"queue": "graph"},
+        "src.workers.tasks.graph_tasks.community_detection_tasks.detect_communities": {"queue": "graph"},
+        "src.workers.tasks.graph_tasks.community_detection_tasks.propagate_confidence": {"queue": "graph"},
+        "src.workers.tasks.investigation_tasks.run_investigation_task": {"queue": "light"},
         "src.workers.tasks.investigation_tasks.run_osint_investigation": {"queue": "light"},
-        "src.workers.tasks.scheduled_scan_tasks.*": {"queue": "light"},
-        "src.workers.tasks.retention_tasks.*": {"queue": "light"},
-        "src.workers.tasks.ioc_enrichment_tasks.*": {"queue": "light"},
-        "src.workers.tasks.alert_tasks.*": {"queue": "light"},
+        "src.workers.tasks.investigation_tasks._complete_investigation_task": {"queue": "light"},
+        "src.workers.tasks.scheduled_scan_tasks.process_scheduled_rescans": {"queue": "light"},
+        "src.workers.tasks.retention_tasks.enforce_retention_policies": {"queue": "light"},
+        "src.workers.tasks.retention_tasks.cold_archive_investigation": {"queue": "light"},
+        "src.workers.tasks.ioc_enrichment_tasks.enrich_ioc": {"queue": "light"},
+        "src.workers.tasks.alert_tasks.evaluate_trigger_rules": {"queue": "light"},
         "osint.enrich_from_pentest": {"queue": "light"},
         "src.workers.tasks.community_detection_tasks.detect_communities": {"queue": "graph"},
         "src.workers.tasks.community_detection_tasks.propagate_confidence": {"queue": "graph"},
@@ -130,6 +138,10 @@ celery_app.conf.update(
             "task": "src.workers.scheduled_tasks.purge_celery_results",
             "schedule": crontab(hour=3, minute=0),  # 03:00 UTC daily
         },
+        "purge-expired-refresh-tokens": {
+            "task": "src.workers.tasks.cleanup_tasks.purge_expired_refresh_tokens",
+            "schedule": crontab(hour=4, minute=0),  # 04:00 UTC daily
+        },
         "reset-monthly-scanner-quotas": {
             "task": "src.workers.scheduled_tasks.reset_monthly_quotas",
             "schedule": crontab(day_of_month=1, hour=0, minute=5),  # 1st of month 00:05 UTC
@@ -161,9 +173,30 @@ import src.workers.scheduled_tasks  # noqa: E402, F401
 import src.workers.osint_enrichment_consumer  # noqa: E402, F401
 
 # Explicitly import investigation / scanner tasks so they are registered
+# ---------------------------------------------------------------------------
+# Correlation ID propagation (#24)
+# Injects the HTTP request's X-Correlation-ID into structlog context inside
+# each worker so distributed traces span both the API and the worker tier.
+# ---------------------------------------------------------------------------
+from celery.signals import task_prerun  # noqa: E402
+
+@task_prerun.connect
+def _inject_correlation_id(task_id: str, task: object, **kwargs: object) -> None:
+    """Copy correlation ID from Celery task headers into structlog context."""
+    try:
+        import structlog
+        headers: dict = getattr(getattr(task, "request", None), "headers", None) or {}
+        correlation_id = headers.get("x-correlation-id") or task_id
+        structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
+    except Exception:
+        pass  # Never break task execution due to observability failure
+
 import src.workers.tasks.investigation_tasks  # noqa: E402, F401
 import src.workers.tasks.scanner_tasks  # noqa: E402, F401
 import src.workers.tasks.graph_tasks  # noqa: E402, F401
+
+# Register cleanup tasks (expired refresh token purge, etc.)
+import src.workers.tasks.cleanup_tasks  # noqa: E402, F401
 
 # Explicitly import Hub AI agent tasks so they are registered
 import src.workers.tasks.hub_tasks  # noqa: E402, F401
@@ -186,5 +219,5 @@ import src.workers.tasks.github_intel_task  # noqa: E402, F401
 # Register Vehicle OSINT light task
 import src.workers.tasks.vehicle_osint_task  # noqa: E402, F401
 
-# Register observability signal handlers (failure pub/sub, arg redaction, correlation ID)
-import src.workers.celery_signals  # noqa: E402, F401
+# celery_signals already imported above (line ~155) — do not import again here
+# as signal handlers would be registered twice.

@@ -30,6 +30,7 @@ class User:
     failed_login_attempts: int = 0
     locked_until: datetime | None = None
     last_login_at: datetime | None = None
+    tos_accepted_at: datetime | None = None
 
     # -- behaviour ----------------------------------------------------------
 

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -32,8 +32,9 @@ class Base(DeclarativeBase):
     pass
 
 
-def _utcnow():
-    return utcnow()
+# Use utcnow directly as the SQLAlchemy default callable — the _utcnow wrapper
+# was a redundant indirection.
+_utcnow = utcnow
 
 
 class UserModel(Base):
@@ -100,6 +101,17 @@ class RefreshTokenModel(Base):
 
     user: Mapped["UserModel"] = relationship(back_populates="refresh_tokens")
 
+    __table_args__ = (
+        # Partial composite index on active tokens: speeds up revoke_all_for_user
+        # which filters WHERE user_id = ? AND is_revoked = false.
+        Index(
+            "ix_refresh_tokens_user_active",
+            "user_id",
+            "is_revoked",
+            postgresql_where=text("is_revoked = false"),
+        ),
+    )
+
     def __repr__(self) -> str:
         return f"<RefreshTokenModel id={self.id} user_id={self.user_id}>"
 
@@ -137,6 +149,12 @@ class InvestigationModel(Base):
     )
     scan_results: Mapped[list["ScanResultModel"]] = relationship(
         back_populates="investigation", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        # GIN index enables efficient array-containment queries on tags
+        # (e.g. WHERE tags @> ARRAY['malware']).
+        Index("ix_investigations_tags_gin", "tags", postgresql_using="gin"),
     )
 
     def __repr__(self) -> str:
@@ -193,8 +211,9 @@ class ScanResultModel(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
-    updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=True
+    # nullable=False + default: always has a value; onupdate keeps it current.
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
     investigation: Mapped["InvestigationModel"] = relationship(back_populates="scan_results")
@@ -280,3 +299,39 @@ class ScannerQuotaModel(Base):
 
     def __repr__(self) -> str:
         return f"<ScannerQuotaModel ws={self.workspace_id} scanner={self.scanner_name} used={self.requests_used}>"
+
+
+class EvidenceModel(Base):
+    """Persistent evidence store with tamper-evident chain of custody. (#11)
+
+    Replaces the in-memory ``_evidence_store`` dict in evidence_locker.py for
+    production use. Each row maps to one ``EvidenceItem``; chain-of-custody
+    entries are stored as a JSONB array so they are append-only from the DB's
+    perspective (individual entries are never updated after insert).
+    """
+
+    __tablename__ = "evidence_items"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String(500), nullable=False)
+    type: Mapped[str] = mapped_column(String(50), nullable=False)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    investigation_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
+    # chain_of_custody: append-only JSONB array of CustodyEntry dicts
+    chain_of_custody: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
+    hash_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    content_hash_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    created_by: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    sealed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_admissible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    __table_args__ = (
+        Index("ix_evidence_items_created_by_inv", "created_by", "investigation_id"),
+        CheckConstraint("type IN ('screenshot','document','url','note','artifact','log','pcap','network_capture','memory_dump')", name="ck_evidence_type"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<EvidenceModel id={self.id} type={self.type} sealed={self.sealed}>"

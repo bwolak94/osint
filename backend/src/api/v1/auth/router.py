@@ -1,11 +1,7 @@
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.dependencies import get_db as get_db_dep
 
 from src.adapters.auth.token_service import JWTTokenService
 from src.adapters.cache.token_blacklist import RedisTokenBlacklist
@@ -16,7 +12,6 @@ from src.api.v1.auth.dependencies import (
     get_password_hasher,
     get_redis,
     get_refresh_token_repo,
-    get_token_blacklist,
     get_token_service,
     get_user_repo,
 )
@@ -33,6 +28,8 @@ from src.api.v1.auth.schemas import (
     UserResponse,
 )
 from src.core.domain.entities.user import User
+from src.config import get_settings as _get_settings
+from src.core.ports.event_publisher import noop_publisher
 from src.core.use_cases.auth.change_password import ChangePasswordCommand, ChangePasswordUseCase
 from src.core.use_cases.auth.exceptions import AccountLockedError, AuthenticationError, SecurityAlert, TokenError
 from src.core.use_cases.auth.login import LoginCommand, LoginUseCase
@@ -42,14 +39,12 @@ from src.core.use_cases.auth.register import RegisterCommand, RegisterUserUseCas
 
 router = APIRouter()
 
-
-# Helper for a no-op event publisher (until real one is implemented)
-class _NoOpEventPublisher:
-    async def publish(self, event) -> None:
-        pass
-
-    async def publish_many(self, events) -> None:
-        pass
+# Compute cookie flags once at import time — get_settings() is @lru_cache so this
+# is free, but computing it inline in _set_refresh_cookie on every login request
+# adds an unnecessary function call on the hot path. (#4)
+_settings = _get_settings()
+_COOKIE_SECURE: bool = not _settings.debug
+_COOKIE_MAX_AGE: int = 7 * 24 * 60 * 60  # 7 days in seconds
 
 
 def _user_response(user: User) -> UserResponse:
@@ -61,20 +56,19 @@ def _user_response(user: User) -> UserResponse:
         is_active=user.is_active,
         is_email_verified=user.is_email_verified,
         created_at=user.created_at,
+        tos_accepted_at=user.tos_accepted_at,
     )
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
-    from src.config import get_settings
-    settings = get_settings()
-    # In dev (debug=True) skip secure flag so the cookie works over plain HTTP
+    # In dev (debug=True) _COOKIE_SECURE is False so the cookie works over plain HTTP. (#4)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=not settings.debug,
+        secure=_COOKIE_SECURE,
         samesite="lax",  # "lax" allows cookie on top-level navigations; "strict" can block it
-        max_age=7 * 24 * 60 * 60,
+        max_age=_COOKIE_MAX_AGE,
         path="/api/v1/auth",
     )
 
@@ -95,7 +89,7 @@ async def register(
         user_repo=user_repo,
         token_service=token_service,
         password_hasher=password_hasher,
-        event_publisher=_NoOpEventPublisher(),
+        event_publisher=noop_publisher,
     )
     try:
         result = await use_case.execute(RegisterCommand(email=body.email, password=body.password))
@@ -117,7 +111,6 @@ async def login(
     user_repo: Annotated[SqlAlchemyUserRepository, Depends(get_user_repo)],
     token_service: Annotated[JWTTokenService, Depends(get_token_service)],
     refresh_repo: Annotated[SqlAlchemyRefreshTokenRepository, Depends(get_refresh_token_repo)],
-    db: Annotated["AsyncSession", Depends(get_db_dep)],
     password_hasher=Depends(get_password_hasher),
 ):
     use_case = LoginUseCase(
@@ -125,7 +118,7 @@ async def login(
         token_service=token_service,
         refresh_token_repo=refresh_repo,
         password_hasher=password_hasher,
-        event_publisher=_NoOpEventPublisher(),
+        event_publisher=noop_publisher,
     )
 
     ip = request.client.host if request.client else None
@@ -141,16 +134,10 @@ async def login(
     except AccountLockedError:
         raise HTTPException(status_code=status.HTTP_423_LOCKED, detail="Account temporarily locked")
 
-    from sqlalchemy import select as _select
-    from src.adapters.db.models import UserModel as _UserModel
-    tos_at = await db.scalar(_select(_UserModel.tos_accepted_at).where(_UserModel.id == result.user.id))
-
     _set_refresh_cookie(response, result.tokens.refresh_token)
-    user_resp = _user_response(result.user)
-    user_resp.tos_accepted_at = tos_at
     return LoginResponse(
         access_token=result.tokens.access_token,
-        user=user_resp,
+        user=_user_response(result.user),
     )
 
 
@@ -170,7 +157,7 @@ async def refresh(
         user_repo=user_repo,
         token_service=token_service,
         refresh_token_repo=refresh_repo,
-        event_publisher=_NoOpEventPublisher(),
+        event_publisher=noop_publisher,
     )
 
     ip = request.client.host if request.client else None
@@ -220,14 +207,9 @@ async def logout(
 @router.get("/me", response_model=UserResponse)
 async def me(
     current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated["AsyncSession", Depends(get_db_dep)],
 ):
-    from sqlalchemy import select as _select
-    from src.adapters.db.models import UserModel as _UserModel
-    row = await db.scalar(_select(_UserModel.tos_accepted_at).where(_UserModel.id == current_user.id))
-    resp = _user_response(current_user)
-    resp.tos_accepted_at = row
-    return resp
+    # tos_accepted_at is now part of the User entity and populated by the repository.
+    return _user_response(current_user)
 
 
 @router.post("/change-password", response_model=MessageResponse)
@@ -242,7 +224,7 @@ async def change_password(
         user_repo=user_repo,
         password_hasher=password_hasher,
         refresh_token_repo=refresh_repo,
-        event_publisher=_NoOpEventPublisher(),
+        event_publisher=noop_publisher,
     )
     try:
         await use_case.execute(ChangePasswordCommand(
@@ -264,5 +246,9 @@ async def forgot_password(body: ForgotPasswordRequest):
 
 @router.post("/reset-password", response_model=MessageResponse)
 async def reset_password(body: ResetPasswordRequest):
-    # Placeholder
-    return MessageResponse(message="Password has been reset successfully")
+    # NOT YET IMPLEMENTED — returns 501 so callers know this is not functional.
+    # Implement token validation + password update before enabling.
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED,
+        detail="Password reset is not yet implemented",
+    )

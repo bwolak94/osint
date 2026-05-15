@@ -159,6 +159,10 @@ const mainNav: NavEntry[] = [
       { to: "/brand-protection", label: "Brand Protection", icon: ShieldAlert },
       { to: "/ioc-feed", label: "IOC Feed", icon: Radio },
       { to: "/attack-surface", label: "Attack Surface", icon: Gauge },
+      { to: "/shadow-it", label: "Shadow IT Discovery", icon: Cloud },
+      { to: "/iab-monitor", label: "IAB Monitor", icon: ShieldAlert },
+      { to: "/ransomware-attribution", label: "Ransomware Attribution", icon: Skull },
+      { to: "/credential-risk", label: "Credential Risk Score", icon: KeyRound },
       { to: "/threat-feed", label: "Threat Feed", icon: Rss },
       { to: "/canary-tokens", label: "Canary Tokens", icon: Zap },
     ],
@@ -178,6 +182,7 @@ const mainNav: NavEntry[] = [
       { to: "/social-graph", label: "Social Graph", icon: Network },
       { to: "/username-scanner", label: "Username Scanner", icon: UserSearch },
       { to: "/email-pivot", label: "Email Pivot", icon: AtSign },
+      { to: "/cib-detector", label: "CIB Detector", icon: Users },
     ],
   },
   { to: "/vehicle-osint", label: "Vehicle OSINT", icon: Car },
@@ -208,6 +213,7 @@ const mainNav: NavEntry[] = [
     icon: MapPin,
     children: [
       { to: "/imint", label: "Image & Geo Intel", icon: MapPin },
+      { to: "/geolocation", label: "Geolocation Triangulation", icon: MapPin },
     ],
   },
   {
@@ -245,6 +251,8 @@ const mainNav: NavEntry[] = [
       { to: "/pentest/ad-cred-attacks", label: "AD Cred Attacks", icon: Hash },
       { to: "/pentest/cvss-calculator", label: "CVSS Calculator", icon: Gauge },
       { to: "/pentest/nuclei-templates", label: "Nuclei Templates", icon: Layers },
+      { to: "/nuclei-generator", label: "Nuclei Generator", icon: Zap },
+      { to: "/ad-attack-path", label: "AD Attack Path", icon: Network },
       { to: "/pentest/payload-generator", label: "Payload Generator", icon: Terminal },
       { to: "/pentest/audit-log", label: "Audit Log", icon: ClipboardList },
       { to: "/pentest/session", label: "Session Findings", icon: Layers },
@@ -361,27 +369,37 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       );
     }
 
+    const childrenId = `sidebar-group-${group.key}`;
     return (
       <div key={group.key}>
         <button
           onClick={() => toggleGroup(group.key)}
+          aria-expanded={isOpen}          // (#34) communicates state to screen readers
+          aria-controls={childrenId}      // (#34) links button to the collapsible section
           className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all ${
             anyChildActive && !isOpen
               ? "text-brand-400"
               : "text-text-secondary hover:bg-bg-overlay hover:text-text-primary"
           }`}
         >
-          <group.icon className="h-4 w-4 shrink-0" />
+          <group.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span className="flex-1 text-left">{group.label}</span>
           <ChevronDown
             className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${
               isOpen ? "rotate-180" : ""
             }`}
             style={{ color: "var(--text-tertiary)" }}
+            aria-hidden="true"
           />
         </button>
         {isOpen && (
-          <div className="overflow-hidden mt-0.5 space-y-0.5 border-l ml-5 pl-1" style={{ borderColor: "var(--border-subtle)" }}>
+          <div
+            id={childrenId}
+            role="region"
+            aria-label={group.label}
+            className="overflow-hidden mt-0.5 space-y-0.5 border-l ml-5 pl-1"
+            style={{ borderColor: "var(--border-subtle)" }}
+          >
             {group.children.map((child) => renderItem(child, true))}
           </div>
         )}

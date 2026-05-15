@@ -20,6 +20,7 @@ class AccessTokenPayload:
     role: str
     subscription_tier: str
     exp: int  # unix timestamp
+    jti: str  # JWT ID — used as the Redis blacklist key (avoids storing the full token)
 
 
 @dataclass
@@ -44,8 +45,8 @@ class ITokenService(Protocol):
 
 
 class ITokenBlacklist(Protocol):
-    async def blacklist(self, token: str, ttl_seconds: int) -> None: ...
-    async def is_blacklisted(self, token: str) -> bool: ...
+    async def blacklist(self, jti: str, ttl_seconds: int) -> None: ...
+    async def is_blacklisted(self, jti: str) -> bool: ...
 
 
 class IRefreshTokenRepository(Protocol):

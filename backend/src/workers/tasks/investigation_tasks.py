@@ -71,19 +71,17 @@ def run_investigation_task(self, investigation_id: str) -> dict:
 
 
 def _build_scan_tasks(investigation_id: str) -> list:
-    """Load seed inputs and create corresponding scan tasks."""
-    # In production this would load from DB; for now we demonstrate the pattern
-    # This is intentionally synchronous since Celery tasks are sync
-    from src.adapters.db.database import sync_session_factory
-    from src.adapters.db.models import InvestigationModel
+    """Load seed inputs and create corresponding scan tasks.
 
-    try:
-        # Try to load from DB (requires sync session)
-        # If DB is not available, return empty list
-        pass
-    except Exception:
-        pass
-
+    TODO: implement real DB loading via a synchronous SQLAlchemy session.
+    Until then this returns an empty list and the Saga orchestrator will
+    report "no_seeds" — use ``run_osint_investigation`` (the other task)
+    which is the live code path dispatched from the API router.
+    """
+    log.warning(
+        "_build_scan_tasks not implemented — Saga orchestrator has no seeds",
+        investigation_id=investigation_id,
+    )
     return []
 
 
@@ -124,12 +122,17 @@ def run_osint_investigation(
         asyncio.run(_run_scans_background(investigation_id, seeds, enabled_scanners))
     except Exception as exc:
         log.error("OSINT investigation task failed", investigation_id=investigation_id, error=str(exc))
-        # Mark investigation as failed so completed_at is always set
+        # Attempt to mark the investigation as failed so completed_at is always set.
+        # Log cleanup failures explicitly — swallowing them silently hides issues.
         try:
             from src.api.v1.investigations.router import _mark_investigation_failed
             asyncio.run(_mark_investigation_failed(investigation_id))
-        except Exception:
-            pass
+        except Exception as cleanup_exc:
+            log.error(
+                "OSINT investigation cleanup failed",
+                investigation_id=investigation_id,
+                cleanup_error=str(cleanup_exc),
+            )
         raise
 
     return {"investigation_id": investigation_id, "status": "completed"}

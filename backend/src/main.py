@@ -230,6 +230,16 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.pivot_recommendations", "router", "/api/v1", ["pivot-recommendations"]),
     ("src.api.v1.attack_flow", "router", "/api/v1", ["attack-flow"]),
 
+    # ── New features (batch 4 — 30-feature expansion) ────────────────────────
+    ("src.api.v1.iab_monitor", "router", "/api/v1", ["iab-monitor"]),
+    ("src.api.v1.ransomware_attribution", "router", "/api/v1", ["ransomware-attribution"]),
+    ("src.api.v1.credential_risk_scoring", "router", "/api/v1", ["credential-risk"]),
+    ("src.api.v1.shadow_it", "router", "/api/v1", ["shadow-it"]),
+    ("src.api.v1.nuclei_generator", "router", "/api/v1", ["nuclei-generator"]),
+    ("src.api.v1.ad_attack_path", "router", "/api/v1", ["ad-attack-path"]),
+    ("src.api.v1.cib_detector", "router", "/api/v1", ["cib-detector"]),
+    ("src.api.v1.geolocation_triangulation", "router", "/api/v1", ["geolocation"]),
+
     # ── New OSINT tools (batch 3) ────────────────────────────────────────────
     ("src.api.v1.malware_hash.router", "router", "/api/v1/malware-hash", ["malware-hash"]),
     ("src.api.v1.asn_intel.router", "router", "/api/v1/asn-intel", ["asn-intel"]),
@@ -250,9 +260,36 @@ def _include_all_routers(application: FastAPI) -> None:
     so a misconfigured deployment is caught at startup rather than silently serving
     incomplete endpoints.  In debug mode, the error is logged and skipped so
     developers can work with partially-installed optional modules.
+
+    Single-pass design: deduplication check and router mounting happen in one
+    iteration so the registry is only traversed once. (#16)
+
+    Prefix guard: in production, routers with an empty prefix raise at startup
+    since unversioned routes break API contracts. In debug mode a warning is
+    logged so developers are aware but not blocked. (#8)
     """
     settings = get_settings()
+    seen: set[tuple[str, str]] = set()
+
     for module_path, attr_name, prefix, tags in _ROUTER_REGISTRY:
+        # Deduplication — same module+attr mounted twice causes ambiguous routing.
+        key = (module_path, attr_name)
+        if key in seen:
+            raise RuntimeError(
+                f"Duplicate router registration detected: '{module_path}.{attr_name}'. "
+                "Remove the duplicate entry from _ROUTER_REGISTRY."
+            )
+        seen.add(key)
+
+        # Empty-prefix guard (#8): production rejects unversioned routes; debug warns.
+        if prefix == "":
+            msg = f"Router '{module_path}' has no /api/vN prefix — routes are unversioned"
+            if not settings.debug:
+                raise RuntimeError(
+                    f"{msg}. Set an explicit prefix or add DEBUG=true to suppress this error."
+                )
+            log.warning("router_has_no_prefix", module=module_path, tags=tags, message=msg)
+
         try:
             module = importlib.import_module(module_path)
             router = getattr(module, attr_name)
@@ -273,8 +310,7 @@ def _include_all_routers(application: FastAPI) -> None:
 
 def configure_logging() -> None:
     """Initialize structured logging with structlog."""
-    import structlog
-    structlog.configure(
+    structlog.configure(  # structlog already imported at module level (#20)
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.stdlib.filter_by_level,
@@ -300,58 +336,63 @@ def configure_logging() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage application startup and shutdown lifecycle."""
+    import time
+    startup_start = time.perf_counter()
     await log.ainfo("Starting OSINT platform backend")
 
     settings = get_settings()
+
+    # Redis — fail gracefully: rate limiting and watchlist degrade without it. (#9)
+    t0 = time.perf_counter()
     try:
         import redis.asyncio as aioredis
         app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
         await app.state.redis.ping()
-        await log.ainfo("Redis connection established")
-    except Exception as exc:
-        log.warning("Redis not available, rate limiting disabled", error=str(exc))
+        await log.ainfo("Redis connection established", elapsed_ms=int((time.perf_counter() - t0) * 1000))  # (#23)
+    except (ConnectionError, OSError, Exception) as exc:
+        log.warning("redis_unavailable", error=str(exc), elapsed_ms=int((time.perf_counter() - t0) * 1000))
         app.state.redis = None
 
+    # Elasticsearch — fail gracefully: full-text search degrades without it. (#9)
+    t0 = time.perf_counter()
     try:
         from src.adapters.search.elasticsearch_store import ElasticsearchStore
         es = ElasticsearchStore()
         await es.ensure_indices()
         app.state.elasticsearch = es
-        await log.ainfo("Elasticsearch indices ensured")
-    except Exception as exc:
-        log.warning("Elasticsearch not available", error=str(exc))
+        await log.ainfo("Elasticsearch indices ensured", elapsed_ms=int((time.perf_counter() - t0) * 1000))  # (#23)
+    except (ConnectionError, OSError, Exception) as exc:
+        log.warning("elasticsearch_unavailable", error=str(exc), elapsed_ms=int((time.perf_counter() - t0) * 1000))
         app.state.elasticsearch = None
 
     from src.adapters.db.audit_models import AuditLogModel  # noqa: F401
 
-    # Auto-create MinIO bucket on startup so workers don't fail on first upload
+    # MinIO — use shared adapter factory rather than inline construction. (#10)
+    t0 = time.perf_counter()
     try:
-        import asyncio
-        from minio import Minio
-        _minio = Minio(
-            settings.minio_endpoint,
-            access_key=settings.minio_access_key,
-            secret_key=settings.minio_secret_key,
-            secure=settings.minio_secure,
-        )
-        loop = asyncio.get_event_loop()
-        found = await loop.run_in_executor(None, _minio.bucket_exists, settings.minio_bucket)
-        if not found:
-            await loop.run_in_executor(None, _minio.make_bucket, settings.minio_bucket)
-            await log.ainfo("MinIO bucket created", bucket=settings.minio_bucket)
-        else:
-            await log.ainfo("MinIO bucket already exists", bucket=settings.minio_bucket)
-    except Exception as exc:
-        log.warning("MinIO not available", error=str(exc))
+        from src.adapters.storage.minio_client import build_minio_client, ensure_bucket
+        _minio = build_minio_client(settings)
+        await ensure_bucket(_minio, settings.minio_bucket)
+        await log.ainfo("MinIO ready", bucket=settings.minio_bucket, elapsed_ms=int((time.perf_counter() - t0) * 1000))  # (#23)
+    except (ConnectionError, OSError, Exception) as exc:
+        log.warning("minio_unavailable", error=str(exc), elapsed_ms=int((time.perf_counter() - t0) * 1000))
 
-    # WorldMonitor background scheduler (RSS aggregation every 5 min)
+    # WorldMonitor background scheduler (RSS aggregation every 5 min). (#9)
+    # Use specific ImportError catch for missing module; let other errors propagate
+    # to ERROR level so ops teams are alerted about partial initialisation.
     try:
         from src.worldmonitor.scheduler import scheduler as wm_scheduler
         if app.state.redis is not None:
             await wm_scheduler.start(app.state.redis)
             await log.ainfo("WorldMonitor scheduler started")
-    except Exception as exc:
-        log.warning("worldmonitor_scheduler_unavailable", error=str(exc))
+    except ImportError:
+        log.warning("worldmonitor_scheduler_unavailable", reason="module not installed")
+    except (RuntimeError, ValueError, OSError) as exc:
+        log.error(
+            "worldmonitor_scheduler_failed",
+            error=str(exc),
+            message="WorldMonitor scheduler raised after partial initialisation — feed aggregation is DOWN",
+        )
 
     if not settings.debug and settings.proxy_mode == "direct":
         log.warning(
@@ -361,6 +402,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "Set PROXY_MODE=tor or PROXY_MODE=socks5 in production to protect investigator identity."
             ),
         )
+
+    total_startup_ms = int((time.perf_counter() - startup_start) * 1000)
+    await log.ainfo("OSINT platform backend started", total_startup_ms=total_startup_ms)  # (#23)
 
     yield
 
@@ -374,6 +418,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await app.state.elasticsearch.close()
     if getattr(app.state, "redis", None) is not None:
         await app.state.redis.close()
+    # Release the shared scanner HTTP client connection pool (#18)
+    try:
+        from src.adapters.scanners.http_client import close_scanner_client
+        await close_scanner_client()
+    except Exception:
+        pass
     await engine.dispose()
     await log.ainfo("Database pool disposed")
 

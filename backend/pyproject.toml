@@ -36,6 +36,7 @@ langchain-core = "^0.3"
 pytest = "^8.3"
 pytest-asyncio = "^0.25"
 pytest-cov = "^6.0"
+pytest-randomly = "^3.15"  # Randomise test order to catch order-dependent failures. (#40)
 httpx = "^0.28"
 factory-boy = "^3.3"
 ruff = "^0.9"
@@ -73,5 +74,7 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "-v --tb=short --cov=src --cov-report=term-missing"
+# -p randomly enables test order randomisation; --randomly-seed=last re-runs the
+# exact failing seed when an order-dependent failure is found. (#40)
+addopts = "-v --tb=short --cov=src --cov-report=term-missing -p randomly"
 filterwarnings = ["ignore::DeprecationWarning"]

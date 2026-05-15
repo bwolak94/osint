@@ -1,4 +1,4 @@
-.PHONY: dev prod test test-backend test-frontend lint migrate seed reset-dev gen-types shell logs clean
+.PHONY: dev prod test test-backend test-frontend lint migrate check-migrations seed reset-dev gen-types shell logs clean
 
 dev:
 	docker compose --profile dev up --build
@@ -20,6 +20,10 @@ lint:
 
 migrate:
 	docker compose exec api alembic upgrade head
+
+check-migrations:
+	docker compose exec api alembic check
+	@echo "Migration check passed — no pending autogenerate drift detected."
 
 seed:
 	docker compose exec api python -m src.scripts.seed_admin
