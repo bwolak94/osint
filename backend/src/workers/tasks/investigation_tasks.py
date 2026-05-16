@@ -136,3 +136,58 @@ def run_osint_investigation(
         raise
 
     return {"investigation_id": investigation_id, "status": "completed"}
+
+
+@celery_app.task(
+    bind=True,
+    name="src.workers.tasks.investigation_tasks.run_single_target_scan",
+    max_retries=1,
+    queue="light",
+)
+def run_single_target_scan(
+    self,
+    target: str,
+    scanners: list[str] | None = None,
+    user_id: str | None = None,
+    bulk_id: str | None = None,
+    label: str | None = None,
+) -> dict:
+    """Run OSINT scans on a single target (for bulk scan API)."""
+    from src.adapters.scanners.registry import get_default_registry
+    from src.core.domain.entities.types import ScanInputType
+
+    log.info("Single target scan started", target=target, bulk_id=bulk_id)
+    registry = get_default_registry()
+
+    # Auto-detect input type
+    if "@" in target:
+        input_type = ScanInputType.EMAIL
+    elif target.startswith("http://") or target.startswith("https://"):
+        input_type = ScanInputType.URL
+    elif target.replace(".", "").replace(":", "").isdigit():
+        input_type = ScanInputType.IP_ADDRESS
+    else:
+        input_type = ScanInputType.DOMAIN
+
+    results: list[dict] = []
+
+    async def _run() -> None:
+        candidates = registry.get_for_input_type(input_type)
+        if scanners:
+            candidates = [s for s in candidates if s.scanner_name in scanners]
+        for scanner in candidates[:20]:  # cap at 20 scanners per target
+            try:
+                result = await scanner.scan(target, input_type)
+                results.append({"scanner": scanner.scanner_name, "result": result})
+            except Exception as exc:
+                log.debug("Single scan failed", scanner=scanner.scanner_name, error=str(exc))
+
+    asyncio.run(_run())
+    return {
+        "bulk_id": bulk_id,
+        "target": target,
+        "label": label,
+        "input_type": input_type.value,
+        "results": results,
+        "total_scanners": len(results),
+    }

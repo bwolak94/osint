@@ -172,6 +172,28 @@ class BaseOsintScanner(ABC):
         serialised = json.dumps(clean, sort_keys=True, default=str)
         return hashlib.sha256(serialised.encode()).hexdigest()
 
+    def _make_error_result(
+        self,
+        inv_id: UUID,
+        input_value: str,
+        duration_ms: int,
+        status: ScanStatus,
+        error_message: str | None = None,
+    ) -> ScanResult:
+        """Build a failed/error ScanResult without repeating field boilerplate."""
+        return ScanResult(
+            id=uuid4(),
+            investigation_id=inv_id,
+            scanner_name=self.scanner_name,
+            input_value=input_value,
+            status=status,
+            raw_data={},
+            extracted_identifiers=[],
+            duration_ms=duration_ms,
+            created_at=utcnow(),
+            error_message=error_message,
+        )
+
     async def scan(
         self,
         input_value: str,
@@ -226,7 +248,7 @@ class BaseOsintScanner(ABC):
                     # Deterministic fallback — stable UUID derived from cache key so
                     # repeated cache hits for old entries always return the same ID
                     # rather than a fresh uuid4() on every call. (#9)
-                    result_id = uuid.UUID(hashlib.md5(cache_key.encode()).hexdigest())
+                    result_id = uuid.uuid5(uuid.NAMESPACE_OID, cache_key)
                 return ScanResult(
                     id=result_id,
                     investigation_id=inv_id,
@@ -243,17 +265,9 @@ class BaseOsintScanner(ABC):
         if await self._circuit_breaker.async_is_open():
             log.warning("circuit_breaker_open", scanner=self.scanner_name)
             record_circuit_breaker_open(self.scanner_name)  # (#37)
-            return ScanResult(
-                id=uuid4(),
-                investigation_id=inv_id,
-                scanner_name=self.scanner_name,
-                input_value=input_value,
-                status=ScanStatus.FAILED,
-                raw_data={},
-                extracted_identifiers=[],
-                duration_ms=0,
-                created_at=utcnow(),
-                error_message=f"Scanner {self.scanner_name} is temporarily unavailable (circuit breaker open)",
+            return self._make_error_result(
+                inv_id, input_value, 0, ScanStatus.FAILED,
+                f"Scanner {self.scanner_name} is temporarily unavailable (circuit breaker open)",
             )
 
         # 3. Execute scan with timeout, wrapped in OTel span when available. (#21)
@@ -334,17 +348,9 @@ class BaseOsintScanner(ABC):
             await self._circuit_breaker.async_record_failure(f"Timeout after {self.scan_timeout}s")
             duration_ms = int((time.monotonic() - start) * 1000)
             log.error("scan_timeout", scanner=self.scanner_name, timeout=self.scan_timeout)
-            return ScanResult(
-                id=uuid4(),
-                investigation_id=inv_id,
-                scanner_name=self.scanner_name,
-                input_value=input_value,
-                status=ScanStatus.FAILED,
-                raw_data={},
-                extracted_identifiers=[],
-                duration_ms=duration_ms,
-                created_at=utcnow(),
-                error_message=f"Scan timed out after {self.scan_timeout}s",
+            return self._make_error_result(
+                inv_id, input_value, duration_ms, ScanStatus.FAILED,
+                f"Scan timed out after {self.scan_timeout}s",
             )
 
         except ScannerNotFoundError:
@@ -368,35 +374,16 @@ class BaseOsintScanner(ABC):
             await self._circuit_breaker.async_record_failure(str(exc))
             duration_ms = int((time.monotonic() - start) * 1000)
             log.error("scan_auth_error", scanner=self.scanner_name)
-            return ScanResult(
-                id=uuid4(),
-                investigation_id=inv_id,
-                scanner_name=self.scanner_name,
-                input_value=input_value,
-                status=ScanStatus.FAILED,
-                raw_data={},
-                extracted_identifiers=[],
-                duration_ms=duration_ms,
-                created_at=utcnow(),
-                error_message=f"Authentication failed for {self.scanner_name} — check API key",
+            return self._make_error_result(
+                inv_id, input_value, duration_ms, ScanStatus.FAILED,
+                f"Authentication failed for {self.scanner_name} — check API key",
             )
 
         except ScannerQuotaExceededError as exc:
             # Quota exhausted is not the scanner's fault — don't trip the CB
             duration_ms = int((time.monotonic() - start) * 1000)
             log.warning("scan_quota_exceeded", scanner=self.scanner_name)
-            return ScanResult(
-                id=uuid4(),
-                investigation_id=inv_id,
-                scanner_name=self.scanner_name,
-                input_value=input_value,
-                status=ScanStatus.FAILED,
-                raw_data={},
-                extracted_identifiers=[],
-                duration_ms=duration_ms,
-                created_at=utcnow(),
-                error_message=str(exc),
-            )
+            return self._make_error_result(inv_id, input_value, duration_ms, ScanStatus.FAILED, str(exc))
 
         except RateLimitError as exc:
             # Use settings cached at construction time — avoids get_settings() in
@@ -406,35 +393,16 @@ class BaseOsintScanner(ABC):
             duration_ms = int((time.monotonic() - start) * 1000)
             retry_info = f" (retry after {exc.retry_after}s)" if exc.retry_after else ""
             log.warning("scan_rate_limited", scanner=self.scanner_name)
-            return ScanResult(
-                id=uuid4(),
-                investigation_id=inv_id,
-                scanner_name=self.scanner_name,
-                input_value=input_value,
-                status=ScanStatus.RATE_LIMITED,
-                raw_data={},
-                extracted_identifiers=[],
-                duration_ms=duration_ms,
-                created_at=utcnow(),
-                error_message=f"Rate limited by external service{retry_info}",
+            return self._make_error_result(
+                inv_id, input_value, duration_ms, ScanStatus.RATE_LIMITED,
+                f"Rate limited by external service{retry_info}",
             )
 
         except Exception as exc:
             await self._circuit_breaker.async_record_failure(str(exc))
             duration_ms = int((time.monotonic() - start) * 1000)
             log.error("scan_failed", scanner=self.scanner_name, error=str(exc))
-            return ScanResult(
-                id=uuid4(),
-                investigation_id=inv_id,
-                scanner_name=self.scanner_name,
-                input_value=input_value,
-                status=ScanStatus.FAILED,
-                raw_data={},
-                extracted_identifiers=[],
-                duration_ms=duration_ms,
-                created_at=utcnow(),
-                error_message=str(exc),
-            )
+            return self._make_error_result(inv_id, input_value, duration_ms, ScanStatus.FAILED, str(exc))
 
     @abstractmethod
     async def _do_scan(self, input_value: str, input_type: ScanInputType) -> dict[str, Any]:

@@ -32,7 +32,7 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     task_reject_on_worker_lost=True,
-    worker_prefetch_multiplier=1,
+    worker_prefetch_multiplier=settings.celery_worker_prefetch_multiplier,
 
     # Retry defaults — 10 s is fast enough for transient errors without making
     # investigations appear stuck for a full minute before the first retry.
@@ -97,6 +97,17 @@ celery_app.conf.update(
     # Default queue
     task_default_queue="light",
 
+    # Dead-letter queue: tasks that exhaust all retries are routed here instead of
+    # being silently dropped.  Monitor `dead_letter` queue depth in Flower/alerting.
+    task_queues={
+        "heavy": {"x-dead-letter-exchange": "dead_letter"},
+        "light": {"x-dead-letter-exchange": "dead_letter"},
+        "graph": {"x-dead-letter-exchange": "dead_letter"},
+        "pentest_heavy": {"x-dead-letter-exchange": "dead_letter"},
+        "pentest_light": {"x-dead-letter-exchange": "dead_letter"},
+        "dead_letter": {},
+    },
+
     # Result expiry (24 hours)
     result_expires=86400,
 
@@ -145,6 +156,10 @@ celery_app.conf.update(
         "reset-monthly-scanner-quotas": {
             "task": "src.workers.scheduled_tasks.reset_monthly_quotas",
             "schedule": crontab(day_of_month=1, hour=0, minute=5),  # 1st of month 00:05 UTC
+        },
+        "continuous-monitoring-sweep": {
+            "task": "src.workers.tasks.monitoring_tasks.run_monitoring_sweep",
+            "schedule": 3600,  # every 60 minutes
         },
     },
 )

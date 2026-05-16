@@ -81,6 +81,8 @@ services:
     restart: unless-stopped
     ipc: host
     shm_size: 2gb
+    mem_limit: 4g
+    memswap_limit: 4g
     env_file:
       - .env
     command: ["python", "-m", "celery", "-A", "src.workers.celery_app", "worker", "--loglevel=info", "--queues=heavy", "--concurrency=2"]
@@ -161,14 +163,14 @@ services:
     # is sent in plaintext. Do NOT expose port 5555 on a public interface.
     # In production, place an nginx/Traefik reverse proxy with TLS in front of
     # Flower, or restrict access via firewall rules to your monitoring network.
-    command: celery flower --basic-auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-changeme-flower}
+    command: celery flower --basic-auth=${FLOWER_USER:?FLOWER_USER must be set in .env}:${FLOWER_PASSWORD:?FLOWER_PASSWORD must be set in .env}
     ports:
       - "5555:5555"
     env_file:
       - .env
     environment:
       - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
-      - FLOWER_BASIC_AUTH=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-changeme-flower}
+      - FLOWER_BASIC_AUTH=${FLOWER_USER}:${FLOWER_PASSWORD}
     networks:
       - backend-net
     depends_on:

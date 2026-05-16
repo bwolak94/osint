@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState } from "react";
 import {
+  Activity,
   Search,
   Settings,
   CreditCard,
@@ -73,6 +74,15 @@ import {
   ClipboardList,
   Skull,
   Sliders,
+  Heart,
+  GraduationCap,
+  Lightbulb,
+  Newspaper,
+  Camera,
+  Send,
+  TrendingUp,
+  LayoutTemplate,
+  EyeOff,
 } from "lucide-react";
 import { useAuthStore } from "@/features/auth/store";
 
@@ -102,8 +112,14 @@ function isNavGroup(entry: NavEntry): entry is NavGroup {
 
 const mainNav: NavEntry[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/system-health", label: "System Health", icon: Activity },
   { to: "/hub", label: "AI Hub", icon: Sparkles },
   { to: "/investigations", label: "Investigations", icon: Search },
+  { to: "/bulk-scan", label: "Bulk Scanner", icon: Layers },
+  { to: "/risk-scoring", label: "Risk Scoring", icon: ShieldAlert },
+  { to: "/investigation-templates", label: "Templates", icon: LayoutTemplate },
+  { to: "/scan-scheduler", label: "Scan Scheduler", icon: Clock },
+  { to: "/timeline-anomaly", label: "Timeline Anomaly", icon: Clock },
   { to: "/campaigns", label: "Campaigns", icon: Flag },
   { to: "/investigation-diff", label: "Diff & Merge", icon: GitBranch },
   { to: "/scanners", label: "Scanners", icon: Radar },
@@ -115,6 +131,7 @@ const mainNav: NavEntry[] = [
   { to: "/correlation", label: "Correlation Engine", icon: GitMerge },
   { to: "/multi-graph", label: "Multi-Graph Analysis", icon: Layers },
   { to: "/evidence-locker", label: "Evidence Locker", icon: Archive },
+  { to: "/evidence-preservation", label: "Evidence Preservation", icon: Camera },
   { to: "/secure-notes", label: "Secure Notes", icon: Lock },
   { to: "/collaboration", label: "Collaboration", icon: Users },
   {
@@ -154,11 +171,13 @@ const mainNav: NavEntry[] = [
       { to: "/threat-actors", label: "Threat Actors", icon: Shield },
       { to: "/watchlist", label: "Watchlist", icon: Bell },
       { to: "/dark-web", label: "Dark Web Monitor", icon: Eye },
+      { to: "/darkweb-forum", label: "Dark Web Forum Scan", icon: EyeOff },
       { to: "/crypto-trace", label: "Crypto Tracing", icon: Bitcoin },
       { to: "/corporate-intel", label: "Corporate Intel", icon: Building2 },
       { to: "/brand-protection", label: "Brand Protection", icon: ShieldAlert },
       { to: "/ioc-feed", label: "IOC Feed", icon: Radio },
       { to: "/attack-surface", label: "Attack Surface", icon: Gauge },
+      { to: "/attack-surface-score", label: "Attack Surface Score", icon: Gauge },
       { to: "/shadow-it", label: "Shadow IT Discovery", icon: Cloud },
       { to: "/iab-monitor", label: "IAB Monitor", icon: ShieldAlert },
       { to: "/ransomware-attribution", label: "Ransomware Attribution", icon: Skull },
@@ -183,6 +202,21 @@ const mainNav: NavEntry[] = [
       { to: "/username-scanner", label: "Username Scanner", icon: UserSearch },
       { to: "/email-pivot", label: "Email Pivot", icon: AtSign },
       { to: "/cib-detector", label: "CIB Detector", icon: Users },
+      { to: "/dating-app", label: "Dating App Lookup", icon: Heart },
+      { to: "/telegram-osint", label: "Telegram OSINT", icon: Send },
+    ],
+  },
+  {
+    key: "person-osint",
+    label: "Person OSINT",
+    icon: UserSearch,
+    children: [
+      { to: "/person-dossier", label: "Person Dossier", icon: UserSearch },
+      { to: "/court-records", label: "Court Records", icon: Scale },
+      { to: "/academic-intel", label: "Academic Intel", icon: GraduationCap },
+      { to: "/patent-intel", label: "Patent Intel", icon: Lightbulb },
+      { to: "/news-media", label: "News & Media", icon: Newspaper },
+      { to: "/sec-edgar", label: "SEC EDGAR Intel", icon: TrendingUp },
     ],
   },
   { to: "/vehicle-osint", label: "Vehicle OSINT", icon: Car },
@@ -205,6 +239,8 @@ const mainNav: NavEntry[] = [
       { to: "/domain-intel", label: "Domain Intel", icon: Search },
       { to: "/tech-recon", label: "Infra Recon", icon: NetworkIcon },
       { to: "/network-topology", label: "Network Topology", icon: Network },
+      { to: "/whois-pivot", label: "WHOIS Pivot", icon: Search },
+      { to: "/ip-reputation", label: "IP Reputation", icon: Shield },
     ],
   },
   {

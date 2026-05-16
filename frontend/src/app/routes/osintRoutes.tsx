@@ -70,6 +70,25 @@ const NucleiGeneratorPage = lazy(() => import("@/features/nuclei-generator/Nucle
 const ADAttackPathPage = lazy(() => import("@/features/ad-attack-path/ADAttackPathPage").then((m) => ({ default: m.ADAttackPathPage })));
 const CIBDetectorPage = lazy(() => import("@/features/cib-detector/CIBDetectorPage").then((m) => ({ default: m.CIBDetectorPage })));
 const GeolocationPage = lazy(() => import("@/features/geolocation/GeolocationPage").then((m) => ({ default: m.GeolocationPage })));
+const BulkScanPage = lazy(() => import("@/features/bulk-scan/BulkScanPage").then((m) => ({ default: m.BulkScanPage })));
+const RiskScoringPage = lazy(() => import("@/features/risk-scoring/RiskScoringPage").then((m) => ({ default: m.RiskScoringPage })));
+const NewsMediaPage = lazy(() => import("@/features/news-media/NewsMediaPage").then((m) => ({ default: m.NewsMediaPage })));
+const AcademicIntelPage = lazy(() => import("@/features/academic-intel/AcademicIntelPage").then((m) => ({ default: m.AcademicIntelPage })));
+const PatentIntelPage = lazy(() => import("@/features/patent-intel/PatentIntelPage").then((m) => ({ default: m.PatentIntelPage })));
+const CourtRecordsPage = lazy(() => import("@/features/court-records/CourtRecordsPage").then((m) => ({ default: m.CourtRecordsPage })));
+const DatingAppPage = lazy(() => import("@/features/dating-app/DatingAppPage").then((m) => ({ default: m.DatingAppPage })));
+const EvidencePreservationPage = lazy(() => import("@/features/evidence-preservation/EvidencePreservationPage").then((m) => ({ default: m.EvidencePreservationPage })));
+const PersonDossierPage = lazy(() => import("@/features/person-dossier/PersonDossierPage").then((m) => ({ default: m.PersonDossierPage })));
+const IPReputationPage = lazy(() => import("@/features/ip-reputation/IPReputationPage").then((m) => ({ default: m.IPReputationPage })));
+const WhoisPivotPage = lazy(() => import("@/features/whois-pivot/WhoisPivotPage").then((m) => ({ default: m.WhoisPivotPage })));
+const TelegramOsintPage = lazy(() => import("@/features/telegram-osint/TelegramOsintPage").then((m) => ({ default: m.TelegramOsintPage })));
+const DarkWebForumPage = lazy(() => import("@/features/darkweb-forum/DarkWebForumPage").then((m) => ({ default: m.DarkWebForumPage })));
+const SECEdgarPage = lazy(() => import("@/features/sec-edgar/SECEdgarPage").then((m) => ({ default: m.SECEdgarPage })));
+const ScanSchedulerPage = lazy(() => import("@/features/scan-scheduler/ScanSchedulerPage").then((m) => ({ default: m.ScanSchedulerPage })));
+const InvestigationTemplatesPage = lazy(() => import("@/features/investigation-templates/InvestigationTemplatesPage").then((m) => ({ default: m.InvestigationTemplatesPage })));
+const TimelineAnomalyPage = lazy(() => import("@/features/timeline-anomaly/TimelineAnomalyPage").then((m) => ({ default: m.TimelineAnomalyPage })));
+const AttackSurfaceScorePage = lazy(() => import("@/features/attack-surface-score/AttackSurfaceScorePage").then((m) => ({ default: m.AttackSurfaceScorePage })));
+const SystemHealthPage = lazy(() => import("@/features/system-health/SystemHealthPage").then((m) => ({ default: m.SystemHealthPage })));
 
 export const osintRoutes: RouteObject[] = [
   { path: "investigations", element: <Lazy name="Investigations"><InvestigationsPage /></Lazy> },
@@ -142,4 +161,26 @@ export const osintRoutes: RouteObject[] = [
   { path: "ad-attack-path", element: <Lazy name="AD Attack Path"><ADAttackPathPage /></Lazy> },
   { path: "cib-detector", element: <Lazy name="CIB Detector"><CIBDetectorPage /></Lazy> },
   { path: "geolocation", element: <Lazy name="Geolocation"><GeolocationPage /></Lazy> },
+  // Batch 25 — Person OSINT & platform features
+  { path: "bulk-scan", element: <Lazy name="Bulk Scan"><BulkScanPage /></Lazy> },
+  { path: "risk-scoring", element: <Lazy name="Risk Scoring"><RiskScoringPage /></Lazy> },
+  { path: "news-media", element: <Lazy name="News & Media"><NewsMediaPage /></Lazy> },
+  { path: "academic-intel", element: <Lazy name="Academic Intel"><AcademicIntelPage /></Lazy> },
+  { path: "patent-intel", element: <Lazy name="Patent Intel"><PatentIntelPage /></Lazy> },
+  { path: "court-records", element: <Lazy name="Court Records"><CourtRecordsPage /></Lazy> },
+  { path: "dating-app", element: <Lazy name="Dating App Lookup"><DatingAppPage /></Lazy> },
+  { path: "evidence-preservation", element: <Lazy name="Evidence Preservation"><EvidencePreservationPage /></Lazy> },
+  // Batch 26 — new features
+  { path: "person-dossier", element: <Lazy name="Person Dossier"><PersonDossierPage /></Lazy> },
+  { path: "ip-reputation", element: <Lazy name="IP Reputation"><IPReputationPage /></Lazy> },
+  { path: "whois-pivot", element: <Lazy name="WHOIS Pivot"><WhoisPivotPage /></Lazy> },
+  { path: "telegram-osint", element: <Lazy name="Telegram OSINT"><TelegramOsintPage /></Lazy> },
+  { path: "darkweb-forum", element: <Lazy name="Dark Web Forum Monitor"><DarkWebForumPage /></Lazy> },
+  { path: "sec-edgar", element: <Lazy name="SEC EDGAR"><SECEdgarPage /></Lazy> },
+  { path: "scan-scheduler", element: <Lazy name="Scan Scheduler"><ScanSchedulerPage /></Lazy> },
+  { path: "investigation-templates", element: <Lazy name="Investigation Templates"><InvestigationTemplatesPage /></Lazy> },
+  { path: "timeline-anomaly", element: <Lazy name="Timeline Anomaly"><TimelineAnomalyPage /></Lazy> },
+  { path: "attack-surface-score", element: <Lazy name="Attack Surface Score"><AttackSurfaceScorePage /></Lazy> },
+  // Batch 26 — Performance & Infrastructure
+  { path: "system-health", element: <Lazy name="System Health"><SystemHealthPage /></Lazy> },
 ];

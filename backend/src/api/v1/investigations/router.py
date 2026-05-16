@@ -34,7 +34,7 @@ from src.api.v1.investigations.schemas import (
 from src.core.domain.entities.investigation import Investigation
 from src.core.domain.entities.types import ScanInputType, SeedInput
 from src.core.domain.entities.user import User
-from src.core.domain.events.base import DomainEvent
+from src.core.ports.event_publisher import noop_publisher
 from src.core.use_cases.create_investigation import (
     CreateInvestigation,
     CreateInvestigationInput,
@@ -49,20 +49,6 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-async def _noop_publish(event: DomainEvent) -> None:
-    """No-op event publisher used until a real broker is wired in."""
-
-
-class _NoopEventPublisher:
-    """Minimal event publisher that satisfies the IEventPublisher protocol."""
-
-    async def publish(self, event: DomainEvent) -> None:
-        pass
-
-    async def publish_many(self, events: list[DomainEvent]) -> None:
-        pass
-
 
 def _seed_schema_to_domain(schema: SeedInputSchema) -> SeedInput:
     """Convert an API-level SeedInputSchema to the domain SeedInput type."""
@@ -364,7 +350,7 @@ async def create_investigation(
     from src.adapters.events.redis_publisher import RedisEventPublisher
     repo = SqlAlchemyInvestigationRepository(db)
     redis = getattr(request.app.state, "redis", None)
-    publisher = RedisEventPublisher(redis) if redis else _NoopEventPublisher()
+    publisher = RedisEventPublisher(redis) if redis else noop_publisher
     use_case = CreateInvestigation(repo=repo, publish=publisher.publish)
 
     seeds = [_seed_schema_to_domain(s) for s in body.seed_inputs]
@@ -893,3 +879,39 @@ async def cleanup_old_investigations(
     await db.flush()
 
     return {"deleted": result.rowcount, "cutoff_date": cutoff.isoformat()}
+
+
+@router.post("/{investigation_id}/build-graph")
+async def build_entity_graph(
+    investigation_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Trigger automatic entity graph construction from scan findings.
+
+    Extracts emails, domains, IPs, and other entities from all scan results
+    and writes them as nodes/edges into Neo4j.
+    """
+    from src.adapters.db.models import InvestigationModel
+
+    inv = await db.get(InvestigationModel, investigation_id)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+    if str(inv.owner_id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        from src.workers.tasks.graph_tasks import auto_build_entity_graph_task
+        task = auto_build_entity_graph_task.apply_async(
+            args=[investigation_id],
+            queue="graph",
+        )
+        return {
+            "investigation_id": investigation_id,
+            "task_id": task.id,
+            "status": "queued",
+            "message": "Entity graph auto-build queued. Check task status for completion.",
+        }
+    except Exception as exc:
+        log.error("Graph build dispatch failed", investigation_id=investigation_id, error=str(exc))
+        raise HTTPException(status_code=500, detail=f"Graph build dispatch failed: {exc}")

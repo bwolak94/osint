@@ -20,9 +20,14 @@ COPY pyproject.toml poetry.lock* ./
 
 RUN poetry install --only main --no-root
 
-# Install OSINT tools directly via pip (outside Poetry to avoid dependency conflicts)
-RUN .venv/bin/pip install --no-cache-dir holehe maigret pyotp qrcode[pil] 2>/dev/null || \
-    .venv/bin/pip install --no-cache-dir holehe pyotp qrcode[pil] 2>/dev/null || true
+# Install OSINT tools directly via pip with pinned versions to ensure
+# reproducible builds — update these deliberately, not silently on rebuild.
+RUN .venv/bin/pip install --no-cache-dir \
+    "holehe==1.7.1" \
+    "maigret==0.4.4" \
+    "pyotp==2.9.0" \
+    "qrcode[pil]==7.4.2" 2>/dev/null || \
+    .venv/bin/pip install --no-cache-dir holehe pyotp "qrcode[pil]" 2>/dev/null || true
 
 COPY . .
 

@@ -32,11 +32,6 @@ class Base(DeclarativeBase):
     pass
 
 
-# Use utcnow directly as the SQLAlchemy default callable — the _utcnow wrapper
-# was a redundant indirection.
-_utcnow = utcnow
-
-
 class UserModel(Base):
     __tablename__ = "users"
 
@@ -56,10 +51,10 @@ class UserModel(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     tos_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, nullable=False
     )
     updated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=True
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=True
     )
 
     investigations: Mapped[list["InvestigationModel"]] = relationship(
@@ -88,11 +83,11 @@ class RefreshTokenModel(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     family: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     is_revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, nullable=False
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -108,6 +103,13 @@ class RefreshTokenModel(Base):
             "ix_refresh_tokens_user_active",
             "user_id",
             "is_revoked",
+            postgresql_where=text("is_revoked = false"),
+        ),
+        # Partial index on non-expired tokens speeds up token validity lookups.
+        Index(
+            "ix_refresh_tokens_active_expires",
+            "token_hash",
+            "expires_at",
             postgresql_where=text("is_revoked = false"),
         ),
     )
@@ -134,10 +136,10 @@ class InvestigationModel(Base):
     tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     shared_with: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
     )
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
@@ -178,7 +180,7 @@ class IdentityModel(Base):
     sources: Mapped[list[str]] = mapped_column(ARRAY(String), default=list, nullable=False)
     metadata_: Mapped[dict] = mapped_column("metadata", JSONB, default=dict, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, nullable=False
     )
 
     __table_args__ = (
@@ -209,11 +211,11 @@ class ScanResultModel(Base):
     duration_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, nullable=False
     )
     # nullable=False + default: always has a value; onupdate keeps it current.
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False
     )
 
     investigation: Mapped["InvestigationModel"] = relationship(back_populates="scan_results")
@@ -221,6 +223,10 @@ class ScanResultModel(Base):
     __table_args__ = (
         Index("ix_scan_results_inv_scanner", "investigation_id", "scanner_name"),
         Index("ix_scan_results_inv_status", "investigation_id", "status"),
+        # Composite index for time-ordered result listing per investigation.
+        Index("ix_scan_results_inv_created", "investigation_id", "created_at"),
+        # Standalone scanner_name index for admin/cross-investigation queries.
+        Index("ix_scan_results_scanner_name", "scanner_name"),
     )
 
     def __repr__(self) -> str:
@@ -244,7 +250,7 @@ class InvestigationACLModel(Base):
         nullable=False,
     )
     granted_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    granted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     __table_args__ = (
         Index("ix_acl_inv_user", "investigation_id", "user_id", unique=True),
@@ -269,7 +275,7 @@ class InvestigationRiskScoreModel(Base):
     exposed_services: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     avg_confidence: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     factors: Mapped[dict] = mapped_column(JSONB, default=dict, nullable=False)
-    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     __table_args__ = (
         CheckConstraint("score BETWEEN 0.0 AND 100.0", name="ck_risk_score_range"),
@@ -323,7 +329,7 @@ class EvidenceModel(Base):
     hash_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     content_hash_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     created_by: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     sealed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_admissible: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

@@ -145,8 +145,8 @@ export function InvestigationsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             suffixIcon={search ? (
-              <button onClick={() => setSearch("")} className="cursor-pointer">
-                <X className="h-4 w-4" />
+              <button onClick={() => setSearch("")} aria-label="Clear search" className="cursor-pointer">
+                <X className="h-4 w-4" aria-hidden="true" />
               </button>
             ) : undefined}
           />
@@ -156,6 +156,7 @@ export function InvestigationsPage() {
             <button
               key={f.value}
               onClick={() => setStatusFilter(f.value)}
+              aria-pressed={statusFilter === f.value}
               className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                 statusFilter === f.value
                   ? "bg-brand-900 text-brand-400"
@@ -166,18 +167,22 @@ export function InvestigationsPage() {
             </button>
           ))}
         </div>
-        <div className="flex gap-1 rounded-md border p-0.5" style={{ borderColor: "var(--border-default)" }}>
+        <div role="group" aria-label="View mode" className="flex gap-1 rounded-md border p-0.5" style={{ borderColor: "var(--border-default)" }}>
           <button
             onClick={() => setViewMode("grid")}
+            aria-pressed={viewMode === "grid"}
+            aria-label="Grid view"
             className={`rounded p-1.5 transition-colors ${viewMode === "grid" ? "bg-bg-overlay text-text-primary" : "text-text-tertiary"}`}
           >
-            <LayoutGrid className="h-4 w-4" />
+            <LayoutGrid className="h-4 w-4" aria-hidden="true" />
           </button>
           <button
             onClick={() => setViewMode("table")}
+            aria-pressed={viewMode === "table"}
+            aria-label="Table view"
             className={`rounded p-1.5 transition-colors ${viewMode === "table" ? "bg-bg-overlay text-text-primary" : "text-text-tertiary"}`}
           >
-            <LayoutList className="h-4 w-4" />
+            <LayoutList className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
@@ -185,26 +190,34 @@ export function InvestigationsPage() {
           <div className="relative">
             <button
               onClick={() => setShowColumnMenu((p) => !p)}
+              aria-expanded={showColumnMenu}
+              aria-haspopup="listbox"
+              aria-label="Choose visible columns"
               className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-bg-overlay"
               style={{ borderColor: "var(--border-default)", color: "var(--text-secondary)" }}
-              title="Choose visible columns"
             >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
               Columns
             </button>
             {showColumnMenu && (
               <div
+                role="listbox"
+                aria-label="Toggle visible columns"
+                aria-multiselectable="true"
                 className="absolute right-0 top-full z-30 mt-1 w-40 rounded-lg border py-1 shadow-xl"
                 style={{ background: "var(--bg-surface)", borderColor: "var(--border-default)" }}
               >
                 {ALL_COLUMNS.map(({ key, label }) => (
                   <button
                     key={key}
+                    role="option"
+                    aria-selected={visibleColumns.has(key)}
                     onClick={() => toggleColumn(key)}
                     className="flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors hover:bg-bg-overlay"
                     style={{ color: visibleColumns.has(key) ? "var(--text-primary)" : "var(--text-tertiary)" }}
                   >
                     <span
+                      aria-hidden="true"
                       className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border text-[9px]"
                       style={{
                         borderColor: visibleColumns.has(key) ? "var(--brand-500)" : "var(--border-default)",
@@ -257,7 +270,11 @@ export function InvestigationsPage() {
                   <tr
                     key={inv.id}
                     onClick={() => navigate(`/investigations/${inv.id}`)}
-                    className="cursor-pointer border-b transition-colors hover:bg-bg-overlay"
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/investigations/${inv.id}`); } }}
+                    tabIndex={0}
+                    role="row"
+                    aria-label={`Investigation: ${inv.title}, status: ${inv.status}`}
+                    className="cursor-pointer border-b transition-colors hover:bg-bg-overlay focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                     style={{ borderColor: "var(--border-subtle)" }}
                   >
                     <td className="px-4 py-3">
@@ -291,8 +308,8 @@ export function InvestigationsPage() {
                       </td>
                     )}
                     <td className="px-4 py-3">
-                      <button onClick={(e) => e.stopPropagation()} className="rounded p-1 hover:bg-bg-elevated">
-                        <MoreHorizontal className="h-4 w-4" style={{ color: "var(--text-tertiary)" }} />
+                      <button onClick={(e) => e.stopPropagation()} aria-label="More actions" className="rounded p-1 hover:bg-bg-elevated">
+                        <MoreHorizontal className="h-4 w-4" aria-hidden="true" style={{ color: "var(--text-tertiary)" }} />
                       </button>
                     </td>
                   </tr>

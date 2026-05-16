@@ -1,5 +1,8 @@
 """Scanner registry — maps input types to available scanners."""
 
+from collections import defaultdict
+from functools import lru_cache
+
 from src.adapters.scanners.amass_scanner import AmassScanner
 from src.adapters.scanners.blockchair_scanner import BlockchairScanner
 from src.adapters.scanners.blockstream_scanner import BlockstreamScanner
@@ -65,6 +68,112 @@ from src.adapters.scanners.encryption_sandbox_scanner import EncryptionSandboxSc
 from src.adapters.scanners.ids_rule_generator_scanner import IDSRuleGeneratorScanner
 from src.adapters.scanners.aws_iam_auditor_scanner import AWSIAMAuditorScanner
 from src.adapters.scanners.payload_evasion_engine_scanner import PayloadEvasionEngineScanner
+from src.adapters.scanners.ffuf_scanner import FFUFScanner
+from src.adapters.scanners.jwt_tool_scanner import JWTToolScanner
+from src.adapters.scanners.ssti_scanner import SSTIScanner
+from src.adapters.scanners.lfi_scanner import LFIScanner
+from src.adapters.scanners.xxe_scanner import XXEScanner
+from src.adapters.scanners.open_redirect_scanner import OpenRedirectScanner
+from src.adapters.scanners.clickjacking_scanner import ClickjackingScanner
+from src.adapters.scanners.log4shell_scanner import Log4ShellScanner
+from src.adapters.scanners.web_cache_poisoning_scanner import WebCachePoisoningScanner
+from src.adapters.scanners.prototype_pollution_scanner import PrototypePollutionScanner
+from src.adapters.scanners.shellshock_scanner import ShellshockScanner
+from src.adapters.scanners.tls_deep_scanner import TLSDeepScanner
+from src.adapters.scanners.paramspider_scanner import ParamSpiderScanner
+from src.adapters.scanners.docker_security_scanner import DockerSecurityScanner
+from src.adapters.scanners.kubernetes_scanner import KubernetesScanner
+from src.adapters.scanners.spring4shell_scanner import Spring4ShellScanner
+from src.adapters.scanners.subdomain_permutation_scanner import SubdomainPermutationScanner
+from src.adapters.scanners.network_service_scanner import NetworkServiceScanner
+from src.adapters.scanners.web_tech_cve_scanner import WebTechCVEScanner
+from src.adapters.scanners.email_security_scanner import EmailSecurityScanner
+from src.adapters.scanners.api_fuzzer_scanner import APIFuzzerScanner
+from src.adapters.scanners.csrf_scanner import CSRFScanner
+from src.adapters.scanners.deserialization_scanner import DeserializationScanner
+from src.adapters.scanners.dependency_check_scanner import DependencyCheckScanner
+from src.adapters.scanners.http403_bypass_scanner import Http403BypassScanner
+from src.adapters.scanners.race_condition_scanner import RaceConditionScanner
+from src.adapters.scanners.idor_scanner import IDORScanner
+from src.adapters.scanners.graphql_security_scanner import GraphQLSecurityScanner
+from src.adapters.scanners.oauth_scanner import OAuthScanner
+from src.adapters.scanners.crlf_injection_scanner import CRLFInjectionScanner
+from src.adapters.scanners.azure_enum_scanner import AzureEnumScanner
+from src.adapters.scanners.password_spray_scanner import PasswordSprayScanner
+from src.adapters.scanners.business_logic_scanner import BusinessLogicScanner
+from src.adapters.scanners.host_header_injection_scanner import HostHeaderInjectionScanner
+from src.adapters.scanners.jenkins_scanner import JenkinsScanner
+from src.adapters.scanners.file_upload_scanner import FileUploadScanner
+from src.adapters.scanners.websocket_scanner import WebSocketScanner
+from src.adapters.scanners.elasticsearch_scanner import ElasticsearchScanner
+from src.adapters.scanners.confluence_jira_scanner import ConfluenceJiraScanner
+from src.adapters.scanners.smtp_relay_scanner import SMTPRelayScanner
+from src.adapters.scanners.ssi_injection_scanner import SSIInjectionScanner
+from src.adapters.scanners.proxylogon_scanner import ProxyLogonScanner
+from src.adapters.scanners.hadoop_scanner import HadoopScanner
+from src.adapters.scanners.redis_exploit_scanner import RedisExploitScanner
+from src.adapters.scanners.impacket_scanner import ImpacketScanner
+from src.adapters.scanners.smb_lateral_scanner import SMBLateralScanner
+from src.adapters.scanners.wfuzz_scanner import WFuzzScanner
+from src.adapters.scanners.brute_login_scanner import BruteLoginScanner
+from src.adapters.scanners.webshell_scanner import WebShellScanner
+from src.adapters.scanners.citrix_scanner import CitrixScanner
+from src.adapters.scanners.vmware_scanner import VMwareScanner
+from src.adapters.scanners.apache_scanner import ApacheScanner
+from src.adapters.scanners.iis_scanner import IISScanner
+from src.adapters.scanners.xmlrpc_scanner import XMLRPCScanner
+from src.adapters.scanners.command_injection_scanner import CommandInjectionScanner
+from src.adapters.scanners.http_methods_scanner import HTTPMethodsScanner
+from src.adapters.scanners.path_traversal_scanner import PathTraversalScanner
+from src.adapters.scanners.whatsapp_scanner import WhatsAppScanner
+from src.adapters.scanners.discord_scanner import DiscordScanner
+from src.adapters.scanners.gaming_platform_scanner import GamingPlatformScanner
+from src.adapters.scanners.phone_cnam_scanner import PhoneCNAMScanner
+from src.adapters.scanners.leaked_creds_scanner import LeakedCredsScanner
+from src.adapters.scanners.court_records_scanner import CourtRecordsScanner
+from src.adapters.scanners.academic_scanner import AcademicScanner
+from src.adapters.scanners.patent_scanner import PatentScanner
+from src.adapters.scanners.wigle_scanner import WiGLEScanner
+from src.adapters.scanners.skype_scanner import SkypeScanner
+from src.adapters.scanners.iban_scanner import IBANScanner
+from src.adapters.scanners.whois_history_scanner import WhoisHistoryScanner
+from src.adapters.scanners.brand_impersonation_scanner import BrandImpersonationScanner
+from src.adapters.scanners.dating_app_scanner import DatingAppScanner
+from src.adapters.scanners.news_media_scanner import NewsMediaScanner
+from src.adapters.scanners.fediverse_deep_scanner import FediverseDeepScanner
+from src.adapters.scanners.peoplesearch_scanner import PeopleSearchScanner
+from src.adapters.scanners.crypto_clustering_scanner import CryptoClusteringScanner
+from src.adapters.scanners.vin_scanner import VINScanner
+from src.adapters.scanners.job_intel_scanner import JobIntelScanner
+from src.adapters.scanners.darkweb_forum_scanner import DarkWebForumScanner
+from src.adapters.scanners.sec_edgar_scanner import SECEdgarScanner
+from src.adapters.scanners.telegram_osint_scanner import TelegramOsintScanner
+from src.adapters.scanners.shodan_bulk_scanner import ShodanBulkScanner
+from src.adapters.scanners.sqlmap_scanner import SQLMapScanner
+from src.adapters.scanners.hydra_scanner import HydraScanner
+from src.adapters.scanners.gobuster_scanner import GobusterScanner
+from src.adapters.scanners.whatweb_scanner import WhatWebScanner
+from src.adapters.scanners.commix_scanner import CommixScanner
+from src.adapters.scanners.ssrf_scanner import SSRFScanner
+from src.adapters.scanners.http_smuggling_scanner import HTTPSmugglingScanner
+from src.adapters.scanners.nosqlmap_scanner import NoSQLMapScanner
+from src.adapters.scanners.linkfinder_scanner import LinkFinderScanner
+from src.adapters.scanners.enum4linux_scanner import Enum4LinuxScanner
+from src.adapters.scanners.dnsrecon_scanner import DNSReconScanner
+from src.adapters.scanners.s3_bucket_scanner import S3BucketScanner
+from src.adapters.scanners.nikto_scanner import NiktoScanner
+from src.adapters.scanners.sslscan_scanner import SSLScanScanner
+from src.adapters.scanners.wpscan_scanner import WPScanScanner
+from src.adapters.scanners.cms_detect_scanner import CMSDetectScanner
+from src.adapters.scanners.feroxbuster_scanner import FeroxbusterScanner
+from src.adapters.scanners.arjun_scanner import ArjunScanner
+from src.adapters.scanners.dalfox_scanner import DalfoxScanner
+from src.adapters.scanners.gau_scanner import GAUScanner
+from src.adapters.scanners.trufflehog_scanner import TruffleHogScanner
+from src.adapters.scanners.gitleaks_scanner import GitleaksScanner
+from src.adapters.scanners.masscan_scanner import MasscanScanner
+from src.adapters.scanners.corsy_scanner import CorsyScanner
+from src.adapters.scanners.cariddi_scanner import CariddiScanner
 from src.adapters.scanners.asn_scanner import ASNScanner
 from src.adapters.scanners.base import BaseOsintScanner
 from src.adapters.scanners.bgp_scanner import BGPHijackScanner
@@ -158,24 +267,26 @@ from src.core.domain.entities.types import ScanInputType
 class ScannerRegistry:
     """Central registry of all available OSINT scanners.
 
-    Provides lookup by input type so the orchestrator can automatically
-    select the right scanners for a given seed input.
+    Provides O(1) lookup by name and pre-indexed lookup by input type so the
+    orchestrator can automatically select the right scanners for a given seed input.
     """
 
     def __init__(self) -> None:
         self._scanners: list[BaseOsintScanner] = []
+        self._by_name: dict[str, BaseOsintScanner] = {}
+        self._by_type: dict[ScanInputType, list[BaseOsintScanner]] = defaultdict(list)
 
     def register(self, scanner: BaseOsintScanner) -> None:
         self._scanners.append(scanner)
+        self._by_name[scanner.scanner_name] = scanner
+        for input_type in scanner.supported_input_types:
+            self._by_type[input_type].append(scanner)
 
     def get_for_input_type(self, input_type: ScanInputType) -> list[BaseOsintScanner]:
-        return [s for s in self._scanners if s.supports(input_type)]
+        return list(self._by_type[input_type])
 
     def get_by_name(self, name: str) -> BaseOsintScanner | None:
-        for s in self._scanners:
-            if s.scanner_name == name:
-                return s
-        return None
+        return self._by_name.get(name)
 
     @property
     def all_scanners(self) -> list[BaseOsintScanner]:
@@ -357,15 +468,129 @@ def create_default_registry() -> ScannerRegistry:
     registry.register(IDSRuleGeneratorScanner())
     registry.register(AWSIAMAuditorScanner())
     registry.register(PayloadEvasionEngineScanner())
+    # Batch 18 — Kali Linux offensive / web pentesting scanners
+    registry.register(NiktoScanner())
+    registry.register(SSLScanScanner())
+    registry.register(WPScanScanner())
+    registry.register(CMSDetectScanner())
+    registry.register(FeroxbusterScanner())
+    registry.register(ArjunScanner())
+    registry.register(DalfoxScanner())
+    registry.register(GAUScanner())
+    registry.register(TruffleHogScanner())
+    registry.register(GitleaksScanner())
+    registry.register(MasscanScanner())
+    registry.register(CorsyScanner())
+    registry.register(CariddiScanner())
+    # Batch 19 — Kali Linux offensive tools (round 2)
+    registry.register(SQLMapScanner())
+    registry.register(HydraScanner())
+    registry.register(GobusterScanner())
+    registry.register(WhatWebScanner())
+    registry.register(CommixScanner())
+    registry.register(SSRFScanner())
+    registry.register(HTTPSmugglingScanner())
+    registry.register(NoSQLMapScanner())
+    registry.register(LinkFinderScanner())
+    registry.register(Enum4LinuxScanner())
+    registry.register(DNSReconScanner())
+    registry.register(S3BucketScanner())
+    # Batch 20 — Advanced web attack scanners
+    registry.register(FFUFScanner())
+    registry.register(JWTToolScanner())
+    registry.register(SSTIScanner())
+    registry.register(LFIScanner())
+    registry.register(XXEScanner())
+    registry.register(OpenRedirectScanner())
+    registry.register(ClickjackingScanner())
+    registry.register(Log4ShellScanner())
+    registry.register(WebCachePoisoningScanner())
+    registry.register(PrototypePollutionScanner())
+    registry.register(ShellshockScanner())
+    # Batch 22 — Kali Linux tools (round 4): TLS/infra/cloud/API
+    registry.register(TLSDeepScanner())
+    registry.register(ParamSpiderScanner())
+    registry.register(DockerSecurityScanner())
+    registry.register(KubernetesScanner())
+    registry.register(Spring4ShellScanner())
+    registry.register(SubdomainPermutationScanner())
+    registry.register(NetworkServiceScanner())
+    registry.register(WebTechCVEScanner())
+    registry.register(EmailSecurityScanner())
+    registry.register(APIFuzzerScanner())
+    # Batch 21 — Advanced attack surface scanners
+    registry.register(CSRFScanner())
+    registry.register(DeserializationScanner())
+    registry.register(DependencyCheckScanner())
+    registry.register(Http403BypassScanner())
+    registry.register(RaceConditionScanner())
+    registry.register(IDORScanner())
+    registry.register(GraphQLSecurityScanner())
+    registry.register(OAuthScanner())
+    registry.register(CRLFInjectionScanner())
+    registry.register(AzureEnumScanner())
+    registry.register(PasswordSprayScanner())
+    registry.register(BusinessLogicScanner())
+    registry.register(HostHeaderInjectionScanner())
+    # Batch 23 — Infrastructure & protocol attack scanners
+    registry.register(JenkinsScanner())
+    registry.register(FileUploadScanner())
+    registry.register(WebSocketScanner())
+    registry.register(ElasticsearchScanner())
+    registry.register(ConfluenceJiraScanner())
+    registry.register(SMTPRelayScanner())
+    registry.register(SSIInjectionScanner())
+    registry.register(ProxyLogonScanner())
+    registry.register(HadoopScanner())
+    registry.register(RedisExploitScanner())
+    registry.register(ImpacketScanner())
+    registry.register(SMBLateralScanner())
+    # Batch 24 — Web server CVE + protocol attack scanners
+    registry.register(WFuzzScanner())
+    registry.register(BruteLoginScanner())
+    registry.register(WebShellScanner())
+    registry.register(CitrixScanner())
+    registry.register(VMwareScanner())
+    registry.register(ApacheScanner())
+    registry.register(IISScanner())
+    registry.register(XMLRPCScanner())
+    registry.register(CommandInjectionScanner())
+    registry.register(HTTPMethodsScanner())
+    registry.register(PathTraversalScanner())
+    # Batch 25 — Person OSINT & identity intelligence scanners
+    registry.register(WhatsAppScanner())
+    registry.register(DiscordScanner())
+    registry.register(GamingPlatformScanner())
+    registry.register(PhoneCNAMScanner())
+    registry.register(LeakedCredsScanner())
+    registry.register(CourtRecordsScanner())
+    registry.register(AcademicScanner())
+    registry.register(PatentScanner())
+    registry.register(WiGLEScanner())
+    registry.register(SkypeScanner())
+    registry.register(IBANScanner())
+    registry.register(WhoisHistoryScanner())
+    registry.register(BrandImpersonationScanner())
+    registry.register(DatingAppScanner())
+    registry.register(NewsMediaScanner())
+    registry.register(FediverseDeepScanner())
+    # Batch 26 — Financial, vehicle, job & people-search intelligence
+    registry.register(PeopleSearchScanner())
+    registry.register(CryptoClusteringScanner())
+    registry.register(VINScanner())
+    registry.register(JobIntelScanner())
+    registry.register(DarkWebForumScanner())
+    registry.register(SECEdgarScanner())
+    registry.register(TelegramOsintScanner())
+    registry.register(ShodanBulkScanner())
     return registry
 
 
-_default_registry: ScannerRegistry | None = None  # Reset on module reload
-
-
+@lru_cache(maxsize=1)
 def get_default_registry() -> ScannerRegistry:
-    """Return a cached singleton scanner registry."""
-    global _default_registry
-    if _default_registry is None:
-        _default_registry = create_default_registry()
-    return _default_registry
+    """Return a cached singleton scanner registry.
+
+    Uses lru_cache instead of a module-level mutable global so the cache is
+    process-safe and can be cleared in tests via get_default_registry.cache_clear().
+    """
+    return create_default_registry()

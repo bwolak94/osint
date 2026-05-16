@@ -28,8 +28,9 @@ from src.api.v1.auth.schemas import (
     UserResponse,
 )
 from src.core.domain.entities.user import User
-from src.config import get_settings as _get_settings
-from src.core.ports.event_publisher import noop_publisher
+from src.config import get_settings
+from src.adapters.events.redis_publisher import RedisEventPublisher
+from src.core.ports.event_publisher import IEventPublisher, noop_publisher
 from src.core.use_cases.auth.change_password import ChangePasswordCommand, ChangePasswordUseCase
 from src.core.use_cases.auth.exceptions import AccountLockedError, AuthenticationError, SecurityAlert, TokenError
 from src.core.use_cases.auth.login import LoginCommand, LoginUseCase
@@ -39,12 +40,26 @@ from src.core.use_cases.auth.register import RegisterCommand, RegisterUserUseCas
 
 router = APIRouter()
 
-# Compute cookie flags once at import time — get_settings() is @lru_cache so this
-# is free, but computing it inline in _set_refresh_cookie on every login request
-# adds an unnecessary function call on the hot path. (#4)
-_settings = _get_settings()
-_COOKIE_SECURE: bool = not _settings.debug
 _COOKIE_MAX_AGE: int = 7 * 24 * 60 * 60  # 7 days in seconds
+
+
+def _get_event_publisher(request: Request) -> IEventPublisher:
+    """Return a Redis-backed publisher when Redis is available, otherwise no-op."""
+    redis = getattr(request.app.state, "redis", None)
+    return RedisEventPublisher(redis) if redis else noop_publisher
+
+
+def _get_client_ip(request: Request) -> str | None:
+    """Extract the real client IP, honouring X-Forwarded-For set by nginx.
+
+    Takes the first (leftmost) address in X-Forwarded-For which is the original
+    client IP as appended by nginx via proxy_add_x_forwarded_for.  Falls back to
+    the direct connection host when the header is absent.
+    """
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else None
 
 
 def _user_response(user: User) -> UserResponse:
@@ -61,12 +76,13 @@ def _user_response(user: User) -> UserResponse:
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
-    # In dev (debug=True) _COOKIE_SECURE is False so the cookie works over plain HTTP. (#4)
+    # get_settings() is @lru_cache so this is effectively free on the hot path.
+    secure = not get_settings().debug
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=_COOKIE_SECURE,
+        secure=secure,
         samesite="lax",  # "lax" allows cookie on top-level navigations; "strict" can block it
         max_age=_COOKIE_MAX_AGE,
         path="/api/v1/auth",
@@ -80,6 +96,7 @@ def _clear_refresh_cookie(response: Response) -> None:
 @router.post("/register", response_model=RegisterResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     body: RegisterRequest,
+    request: Request,
     response: Response,
     user_repo: Annotated[SqlAlchemyUserRepository, Depends(get_user_repo)],
     token_service: Annotated[JWTTokenService, Depends(get_token_service)],
@@ -89,7 +106,7 @@ async def register(
         user_repo=user_repo,
         token_service=token_service,
         password_hasher=password_hasher,
-        event_publisher=noop_publisher,
+        event_publisher=_get_event_publisher(request),
     )
     try:
         result = await use_case.execute(RegisterCommand(email=body.email, password=body.password))
@@ -118,10 +135,10 @@ async def login(
         token_service=token_service,
         refresh_token_repo=refresh_repo,
         password_hasher=password_hasher,
-        event_publisher=noop_publisher,
+        event_publisher=_get_event_publisher(request),
     )
 
-    ip = request.client.host if request.client else None
+    ip = _get_client_ip(request)
     ua = request.headers.get("user-agent")
 
     try:
@@ -157,10 +174,10 @@ async def refresh(
         user_repo=user_repo,
         token_service=token_service,
         refresh_token_repo=refresh_repo,
-        event_publisher=noop_publisher,
+        event_publisher=_get_event_publisher(request),
     )
 
-    ip = request.client.host if request.client else None
+    ip = _get_client_ip(request)
     ua = request.headers.get("user-agent")
 
     try:
@@ -186,7 +203,7 @@ async def logout(
 ):
     # Get access token from header
     auth = request.headers.get("authorization", "")
-    access_token = auth.replace("Bearer ", "") if auth.startswith("Bearer ") else ""
+    access_token = auth.removeprefix("Bearer ") if auth.startswith("Bearer ") else ""
 
     redis = getattr(request.app.state, "redis", None)
     blacklist = RedisTokenBlacklist(redis) if redis else None
@@ -215,6 +232,7 @@ async def me(
 @router.post("/change-password", response_model=MessageResponse)
 async def change_password(
     body: ChangePasswordRequest,
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     user_repo: Annotated[SqlAlchemyUserRepository, Depends(get_user_repo)],
     refresh_repo: Annotated[SqlAlchemyRefreshTokenRepository, Depends(get_refresh_token_repo)],
@@ -224,7 +242,7 @@ async def change_password(
         user_repo=user_repo,
         password_hasher=password_hasher,
         refresh_token_repo=refresh_repo,
-        event_publisher=noop_publisher,
+        event_publisher=_get_event_publisher(request),
     )
     try:
         await use_case.execute(ChangePasswordCommand(

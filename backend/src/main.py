@@ -1,10 +1,9 @@
 """FastAPI application entry point."""
 
 import importlib
-import pkgutil
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import asynccontextmanager
-from pathlib import Path
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
 import structlog
 from fastapi import FastAPI, Request
@@ -250,7 +249,61 @@ _ROUTER_REGISTRY: list[tuple[str, str, str, list[str]]] = [
     ("src.api.v1.paste_monitor.router", "router", "/api/v1/paste-monitor", ["paste-monitor"]),
     ("src.api.v1.ransomware_tracker.router", "router", "/api/v1/ransomware-tracker", ["ransomware-tracker"]),
     ("src.api.v1.username_scanner.router", "router", "/api/v1/username-scanner", ["username-scanner"]),
+
+    # ── Batch 25 — Platform infrastructure ───────────────────────────────────
+    ("src.api.v1.risk_scoring", "router", "/api/v1", ["risk-scoring"]),
+    ("src.api.v1.bulk_scan", "router", "/api/v1", ["bulk-scan"]),
+    ("src.api.v1.report_generator", "router", "/api/v1", ["reports"]),
+    ("src.api.v1.preservation", "router", "/api/v1", ["evidence"]),
+
+    # ── Batch 26 — Core intelligence & analysis ───────────────────────────────
+    ("src.api.v1.person_dossier", "router", "/api/v1", ["dossier"]),
+    ("src.api.v1.confidence_scoring", "router", "/api/v1", ["confidence"]),
+    ("src.api.v1.cross_investigation_dedup", "router", "/api/v1", ["dedup"]),
+    ("src.api.v1.geo_clustering", "router", "/api/v1", ["geo"]),
+    ("src.api.v1.behavioral_fingerprint", "router", "/api/v1", ["behavioral"]),
+
+    # ── Batch 26 — Platform & UX features ────────────────────────────────────
+    ("src.api.v1.investigation_templates", "router", "/api/v1", ["investigation-templates"]),
+    ("src.api.v1.scanner_comparison", "router", "/api/v1", ["scanner-compare"]),
+    ("src.api.v1.data_export", "router", "/api/v1", ["export"]),
+    ("src.api.v1.ip_reputation", "router", "/api/v1", ["ip-reputation"]),
+    ("src.api.v1.whois_pivot", "router", "/api/v1", ["whois-pivot"]),
+
+    # ── Batch 26 — Security, Ops & Performance ────────────────────────────────
+    ("src.api.v1.scanner_rate_monitor", "router", "/api/v1", ["scanner-monitoring"]),
+    ("src.api.v1.finding_search", "router", "/api/v1", ["finding-search"]),
+    ("src.api.v1.entity_resolution", "router", "/api/v1", ["entity-resolution"]),
+    ("src.api.v1.scan_scheduler", "router", "/api/v1", ["scan-scheduler"]),
+    ("src.api.v1.investigation_score", "router", "/api/v1", ["investigation-completeness"]),
+    ("src.api.v1.relationship_strength", "router", "/api/v1", ["graph-relationships"]),
+
+    # ── Batch 27 — Timeline & Attack Surface analysis ─────────────────────────
+    ("src.api.v1.timeline_anomaly", "router", "/api/v1", ["timeline-anomaly"]),
+    ("src.api.v1.attack_surface_score", "router", "/api/v1", ["attack-surface-score"]),
+
+    # ── Batch 26 — Performance & Infrastructure (items 41-50) ─────────────────
+    ("src.api.v1.scanner_telemetry", "router", "/api/v1", ["telemetry"]),
+    ("src.api.v1.cache_ttl", "router", "/api/v1", ["cache-management"]),
+    ("src.api.v1.compression_stats", "router", "/api/v1", ["storage"]),
+    ("src.api.v1.registry_prewarm", "router", "/api/v1", ["registry"]),
+    ("src.api.v1.queue_monitor", "router", "/api/v1", ["queue-monitor"]),
+    ("src.api.v1.db_pool_monitor", "router", "/api/v1", ["db-monitoring"]),
+    ("src.api.v1.scanner_benchmark", "router", "/api/v1", ["benchmark"]),
+    ("src.api.v1.cache_stats", "router", "/api/v1", ["cache-stats"]),
+    ("src.api.v1.health_dashboard", "router", "/api/v1", ["health-dashboard"]),
+    ("src.api.v1.finding_dedup_cleaner", "router", "/api/v1", ["dedup-cleaner"]),
 ]
+
+
+def _import_router_module(module_path: str, attr_name: str) -> tuple[str, str, Any, Exception | None]:
+    """Import a single router module — safe to call from a worker thread."""
+    try:
+        module = importlib.import_module(module_path)
+        router_obj = getattr(module, attr_name)
+        return module_path, attr_name, router_obj, None
+    except (ImportError, AttributeError) as exc:
+        return module_path, attr_name, None, exc
 
 
 def _include_all_routers(application: FastAPI) -> None:
@@ -261,18 +314,18 @@ def _include_all_routers(application: FastAPI) -> None:
     incomplete endpoints.  In debug mode, the error is logged and skipped so
     developers can work with partially-installed optional modules.
 
-    Single-pass design: deduplication check and router mounting happen in one
-    iteration so the registry is only traversed once. (#16)
+    Two-phase design (#29):
+    - Phase 1: Import all modules in parallel via ThreadPoolExecutor (I/O-bound .pyc reads).
+    - Phase 2: Mount routers in registry order (must be sequential for deterministic routing).
 
-    Prefix guard: in production, routers with an empty prefix raise at startup
-    since unversioned routes break API contracts. In debug mode a warning is
-    logged so developers are aware but not blocked. (#8)
+    Deduplication check: same module+attr mounted twice raises at startup. (#16)
+    Prefix guard: routers with unversioned prefixes raise in production. (#8)
     """
     settings = get_settings()
-    seen: set[tuple[str, str]] = set()
 
-    for module_path, attr_name, prefix, tags in _ROUTER_REGISTRY:
-        # Deduplication — same module+attr mounted twice causes ambiguous routing.
+    # Deduplication check (before parallel import — fast, no I/O)
+    seen: set[tuple[str, str]] = set()
+    for module_path, attr_name, _prefix, _tags in _ROUTER_REGISTRY:
         key = (module_path, attr_name)
         if key in seen:
             raise RuntimeError(
@@ -281,27 +334,43 @@ def _include_all_routers(application: FastAPI) -> None:
             )
         seen.add(key)
 
-        # Empty-prefix guard (#8): production rejects unversioned routes; debug warns.
-        if prefix == "":
-            msg = f"Router '{module_path}' has no /api/vN prefix — routes are unversioned"
-            if not settings.debug:
-                raise RuntimeError(
-                    f"{msg}. Set an explicit prefix or add DEBUG=true to suppress this error."
-                )
-            log.warning("router_has_no_prefix", module=module_path, tags=tags, message=msg)
+    # Phase 1: parallel import (worker threads — Python import lock ensures safety)
+    import_results: dict[tuple[str, str], tuple[Any, Exception | None]] = {}
+    with ThreadPoolExecutor(max_workers=min(32, len(_ROUTER_REGISTRY))) as pool:
+        futures = {
+            pool.submit(_import_router_module, mp, an): (mp, an)
+            for mp, an, _, _ in _ROUTER_REGISTRY
+        }
+        for future in as_completed(futures):
+            mp, an, router_obj, exc = future.result()
+            import_results[(mp, an)] = (router_obj, exc)
 
-        try:
-            module = importlib.import_module(module_path)
-            router = getattr(module, attr_name)
-            application.include_router(router, prefix=prefix, tags=tags)
-        except (ImportError, AttributeError) as exc:
+    # Phase 2: mount in registry order (sequential — preserves route priority)
+    for module_path, attr_name, prefix, tags in _ROUTER_REGISTRY:
+        router_obj, exc = import_results[(module_path, attr_name)]
+
+        if exc is not None:
             if settings.debug:
                 log.warning("router_load_failed", module=module_path, attr=attr_name, error=str(exc))
-            else:
-                raise RuntimeError(
-                    f"Failed to load router '{module_path}.{attr_name}': {exc}. "
-                    "Fix the import error or set DEBUG=true to skip missing routers."
-                ) from exc
+                continue
+            raise RuntimeError(
+                f"Failed to load router '{module_path}.{attr_name}': {exc}. "
+                "Fix the import error or set DEBUG=true to skip missing routers."
+            ) from exc
+
+        # Empty-prefix guard using the imported router object's own prefix
+        if prefix == "":
+            router_own_prefix: str = getattr(router_obj, "prefix", "") or ""
+            if not router_own_prefix.startswith("/api/v"):
+                msg = (
+                    f"Router '{module_path}' has no /api/vN prefix — routes may be unversioned. "
+                    f"Set an explicit prefix in _ROUTER_REGISTRY or in the APIRouter() definition."
+                )
+                if not settings.debug:
+                    raise RuntimeError(f"{msg} Set DEBUG=true to suppress this error.")
+                log.warning("router_has_no_prefix", module=module_path, tags=tags)
+
+        application.include_router(router_obj, prefix=prefix, tags=tags)
 
 
 # ---------------------------------------------------------------------------
@@ -309,19 +378,33 @@ def _include_all_routers(application: FastAPI) -> None:
 # ---------------------------------------------------------------------------
 
 def configure_logging() -> None:
-    """Initialize structured logging with structlog."""
-    structlog.configure(  # structlog already imported at module level (#20)
-        processors=[
-            structlog.contextvars.merge_contextvars,
-            structlog.stdlib.filter_by_level,
-            structlog.stdlib.add_logger_name,
-            structlog.stdlib.add_log_level,
-            structlog.stdlib.PositionalArgumentsFormatter(),
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.StackInfoRenderer(),
-            structlog.processors.UnicodeDecoder(),
-            structlog.processors.JSONRenderer(),
-        ],
+    """Initialize structured logging with structlog.
+
+    Uses ConsoleRenderer in debug mode for human-readable output, and
+    JSONRenderer in production for structured log aggregation.
+    """
+    import os
+    debug = os.getenv("DEBUG", "false").lower() in ("1", "true", "yes")
+
+    shared_processors = [
+        structlog.contextvars.merge_contextvars,
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_logger_name,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.UnicodeDecoder(),
+    ]
+
+    renderer = (
+        structlog.dev.ConsoleRenderer(colors=True)
+        if debug
+        else structlog.processors.JSONRenderer()
+    )
+
+    structlog.configure(
+        processors=[*shared_processors, renderer],
         wrapper_class=structlog.stdlib.BoundLogger,
         context_class=dict,
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -348,8 +431,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         import redis.asyncio as aioredis
         app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
         await app.state.redis.ping()
-        await log.ainfo("Redis connection established", elapsed_ms=int((time.perf_counter() - t0) * 1000))  # (#23)
-    except (ConnectionError, OSError, Exception) as exc:
+        await log.ainfo("Redis connection established", elapsed_ms=int((time.perf_counter() - t0) * 1000))
+    except Exception as exc:
         log.warning("redis_unavailable", error=str(exc), elapsed_ms=int((time.perf_counter() - t0) * 1000))
         app.state.redis = None
 
@@ -360,8 +443,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         es = ElasticsearchStore()
         await es.ensure_indices()
         app.state.elasticsearch = es
-        await log.ainfo("Elasticsearch indices ensured", elapsed_ms=int((time.perf_counter() - t0) * 1000))  # (#23)
-    except (ConnectionError, OSError, Exception) as exc:
+        await log.ainfo("Elasticsearch indices ensured", elapsed_ms=int((time.perf_counter() - t0) * 1000))
+    except Exception as exc:
         log.warning("elasticsearch_unavailable", error=str(exc), elapsed_ms=int((time.perf_counter() - t0) * 1000))
         app.state.elasticsearch = None
 
@@ -373,8 +456,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         from src.adapters.storage.minio_client import build_minio_client, ensure_bucket
         _minio = build_minio_client(settings)
         await ensure_bucket(_minio, settings.minio_bucket)
-        await log.ainfo("MinIO ready", bucket=settings.minio_bucket, elapsed_ms=int((time.perf_counter() - t0) * 1000))  # (#23)
-    except (ConnectionError, OSError, Exception) as exc:
+        await log.ainfo("MinIO ready", bucket=settings.minio_bucket, elapsed_ms=int((time.perf_counter() - t0) * 1000))
+    except Exception as exc:
         log.warning("minio_unavailable", error=str(exc), elapsed_ms=int((time.perf_counter() - t0) * 1000))
 
     # WorldMonitor background scheduler (RSS aggregation every 5 min). (#9)
@@ -403,6 +486,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             ),
         )
 
+    # Pre-warm scanner registry and log construction time (#87)
+    t0 = time.perf_counter()
+    try:
+        from src.adapters.scanners.registry import get_default_registry
+        registry = get_default_registry()
+        registry_ms = int((time.perf_counter() - t0) * 1000)
+        await log.ainfo(
+            "scanner_registry_ready",
+            scanner_count=len(registry.all_scanners),
+            elapsed_ms=registry_ms,
+        )
+    except Exception as exc:
+        log.error("scanner_registry_failed", error=str(exc))
+
     total_startup_ms = int((time.perf_counter() - startup_start) * 1000)
     await log.ainfo("OSINT platform backend started", total_startup_ms=total_startup_ms)  # (#23)
 
@@ -412,8 +509,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     try:
         from src.worldmonitor.scheduler import scheduler as wm_scheduler
         await wm_scheduler.stop()
-    except Exception:
+    except ImportError:
         pass
+    except Exception as exc:
+        log.error("worldmonitor_scheduler_stop_failed", error=str(exc))
     if getattr(app.state, "elasticsearch", None) is not None:
         await app.state.elasticsearch.close()
     if getattr(app.state, "redis", None) is not None:

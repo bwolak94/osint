@@ -13,13 +13,11 @@ function AuthInitializer() {
 
 export function App() {
   return (
-    <>
-      <QueryClientProvider client={queryClient}>
-        <AuthInitializer />
-        <RouterProvider router={router} />
-        {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />}
-      </QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthInitializer />
+      <RouterProvider router={router} />
       <ToastContainer />
-    </>
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />}
+    </QueryClientProvider>
   );
 }

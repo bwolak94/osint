@@ -1,4 +1,4 @@
-.PHONY: dev prod test test-backend test-frontend lint migrate check-migrations seed reset-dev gen-types shell logs clean
+.PHONY: dev prod test test-backend test-frontend lint migrate check-migrations seed reset-dev gen-types shell logs clean openapi clean-containers
 
 dev:
 	docker compose --profile dev up --build
@@ -16,6 +16,7 @@ test-frontend:
 
 lint:
 	docker compose exec api ruff check src/
+	docker compose exec api python -m mypy src/ --ignore-missing-imports --no-error-summary
 	docker compose exec frontend npm run lint
 
 migrate:
@@ -49,3 +50,13 @@ clean:
 	@echo "This will remove all containers, volumes, and orphans."
 	@read -p "Are you sure? [y/N] " confirm && [ "$$confirm" = "y" ] || exit 1
 	docker compose down -v --remove-orphans
+
+clean-containers:
+	@echo "Stopping containers without wiping volumes (DB data preserved)."
+	docker compose down --remove-orphans
+
+openapi:
+	@echo "Exporting OpenAPI spec to docs/openapi.json..."
+	@mkdir -p docs
+	docker compose exec api python -c "import json; from src.main import app; print(json.dumps(app.openapi()))" > docs/openapi.json
+	@echo "OpenAPI spec written to docs/openapi.json"

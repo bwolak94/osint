@@ -56,12 +56,16 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
-    jwt_refresh_token_expire_minutes: int = 10080  # 7 days (must equal jwt_refresh_token_expire_days * 1440)
     jwt_refresh_token_expire_days: int = 7
 
+    @property
+    def jwt_refresh_token_expire_minutes(self) -> int:
+        """Derived from jwt_refresh_token_expire_days — single source of truth."""
+        return self.jwt_refresh_token_expire_days * 24 * 60
+
     # Mock data mode: when True, OSINT endpoints return deterministic demo data.
-    # Set OSINT_MOCK_DATA=false in production to require real data sources. (#13)
-    osint_mock_data: bool = True
+    # Defaults to False — set OSINT_MOCK_DATA=true only for demos/development. (#13)
+    osint_mock_data: bool = False
 
     # WebAuthn
     webauthn_rp_id: str = "localhost"
@@ -161,6 +165,26 @@ class Settings(BaseSettings):
     # Database connection pool (passed to SQLAlchemy create_async_engine)
     db_pool_size: int = 20
     db_pool_max_overflow: int = 10
+
+    # Celery worker tuning
+    # worker_prefetch_multiplier=1 is safest for long-running I/O-bound tasks (no greedy pre-fetch).
+    # Raise to 4-8 for very short tasks to improve throughput. (#33)
+    celery_worker_prefetch_multiplier: int = 1
+
+    @model_validator(mode="after")
+    def _validate_db_pool_size(self) -> "Settings":
+        """Warn when total DB connections may exceed PostgreSQL max_connections."""
+        total = (self.db_pool_size + self.db_pool_max_overflow) * 4  # 4 Uvicorn workers
+        if total > 90:
+            import warnings
+            warnings.warn(
+                f"DB pool configuration may exceed PostgreSQL max_connections: "
+                f"(db_pool_size={self.db_pool_size} + db_pool_max_overflow={self.db_pool_max_overflow}) "
+                f"* 4 workers = {total} connections. Default max_connections=100. "
+                "Reduce pool sizes or raise max_connections.",
+                stacklevel=2,
+            )
+        return self
 
     # Security
     pii_encryption_key: str = ""
@@ -270,6 +294,14 @@ class Settings(BaseSettings):
     google_calendar_mcp_url: str = "https://mcp.googleapis.com/calendar/sse"
     google_calendar_oauth_token: str = ""
 
+    @field_validator("jwt_algorithm")
+    @classmethod
+    def _validate_jwt_algorithm(cls, v: str) -> str:
+        allowed = {"HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "ES256", "ES384", "ES512"}
+        if v not in allowed:
+            raise ValueError(f"JWT_ALGORITHM must be one of {sorted(allowed)}, got '{v}'")
+        return v
+
     @field_validator("redis_url")
     @classmethod
     def _validate_redis_url(cls, v: str) -> str:
@@ -290,25 +322,6 @@ class Settings(BaseSettings):
         if not v:
             raise ValueError("POSTGRES_HOST must not be empty")
         return v
-
-    @model_validator(mode="after")
-    def _validate_refresh_token_consistency(self) -> "Settings":
-        """Ensure the two refresh-token TTL fields agree with each other. (#7)
-
-        ``jwt_refresh_token_expire_minutes`` and ``jwt_refresh_token_expire_days``
-        are redundant but both used by different parts of the codebase. A mismatch
-        would cause tokens to expire at different times depending on which field a
-        caller reads, producing subtle authentication bugs.
-        """
-        expected_minutes = self.jwt_refresh_token_expire_days * 24 * 60
-        if self.jwt_refresh_token_expire_minutes != expected_minutes:
-            raise ValueError(
-                f"JWT_REFRESH_TOKEN_EXPIRE_MINUTES ({self.jwt_refresh_token_expire_minutes}) "
-                f"must equal JWT_REFRESH_TOKEN_EXPIRE_DAYS * 1440 "
-                f"({self.jwt_refresh_token_expire_days} * 1440 = {expected_minutes}). "
-                "Update one of the two values to make them consistent."
-            )
-        return self
 
     @model_validator(mode="after")
     def _validate_postgres_dsn_format(self) -> "Settings":

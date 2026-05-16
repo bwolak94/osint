@@ -1,6 +1,19 @@
 import { useMutation, useQueryClient, type UseMutationResult } from "@tanstack/react-query";
+import { z } from "zod";
 import { apiClient } from "@/shared/api/client";
+import { validateResponse } from "@/shared/api/validateResponse";
 import { toast } from "@/shared/components/Toast";
+import type { Investigation } from "./useInvestigationQueries";
+
+const InvestigationStubSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  status: z.string(),
+});
+
+function isInvestigation(obj: unknown): obj is Investigation {
+  return typeof obj === "object" && obj !== null && "status" in obj && "id" in obj;
+}
 
 export interface CreateInvestigationInput {
   title: string;
@@ -28,8 +41,8 @@ export function useCreateInvestigation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (data: CreateInvestigationInput) => {
-      const res = await apiClient.post<InvestigationStub>("/investigations/", data);
-      return res.data;
+      const res = await apiClient.post<unknown>("/investigations", data);
+      return validateResponse(InvestigationStubSchema, res.data, "useCreateInvestigation");
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["investigations"] });
@@ -46,20 +59,20 @@ export function useStartInvestigation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await apiClient.post(`/investigations/${id}/start/`);
+      await apiClient.post(`/investigations/${id}/start`);
     },
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: ["investigation", id] });
       const prev = qc.getQueryData(["investigation", id]);
       qc.setQueryData(["investigation", id], (old: unknown) =>
-        old && typeof old === "object" ? { ...old, status: "running" } : old
+        isInvestigation(old) ? { ...old, status: "running" } : old
       );
       return { prev };
     },
     onSuccess: (_, id) => {
-      qc.invalidateQueries({ queryKey: ["investigation", id] });
-      qc.invalidateQueries({ queryKey: ["investigation-results", id] });
-      qc.invalidateQueries({ queryKey: ["investigations"] });
+      void qc.invalidateQueries({ queryKey: ["investigation", id] });
+      void qc.invalidateQueries({ queryKey: ["investigation-results", id] });
+      void qc.invalidateQueries({ queryKey: ["investigations"] });
       void qc.invalidateQueries({ queryKey: ["investigations-infinite"] });
       toast.success("Scan started");
     },
@@ -74,18 +87,18 @@ export function usePauseInvestigation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      await apiClient.post(`/investigations/${id}/pause/`);
+      await apiClient.post(`/investigations/${id}/pause`);
     },
     onMutate: async (id) => {
       await qc.cancelQueries({ queryKey: ["investigation", id] });
       const prev = qc.getQueryData(["investigation", id]);
       qc.setQueryData(["investigation", id], (old: unknown) =>
-        old && typeof old === "object" ? { ...old, status: "paused" } : old
+        isInvestigation(old) ? { ...old, status: "paused" } : old
       );
       return { prev };
     },
     onSuccess: (_, id) => {
-      qc.invalidateQueries({ queryKey: ["investigation", id] });
+      void qc.invalidateQueries({ queryKey: ["investigation", id] });
     },
     onError: (_err, id, ctx) => {
       if (ctx?.prev) qc.setQueryData(["investigation", id], ctx.prev);

@@ -16,7 +16,7 @@ const SeedInputSchema = z.object({
 const InvestigationSchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
-  description: z.string(),
+  description: z.string().nullable(),
   status: z.string(),
   owner_id: z.string().uuid(),
   seed_inputs: z.array(SeedInputSchema),
@@ -105,7 +105,7 @@ export function useInvestigations(cursor?: string) {
     queryFn: async ({ signal }) => {
       const params = new URLSearchParams();
       if (cursor) params.set("cursor", cursor);
-      const res = await apiClient.get<unknown>(`/investigations/?${params}`, { signal });
+      const res = await apiClient.get<unknown>(`/investigations?${params}`, { signal });
       return validateResponse(InvestigationListResponseSchema, res.data, "useInvestigations");
     },
     staleTime: STALE_1M,
@@ -118,7 +118,7 @@ export function useInvestigationsInfinite() {
     queryFn: async ({ pageParam, signal }: { pageParam: string | undefined; signal: AbortSignal }) => {
       const params = new URLSearchParams();
       if (pageParam) params.set("cursor", pageParam);
-      const res = await apiClient.get<unknown>(`/investigations/?${params}`, { signal });
+      const res = await apiClient.get<unknown>(`/investigations?${params}`, { signal });
       return validateResponse(InvestigationListResponseSchema, res.data, "useInvestigationsInfinite");
     },
     initialPageParam: undefined as string | undefined,
@@ -131,7 +131,7 @@ export function useInvestigation(id: string) {
   return useQuery({
     queryKey: ["investigation", id],
     queryFn: async ({ signal }) => {
-      const res = await apiClient.get<unknown>(`/investigations/${id}/`, { signal });
+      const res = await apiClient.get<unknown>(`/investigations/${id}`, { signal });
       return validateResponse(InvestigationSchema, res.data, "useInvestigation");
     },
     enabled: !!id,
@@ -144,11 +144,11 @@ export function useInvestigationResults(id: string, isRunning: boolean = false) 
   return useQuery({
     queryKey: ["investigation-results", id],
     queryFn: async ({ signal }) => {
-      const res = await apiClient.get<unknown>(`/investigations/${id}/results/`, { signal });
+      const res = await apiClient.get<unknown>(`/investigations/${id}/results`, { signal });
       return validateResponse(InvestigationResultsSchema, res.data, "useInvestigationResults");
     },
     enabled: !!id,
-    staleTime: isRunning ? 0 : STALE_5M,
+    staleTime: STALE_5M,
     refetchInterval: isRunning ? 5000 : false,
   });
 }
